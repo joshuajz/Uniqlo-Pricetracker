@@ -8,6 +8,7 @@ DEBUG_MODE = True
 URLS = [
     'https://www.uniqlo.com/ca/en/men/tops'
 ]
+PRICES = {}
 
 def main():
     # src: https://www.scrapingbee.com/blog/selenium-python/
@@ -21,17 +22,37 @@ def main():
 
     reject_cookies(driver)
 
-    if DEBUG_MODE:
-        print("DEBUG: Driver Title: ", driver.title)
-        driver.save_screenshot(f"debug_page_start.png")
+    for url in URLS:
+        driver.get(url)
+        time.sleep(2)
+        url_key = url.split('https://www.uniqlo.com/ca/en/')[1]
 
-    # scroll_end(driver)
+        if DEBUG_MODE:
+            print("DEBUG: Driver Title: ", driver.title)
+            driver.save_screenshot(f"debug_page_start.png")
 
-    if DEBUG_MODE: driver.save_screenshot("debug_page_end.png")
+        scroll_end(driver)
 
-    links = get_grid_links(driver)
-    if DEBUG_MODE: print("DEBUG: Links:", links)
+        if DEBUG_MODE: driver.save_screenshot("debug_page_end.png")
 
+        links = get_grid_links(driver)
+        if DEBUG_MODE: print("DEBUG: Links:", links)
+
+        for link in links:
+            if DEBUG_MODE: print("DEBUG: Visiting link:", link)
+            driver.get(link)
+            time.sleep(2)
+
+            name  = driver.find_element(By.XPATH, '/html/body/div[1]/div/div/div[1]/div[2]/div/div[1]/div/main/div[1]/div').text
+            price = driver.find_element(By.XPATH, '/html/body/div[1]/div/div/div[1]/div[2]/div/div[1]/div/main/div[5]/div/div/div[1]/div/div/p').text
+            if DEBUG_MODE: print(f"DEBUG: Product Name: {name} | Price: {price}")
+
+            if (PRICES.get(f"{url_key}") is None):
+                PRICES[f"{url_key}"] = [(name, price)]
+            else:
+                PRICES[f"{url_key}"].append((name, price))
+            break
+    if DEBUG_MODE: print("DEBUG: Final Prices Dictionary:", PRICES)
     driver.quit()
 
 def reject_cookies(driver):
