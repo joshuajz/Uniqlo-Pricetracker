@@ -1,4 +1,7 @@
+import os
+import re
 import time
+import urllib.request
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -9,6 +12,7 @@ URLS = [
     'https://www.uniqlo.com/ca/en/men/tops'
 ]
 PRICES = {}
+SAVE_PHOTO = True
 
 def main():
     # src: https://www.scrapingbee.com/blog/selenium-python/
@@ -45,13 +49,31 @@ def main():
 
             name  = driver.find_element(By.XPATH, '/html/body/div[1]/div/div/div[1]/div[2]/div/div[1]/div/main/div[1]/div').text
             price = driver.find_element(By.XPATH, '/html/body/div[1]/div/div/div[1]/div[2]/div/div[1]/div/main/div[5]/div/div/div[1]/div/div/p').text
+            if SAVE_PHOTO:
+                # Find the main product image (parent has image--ratio-3x4 class)
+                image = driver.find_element(By.CSS_SELECTOR, '.image--ratio-3x4 .image__img')
+                image_url = image.get_attribute('src')
+
+                # Create folder for this category
+                folder_path = f"images/{url_key}"
+                os.makedirs(folder_path, exist_ok=True)
+
+                # Sanitize product name for filename (replace invalid chars and spaces with underscores)
+                safe_name = re.sub(r'[<>:"/\\|?*\s]+', '_', name).strip('_')
+                file_path = f"{folder_path}/{safe_name}.jpg"
+
+                urllib.request.urlretrieve(image_url, file_path)
+                if DEBUG_MODE: print(f"DEBUG: Saved image to {file_path}")
+
             if DEBUG_MODE: print(f"DEBUG: Product Name: {name} | Price: {price}")
 
             if (PRICES.get(f"{url_key}") is None):
                 PRICES[f"{url_key}"] = [(name, price)]
             else:
                 PRICES[f"{url_key}"].append((name, price))
+
             break
+
     if DEBUG_MODE: print("DEBUG: Final Prices Dictionary:", PRICES)
     driver.quit()
 
