@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import time
@@ -80,9 +81,13 @@ def main():
             else:
                 PRICES[f"{url_key}"].append((name, price))
 
-            break
-
     if DEBUG_MODE: print("DEBUG: Final Prices Dictionary:", PRICES)
+
+    # Save prices to JSON file
+    with open('prices.json', 'w', encoding='utf-8') as f:
+        json.dump(PRICES, f, indent=2, ensure_ascii=False)
+    print("INFO: Prices saved to prices.json")
+
     driver.quit()
 
 def reject_cookies(driver):
