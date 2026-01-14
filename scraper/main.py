@@ -9,7 +9,15 @@ from selenium.webdriver.common.by import By
 DEBUG_MODE = True
 
 URLS = [
-    'https://www.uniqlo.com/ca/en/men/tops'
+    'https://www.uniqlo.com/ca/en/men/tops',
+    'https://www.uniqlo.com/ca/en/men/outerwear',
+    'https://www.uniqlo.com/ca/en/men/sweaters-and-knitwear',
+    'https://www.uniqlo.com/ca/en/men/shirts-and-polo-shirts',
+    'https://www.uniqlo.com/ca/en/men/bottoms',
+    'https://www.uniqlo.com/ca/en/men/innerwear-and-base-layers/',
+    'https://www.uniqlo.com/ca/en/men/loungewear',
+    'https://www.uniqlo.com/ca/en/men/accessories-and-home',
+    'https://www.uniqlo.com/ca/en/men/sport-utility-wear'
 ]
 PRICES = {}
 SAVE_PHOTO = True
