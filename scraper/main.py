@@ -1,10 +1,11 @@
 import json
-import os
 import re
 import time
 import urllib.request
+import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
+from pathlib import Path
 from threading import Lock
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -111,19 +112,22 @@ def scrape_url(url, worker_id):
                 name = driver.find_element(By.XPATH, name_xpath).text
                 price = driver.find_element(By.XPATH, price_xpath).text
 
+                image_path_str = None
                 if SAVE_PHOTO:
                     image = driver.find_element(By.CSS_SELECTOR, '.image--ratio-3x4 .image__img')
                     image_url = image.get_attribute('src')
 
-                    folder_path = f"images/{url_key}"
-                    os.makedirs(folder_path, exist_ok=True)
+                    folder_path = Path("images") / url_key
+                    folder_path.mkdir(parents=True, exist_ok=True)
 
                     safe_name = re.sub(r'[<>:"/\\|?*\s]+', '_', name).strip('_')
-                    file_path = f"{folder_path}/{safe_name}.jpg"
+                    image_path = folder_path / f"{safe_name}.jpg"
 
-                    urllib.request.urlretrieve(image_url, file_path)
+                    urllib.request.urlretrieve(image_url, str(image_path))
+                    # Store as POSIX path for cross-platform compatibility
+                    image_path_str = image_path.as_posix()
                     if DEBUG_MODE:
-                        print(f"[Worker {worker_id}] DEBUG: Saved image to {file_path}")
+                        print(f"[Worker {worker_id}] DEBUG: Saved image to {image_path_str}")
 
                 if DEBUG_MODE:
                     print(f"[Worker {worker_id}] DEBUG: Product ID: {product_id} | Name: {name} | Price: {price}")
@@ -132,7 +136,8 @@ def scrape_url(url, worker_id):
                     "product_id": product_id,
                     "name": name,
                     "price": price,
-                    "url": link
+                    "url": link,
+                    "image": image_path_str
                 })
 
             except Exception as e:
@@ -212,6 +217,24 @@ def main():
         json.dump(output, f, indent=2, ensure_ascii=False)
     print(f"INFO: Prices saved to prices.json ({total_products} products across {len(categories_scraped)} categories)")
 
+    # Create zip archive with images and prices.json
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    zip_filename = f"Uniqlo_{date_str}.zip"
+
+    with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        # Add prices.json
+        zipf.write('prices.json')
+
+        # Add all images
+        images_path = Path("images")
+        if images_path.exists():
+            for image_file in images_path.rglob("*"):
+                if image_file.is_file():
+                    zipf.write(image_file)
+
+    print(f"INFO: Created archive {zip_filename}")
+
+
 def reject_cookies(driver, worker_id=0):
     print(f"[Worker {worker_id}] INFO: Attempting to reject cookies.")
     try:
@@ -241,8 +264,8 @@ def scroll_end(driver, worker_id=0):
 
         new_height = driver.execute_script("return document.body.scrollHeight")
 
-        if DEBUG_MODE:
-            driver.save_screenshot(f"page_scroll_{worker_id}_{i}.png")
+        # if DEBUG_MODE:
+        #     driver.save_screenshot(f"page_scroll_{worker_id}_{i}.png")
         i += 1
 
         if new_height == last_height:
