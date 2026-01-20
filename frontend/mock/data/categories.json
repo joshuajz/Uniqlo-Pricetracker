@@ -1,0 +1,56 @@
+[
+  {
+    "slug": "men/tops",
+    "name": "Tops",
+    "description": "T-shirts, tank tops, and casual tops for men",
+    "productCount": 2
+  },
+  {
+    "slug": "men/outerwear",
+    "name": "Outerwear",
+    "description": "Jackets, coats, and parkas for all seasons",
+    "productCount": 3
+  },
+  {
+    "slug": "men/sweaters-and-knitwear",
+    "name": "Sweaters & Knitwear",
+    "description": "Sweaters, cardigans, and knit tops",
+    "productCount": 2
+  },
+  {
+    "slug": "men/shirts-and-polo-shirts",
+    "name": "Shirts & Polo Shirts",
+    "description": "Dress shirts, casual shirts, and polo shirts",
+    "productCount": 1
+  },
+  {
+    "slug": "men/bottoms",
+    "name": "Bottoms",
+    "description": "Jeans, pants, shorts, and joggers",
+    "productCount": 2
+  },
+  {
+    "slug": "men/innerwear-and-base-layers",
+    "name": "Innerwear & Base Layers",
+    "description": "HEATTECH, AIRism, and base layer essentials",
+    "productCount": 1
+  },
+  {
+    "slug": "men/loungewear",
+    "name": "Loungewear",
+    "description": "Comfortable clothing for home and relaxation",
+    "productCount": 0
+  },
+  {
+    "slug": "men/accessories-and-home",
+    "name": "Accessories & Home",
+    "description": "Bags, socks, hats, and home goods",
+    "productCount": 0
+  },
+  {
+    "slug": "men/sport-utility-wear",
+    "name": "Sport Utility Wear",
+    "description": "Athletic and performance clothing",
+    "productCount": 1
+  }
+]
