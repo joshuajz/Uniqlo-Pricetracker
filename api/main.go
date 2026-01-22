@@ -46,8 +46,6 @@ type Image struct {
 
 // injestProducts accepts a ZIP file and extracts product data
 func injestProducts(c *gin.Context) {
-	// db, err := sql.Open("sqlite", "database/products.db")
-
 	// Get the uploaded file
 	file, err := c.FormFile("file")
 	if err != nil {
@@ -118,13 +116,14 @@ func injestProducts(c *gin.Context) {
 	// Inject products into the database
 	count := 0
 
+	date := time.Now()
 	for category, categoryProducts := range scraperOutput.Products {
 		for _, product := range categoryProducts {
-			sql := "INSERT INTO products (product_id, name, price, url, category) VALUES (?, ?, ?, ?, ?);"
+			sql := "INSERT INTO products (product_id, name, price, url, category, datetime) VALUES (?, ?, ?, ?, ?, ?);"
 
 			price := strings.Split(product.Price, "CA $ ")[1]
 
-			_, err := db.Exec(sql, product.ProductID, product.Name, price, product.URL, category)
+			_, err := db.Exec(sql, product.ProductID, product.Name, price, product.URL, category, date)
 
 			if err != nil {
 				fmt.Println("Error:", err)
@@ -155,7 +154,7 @@ func injestProducts(c *gin.Context) {
 			}
 
 			image_sql := "INSERT INTO images (product_id, image, last_updated) VALUES (?, ?, ?);"
-			_, err = db.Exec(image_sql, product.ProductID, imageBytes, time.Now())
+			_, err = db.Exec(image_sql, product.ProductID, imageBytes, date)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to insert image into database", "details": err.Error()})
 				return
