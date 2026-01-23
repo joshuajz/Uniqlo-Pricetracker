@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -42,6 +43,48 @@ type ScraperOutput struct {
 type Image struct {
 	ImagePath string
 	File      zip.File
+}
+
+// updateProductStats updates the stats table with lowest price tracking
+// Case 1: Product doesn't exist -> insert with current price as lowest
+// Case 2: Product exists and current price < lowest -> update lowest price
+// Case 3: Product exists and current price >= lowest -> do nothing
+func updateProductStats(db *sql.DB, productID string, currentPrice float64, datetime time.Time) error {
+	// Query for existing stats record
+	var lowestPrice float64
+	err := db.QueryRow("SELECT lowest_price FROM stats WHERE product_id = ?", productID).Scan(&lowestPrice)
+
+	if err == sql.ErrNoRows {
+		// Case 1: Product doesn't exist in stats, insert new record
+		_, err := db.Exec(
+			"INSERT INTO stats (product_id, lowest_price, datetime) VALUES (?, ?, ?)",
+			productID, currentPrice, datetime,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to insert stats: %w", err)
+		}
+		fmt.Printf("Stats: New product %s added with lowest price %.2f\n", productID, currentPrice)
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("failed to query stats: %w", err)
+	}
+
+	// Case 2: Product exists and current price is lower than recorded lowest
+	if currentPrice < lowestPrice {
+		_, err := db.Exec(
+			"UPDATE stats SET lowest_price = ?, datetime = ? WHERE product_id = ?",
+			currentPrice, datetime, productID,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to update stats: %w", err)
+		}
+		fmt.Printf("Stats: Product %s updated lowest price from %.2f to %.2f\n", productID, lowestPrice, currentPrice)
+		return nil
+	}
+
+	// Case 3: Current price >= lowest price, do nothing
+	fmt.Printf("Stats: Product %s price %.2f not lower than lowest %.2f, skipping\n", productID, currentPrice, lowestPrice)
+	return nil
 }
 
 // injestProducts accepts a ZIP file and extracts product data
@@ -129,6 +172,16 @@ func injestProducts(c *gin.Context) {
 				fmt.Println("Error:", err)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to insert product into database", "details": err.Error()})
 				return
+			}
+
+			// Update stats table with lowest price tracking
+			priceFloat, err := strconv.ParseFloat(price, 64)
+			if err != nil {
+				fmt.Println("Warning: Failed to parse price for stats:", err)
+			} else {
+				if err := updateProductStats(db, product.ProductID, priceFloat, date); err != nil {
+					fmt.Println("Warning: Failed to update stats:", err)
+				}
 			}
 
 			fmt.Println("Category:", category, "Product:", product)
