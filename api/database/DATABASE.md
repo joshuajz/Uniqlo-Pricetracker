@@ -23,3 +23,8 @@ CREATE TABLE "scraper" (
 	"categories_scraped"	INTEGER NOT NULL,
 	"categories"	TEXT NOT NULL
 );
+
+CREATE TABLE "stats" (
+	"product_id"	TEXT NOT NULL,
+	"lowest_price"	REAL
+);
