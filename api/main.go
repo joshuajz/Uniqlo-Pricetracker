@@ -10,12 +10,25 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	_ "modernc.org/sqlite"
 )
+
+// ProductsCache holds cached products response with expiration
+type ProductsCache struct {
+	mu        sync.RWMutex
+	data      gin.H
+	expiresAt time.Time
+}
+
+// Cache duration
+const cacheDuration = 1 * time.Hour
+
+var productsCache = &ProductsCache{}
 
 // Product represents a scraped Uniqlo product
 type Product struct {
@@ -24,6 +37,17 @@ type Product struct {
 	Price     string `json:"price"`
 	URL       string `json:"url"`
 	Image     string `json:"image"`
+}
+
+// ProductResponse represents a product in the API response with lowest price
+type ProductResponse struct {
+	ProductID   string  `json:"product_id"`
+	Name        string  `json:"name"`
+	Price       float64 `json:"price"`
+	URL         string  `json:"url"`
+	Category    string  `json:"category"`
+	Datetime    string  `json:"datetime"`
+	LowestPrice float64 `json:"lowest_price"`
 }
 
 // ScraperOutput matches the structure from prices.json
@@ -217,6 +241,12 @@ func injestProducts(c *gin.Context) {
 	}
 	db.Close()
 
+	// Invalidate products cache after ingesting new data
+	productsCache.mu.Lock()
+	productsCache.data = nil
+	productsCache.expiresAt = time.Time{}
+	productsCache.mu.Unlock()
+
 	c.JSON(http.StatusOK, gin.H{
 		"message":    "Products ingested successfully",
 		"count":      count,
@@ -224,8 +254,98 @@ func injestProducts(c *gin.Context) {
 		"metadata":   scraperOutput.Metadata,
 	})
 }
+
+// getProducts returns all products from the most recent scrape with their lowest prices
+func getProducts(c *gin.Context) {
+	// Check cache first
+	productsCache.mu.RLock()
+	if productsCache.data != nil && time.Now().Before(productsCache.expiresAt) {
+		cachedData := productsCache.data
+		productsCache.mu.RUnlock()
+		c.JSON(http.StatusOK, cachedData)
+		return
+	}
+	productsCache.mu.RUnlock()
+
+	// Cache miss or expired, fetch from database
+	db, err := sql.Open("sqlite", "database/products.db")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
+		return
+	}
+	defer db.Close()
+
+	// Get the newest datetime from products table
+	var newestDatetime string
+	err = db.QueryRow("SELECT MAX(datetime) FROM products").Scan(&newestDatetime)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get newest datetime"})
+		return
+	}
+
+	if newestDatetime == "" {
+		c.JSON(http.StatusOK, gin.H{"products": []ProductResponse{}, "datetime": nil})
+		return
+	}
+
+	// Query products with the newest datetime and join with stats for lowest_price
+	query := `
+		SELECT
+			p.product_id,
+			p.name,
+			p.price,
+			p.url,
+			p.category,
+			p.datetime,
+			COALESCE(s.lowest_price, p.price) as lowest_price
+		FROM products p
+		LEFT JOIN stats s ON p.product_id = s.product_id
+		WHERE p.datetime = ?
+	`
+
+	rows, err := db.Query(query, newestDatetime)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query products"})
+		return
+	}
+	defer rows.Close()
+
+	var products []ProductResponse
+	for rows.Next() {
+		var p ProductResponse
+		err := rows.Scan(&p.ProductID, &p.Name, &p.Price, &p.URL, &p.Category, &p.Datetime, &p.LowestPrice)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan product"})
+			return
+		}
+		products = append(products, p)
+	}
+
+	if err = rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating products"})
+		return
+	}
+
+	// Build response and cache it
+	response := gin.H{
+		"datetime": newestDatetime,
+		"count":    len(products),
+		"products": products,
+	}
+
+	productsCache.mu.Lock()
+	productsCache.data = response
+	productsCache.expiresAt = time.Now().Add(cacheDuration)
+	productsCache.mu.Unlock()
+
+	c.JSON(http.StatusOK, response)
+}
+
 func main() {
 	router := gin.Default()
+
+	// Public endpoint to get products
+	router.GET("/api/products", getProducts)
 
 	// Protected endpoint to ingest scraped data
 	router.POST("/api/products/injest", gin.BasicAuth(gin.Accounts{"admin": "password"}), injestProducts)
