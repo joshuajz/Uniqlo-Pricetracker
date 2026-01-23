@@ -1,20 +1,13 @@
-import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
 import { HomePage } from '@/pages/HomePage'
 import { ProductPage } from '@/pages/ProductPage'
 import { SearchPage } from '@/pages/SearchPage'
-import { getStats } from '@/lib/api'
-import type { Stats } from '@/types'
+import { CategoriesPage } from '@/pages/CategoriesPage'
+import { CategoryPage } from '@/pages/CategoryPage'
 
 function App() {
-  const [stats, setStats] = useState<Stats | null>(null)
-
-  useEffect(() => {
-    getStats().then(setStats).catch(console.error)
-  }, [])
-
   return (
     <BrowserRouter>
       <div className="min-h-screen flex flex-col">
@@ -24,9 +17,11 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/product/:id" element={<ProductPage />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/categories" element={<CategoriesPage />} />
+            <Route path="/category/:slug" element={<CategoryPage />} />
           </Routes>
         </main>
-        <Footer lastScraped={stats?.lastScraped} />
+        <Footer />
       </div>
     </BrowserRouter>
   )

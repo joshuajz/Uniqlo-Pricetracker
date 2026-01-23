@@ -25,10 +25,22 @@ type ProductsCache struct {
 	expiresAt time.Time
 }
 
+// ProductDetailCache holds cached product detail responses keyed by product ID
+type ProductDetailCache struct {
+	mu    sync.RWMutex
+	cache map[string]productCacheEntry
+}
+
+type productCacheEntry struct {
+	data      gin.H
+	expiresAt time.Time
+}
+
 // Cache duration
 const cacheDuration = 1 * time.Hour
 
 var productsCache = &ProductsCache{}
+var productDetailCache = &ProductDetailCache{cache: make(map[string]productCacheEntry)}
 
 // Product represents a scraped Uniqlo product
 type Product struct {
@@ -39,15 +51,36 @@ type Product struct {
 	Image     string `json:"image"`
 }
 
-// ProductResponse represents a product in the API response with lowest price
+// ProductResponse represents a product in the API response with price stats
 type ProductResponse struct {
-	ProductID   string  `json:"product_id"`
-	Name        string  `json:"name"`
-	Price       float64 `json:"price"`
-	URL         string  `json:"url"`
-	Category    string  `json:"category"`
-	Datetime    string  `json:"datetime"`
+	ProductID    string  `json:"product_id"`
+	Name         string  `json:"name"`
+	Price        float64 `json:"price"`
+	URL          string  `json:"url"`
+	Category     string  `json:"category"`
+	Datetime     string  `json:"datetime"`
+	LowestPrice  float64 `json:"lowest_price"`
+	RegularPrice float64 `json:"regular_price"`
+	IsAllTimeLow bool    `json:"is_all_time_low"`
+}
+
+// ProductDatapoint represents a single price datapoint for a product
+type ProductDatapoint struct {
+	Price    float64 `json:"price"`
+	Category string  `json:"category"`
+	Datetime string  `json:"datetime"`
+}
+
+// LowestPriceInfo contains the lowest price information from stats table
+type LowestPriceInfo struct {
 	LowestPrice float64 `json:"lowest_price"`
+	Datetime    string  `json:"lowest_price_datetime"`
+}
+
+// HighestPriceInfo contains the highest price information from stats table
+type HighestPriceInfo struct {
+	HighestPrice float64 `json:"highest_price"`
+	Datetime     string  `json:"highest_price_datetime"`
 }
 
 // ScraperOutput matches the structure from prices.json
@@ -69,45 +102,87 @@ type Image struct {
 	File      zip.File
 }
 
-// updateProductStats updates the stats table with lowest price tracking
-// Case 1: Product doesn't exist -> insert with current price as lowest
-// Case 2: Product exists and current price < lowest -> update lowest price
-// Case 3: Product exists and current price >= lowest -> do nothing
+// calculateRegularPrice calculates the mode (most frequent price) for a product
+func calculateRegularPrice(db *sql.DB, productID string) (float64, error) {
+	// Query to find the most frequent price for this product
+	query := `
+		SELECT price, COUNT(*) as count
+		FROM products
+		WHERE product_id = ?
+		GROUP BY price
+		ORDER BY count DESC, price DESC
+		LIMIT 1
+	`
+	var regularPrice float64
+	var count int
+	err := db.QueryRow(query, productID).Scan(&regularPrice, &count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to calculate regular price: %w", err)
+	}
+	return regularPrice, nil
+}
+
+// updateProductStats updates the stats table with lowest, highest, and regular price tracking
+// Case 1: Product doesn't exist -> insert with current price as lowest, highest, and regular
+// Case 2: Product exists -> update lowest if current < lowest, update highest if current > highest, recalculate regular
 func updateProductStats(db *sql.DB, productID string, currentPrice float64, datetime time.Time) error {
 	// Query for existing stats record
-	var lowestPrice float64
-	err := db.QueryRow("SELECT lowest_price FROM stats WHERE product_id = ?", productID).Scan(&lowestPrice)
+	var lowestPrice, highestPrice float64
+	err := db.QueryRow("SELECT lowest_price, highest_price FROM stats WHERE product_id = ?", productID).Scan(&lowestPrice, &highestPrice)
 
 	if err == sql.ErrNoRows {
-		// Case 1: Product doesn't exist in stats, insert new record
+		// Case 1: Product doesn't exist in stats, insert new record with current price as lowest, highest, and regular
 		_, err := db.Exec(
-			"INSERT INTO stats (product_id, lowest_price, datetime) VALUES (?, ?, ?)",
-			productID, currentPrice, datetime,
+			"INSERT INTO stats (product_id, lowest_price, lowest_price_datetime, highest_price, highest_price_datetime, regular_price) VALUES (?, ?, ?, ?, ?, ?)",
+			productID, currentPrice, datetime, currentPrice, datetime, currentPrice,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to insert stats: %w", err)
 		}
-		fmt.Printf("Stats: New product %s added with lowest price %.2f\n", productID, currentPrice)
+		fmt.Printf("Stats: New product %s added with price %.2f (lowest, highest, and regular)\n", productID, currentPrice)
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("failed to query stats: %w", err)
 	}
 
-	// Case 2: Product exists and current price is lower than recorded lowest
+	// Case 2: Product exists, check if we need to update lowest or highest
 	if currentPrice < lowestPrice {
 		_, err := db.Exec(
-			"UPDATE stats SET lowest_price = ?, datetime = ? WHERE product_id = ?",
+			"UPDATE stats SET lowest_price = ?, lowest_price_datetime = ? WHERE product_id = ?",
 			currentPrice, datetime, productID,
 		)
 		if err != nil {
-			return fmt.Errorf("failed to update stats: %w", err)
+			return fmt.Errorf("failed to update lowest price: %w", err)
 		}
 		fmt.Printf("Stats: Product %s updated lowest price from %.2f to %.2f\n", productID, lowestPrice, currentPrice)
-		return nil
 	}
 
-	// Case 3: Current price >= lowest price, do nothing
-	fmt.Printf("Stats: Product %s price %.2f not lower than lowest %.2f, skipping\n", productID, currentPrice, lowestPrice)
+	if currentPrice > highestPrice {
+		_, err := db.Exec(
+			"UPDATE stats SET highest_price = ?, highest_price_datetime = ? WHERE product_id = ?",
+			currentPrice, datetime, productID,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to update highest price: %w", err)
+		}
+		fmt.Printf("Stats: Product %s updated highest price from %.2f to %.2f\n", productID, highestPrice, currentPrice)
+	}
+
+	// Always recalculate regular price (mode) after adding new datapoint
+	regularPrice, err := calculateRegularPrice(db, productID)
+	if err != nil {
+		return fmt.Errorf("failed to calculate regular price: %w", err)
+	}
+
+	_, err = db.Exec(
+		"UPDATE stats SET regular_price = ? WHERE product_id = ?",
+		regularPrice, productID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update regular price: %w", err)
+	}
+	fmt.Printf("Stats: Product %s regular price updated to %.2f\n", productID, regularPrice)
+
 	return nil
 }
 
@@ -241,11 +316,15 @@ func injestProducts(c *gin.Context) {
 	}
 	db.Close()
 
-	// Invalidate products cache after ingesting new data
+	// Invalidate caches after ingesting new data
 	productsCache.mu.Lock()
 	productsCache.data = nil
 	productsCache.expiresAt = time.Time{}
 	productsCache.mu.Unlock()
+
+	productDetailCache.mu.Lock()
+	productDetailCache.cache = make(map[string]productCacheEntry)
+	productDetailCache.mu.Unlock()
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":    "Products ingested successfully",
@@ -288,7 +367,7 @@ func getProducts(c *gin.Context) {
 		return
 	}
 
-	// Query products with the newest datetime and join with stats for lowest_price
+	// Query products with the newest datetime and join with stats for lowest_price and regular_price
 	query := `
 		SELECT
 			p.product_id,
@@ -297,7 +376,8 @@ func getProducts(c *gin.Context) {
 			p.url,
 			p.category,
 			p.datetime,
-			COALESCE(s.lowest_price, p.price) as lowest_price
+			COALESCE(s.lowest_price, p.price) as lowest_price,
+			COALESCE(s.regular_price, p.price) as regular_price
 		FROM products p
 		LEFT JOIN stats s ON p.product_id = s.product_id
 		WHERE p.datetime = ?
@@ -313,11 +393,13 @@ func getProducts(c *gin.Context) {
 	var products []ProductResponse
 	for rows.Next() {
 		var p ProductResponse
-		err := rows.Scan(&p.ProductID, &p.Name, &p.Price, &p.URL, &p.Category, &p.Datetime, &p.LowestPrice)
+		err := rows.Scan(&p.ProductID, &p.Name, &p.Price, &p.URL, &p.Category, &p.Datetime, &p.LowestPrice, &p.RegularPrice)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan product"})
 			return
 		}
+		// Product is at all-time low if current price equals the lowest recorded price
+		p.IsAllTimeLow = p.Price <= p.LowestPrice
 		products = append(products, p)
 	}
 
@@ -341,11 +423,191 @@ func getProducts(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// getProductImage returns the product image as JPEG
+func getProductImage(c *gin.Context) {
+	productID := c.Param("id")
+	if productID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Product ID is required"})
+		return
+	}
+
+	db, err := sql.Open("sqlite", "database/products.db")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
+		return
+	}
+	defer db.Close()
+
+	var imageData []byte
+	err = db.QueryRow("SELECT image FROM images WHERE product_id = ?", productID).Scan(&imageData)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query image"})
+		return
+	}
+
+	c.Header("Cache-Control", "public, max-age=86400") // Cache for 24 hours
+	c.Data(http.StatusOK, "image/jpeg", imageData)
+}
+
+// getProduct returns all datapoints and lowest price info for a specific product ID
+func getProduct(c *gin.Context) {
+	productID := c.Param("id")
+	if productID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Product ID is required"})
+		return
+	}
+
+	// Check cache first
+	productDetailCache.mu.RLock()
+	if entry, ok := productDetailCache.cache[productID]; ok && time.Now().Before(entry.expiresAt) {
+		cachedData := entry.data
+		productDetailCache.mu.RUnlock()
+		c.JSON(http.StatusOK, cachedData)
+		return
+	}
+	productDetailCache.mu.RUnlock()
+
+	// Cache miss or expired, fetch from database
+	db, err := sql.Open("sqlite", "database/products.db")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
+		return
+	}
+	defer db.Close()
+
+	// Get all datapoints for this product
+	query := `
+		SELECT price, category, datetime
+		FROM products
+		WHERE product_id = ?
+		ORDER BY datetime ASC
+	`
+
+	rows, err := db.Query(query, productID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query product datapoints"})
+		return
+	}
+	defer rows.Close()
+
+	var datapoints []ProductDatapoint
+	var name, url string
+
+	for rows.Next() {
+		var dp ProductDatapoint
+		err := rows.Scan(&dp.Price, &dp.Category, &dp.Datetime)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan datapoint"})
+			return
+		}
+		datapoints = append(datapoints, dp)
+	}
+
+	if err = rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating datapoints"})
+		return
+	}
+
+	if len(datapoints) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		return
+	}
+
+	// Get product name and URL from the most recent entry
+	err = db.QueryRow("SELECT name, url FROM products WHERE product_id = ? ORDER BY datetime DESC LIMIT 1", productID).Scan(&name, &url)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get product details"})
+		return
+	}
+
+	// Get lowest, highest, and regular price info from stats table
+	var lowestPriceInfo LowestPriceInfo
+	var highestPriceInfo HighestPriceInfo
+	var regularPrice float64
+	err = db.QueryRow(
+		"SELECT lowest_price, lowest_price_datetime, highest_price, highest_price_datetime, regular_price FROM stats WHERE product_id = ?",
+		productID,
+	).Scan(&lowestPriceInfo.LowestPrice, &lowestPriceInfo.Datetime, &highestPriceInfo.HighestPrice, &highestPriceInfo.Datetime, &regularPrice)
+	if err == sql.ErrNoRows {
+		// If no stats entry, calculate from datapoints
+		minPrice := datapoints[0].Price
+		minDatetime := datapoints[0].Datetime
+		maxPrice := datapoints[0].Price
+		maxDatetime := datapoints[0].Datetime
+		priceCount := make(map[float64]int)
+		for _, dp := range datapoints {
+			if dp.Price < minPrice {
+				minPrice = dp.Price
+				minDatetime = dp.Datetime
+			}
+			if dp.Price > maxPrice {
+				maxPrice = dp.Price
+				maxDatetime = dp.Datetime
+			}
+			priceCount[dp.Price]++
+		}
+		lowestPriceInfo.LowestPrice = minPrice
+		lowestPriceInfo.Datetime = minDatetime
+		highestPriceInfo.HighestPrice = maxPrice
+		highestPriceInfo.Datetime = maxDatetime
+		// Calculate mode for regular price
+		maxCount := 0
+		for price, count := range priceCount {
+			if count > maxCount || (count == maxCount && price > regularPrice) {
+				maxCount = count
+				regularPrice = price
+			}
+		}
+	} else if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get price stats"})
+		return
+	}
+
+	// Determine if product is on sale (current price < regular price)
+	currentPrice := datapoints[len(datapoints)-1].Price
+	onSale := currentPrice < regularPrice
+	// Product is at all-time low if current price equals the lowest recorded price
+	isAllTimeLow := currentPrice <= lowestPriceInfo.LowestPrice
+
+	// Build response and cache it
+	response := gin.H{
+		"product_id":      productID,
+		"name":            name,
+		"url":             url,
+		"datapoints":      datapoints,
+		"lowest_price":    lowestPriceInfo,
+		"highest_price":   highestPriceInfo,
+		"regular_price":   regularPrice,
+		"current_price":   currentPrice,
+		"on_sale":         onSale,
+		"is_all_time_low": isAllTimeLow,
+	}
+
+	productDetailCache.mu.Lock()
+	productDetailCache.cache[productID] = productCacheEntry{
+		data:      response,
+		expiresAt: time.Now().Add(cacheDuration),
+	}
+	productDetailCache.mu.Unlock()
+
+	c.JSON(http.StatusOK, response)
+}
+
 func main() {
 	router := gin.Default()
 
 	// Public endpoint to get products
 	router.GET("/api/products", getProducts)
+
+	// Public endpoint to get single product with all datapoints
+	router.GET("/api/product/:id", getProduct)
+
+	// Public endpoint to get product image
+	router.GET("/api/product/:id/image", getProductImage)
 
 	// Protected endpoint to ingest scraped data
 	router.POST("/api/products/injest", gin.BasicAuth(gin.Accounts{"admin": "password"}), injestProducts)

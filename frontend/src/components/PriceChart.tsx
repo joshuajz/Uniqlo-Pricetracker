@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import {
   LineChart,
   Line,
@@ -9,67 +8,36 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatPrice, formatDate } from '@/lib/utils'
-import type { PricePoint } from '@/types'
+import type { PriceDatapoint } from '@/types'
 
 interface PriceChartProps {
-  history: PricePoint[]
+  datapoints: PriceDatapoint[]
   lowestPrice: number
   highestPrice: number
   currentPrice: number
-  onRangeChange?: (days: number | null) => void
 }
 
-const timeRanges = [
-  { label: '7D', days: 7 },
-  { label: '30D', days: 30 },
-  { label: '90D', days: 90 },
-  { label: '1Y', days: 365 },
-  { label: 'All', days: null },
-]
-
 export function PriceChart({
-  history,
+  datapoints,
   lowestPrice,
   highestPrice,
   currentPrice,
-  onRangeChange,
 }: PriceChartProps) {
-  const [selectedRange, setSelectedRange] = useState<number | null>(null)
-
-  const handleRangeChange = (days: number | null) => {
-    setSelectedRange(days)
-    onRangeChange?.(days)
-  }
-
-  const chartData = history.map((point) => ({
-    date: point.date,
+  const chartData = datapoints.map((point) => ({
+    datetime: point.datetime,
     price: point.price,
-    formattedDate: formatDate(point.date),
+    formattedDate: formatDate(point.datetime),
   }))
 
-  const minPrice = Math.min(...history.map((p) => p.price)) * 0.95
-  const maxPrice = Math.max(...history.map((p) => p.price)) * 1.05
+  const minPrice = Math.min(...datapoints.map((p) => p.price)) * 0.95
+  const maxPrice = Math.max(...datapoints.map((p) => p.price)) * 1.05
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
+      <CardHeader className="pb-2">
         <CardTitle className="text-lg">Price History</CardTitle>
-        <div className="flex gap-1">
-          {timeRanges.map((range) => (
-            <Button
-              key={range.label}
-              variant={selectedRange === range.days ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => handleRangeChange(range.days)}
-              className="text-xs px-2"
-            >
-              {range.label}
-            </Button>
-          ))}
-        </div>
       </CardHeader>
       <CardContent>
         <div className="h-[300px] w-full">

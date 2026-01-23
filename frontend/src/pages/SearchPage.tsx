@@ -1,41 +1,48 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { Search, ArrowLeft } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ProductCard, ProductCardSkeleton } from '@/components/ProductCard'
-import { searchProducts } from '@/lib/api'
-import type { Product, Pagination } from '@/types'
+import { getProducts } from '@/lib/api'
+import type { Product } from '@/types'
 
 export function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const query = searchParams.get('q') || ''
-  const [products, setProducts] = useState<Product[]>([])
-  const [pagination, setPagination] = useState<Pagination | null>(null)
+  const [allProducts, setAllProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [searchInput, setSearchInput] = useState(query)
 
   useEffect(() => {
-    const fetchResults = async () => {
-      if (!query) {
-        setProducts([])
-        setPagination(null)
-        return
-      }
-
+    const fetchProducts = async () => {
       setIsLoading(true)
       try {
-        const results = await searchProducts(query, { limit: 12 })
-        setProducts(results.data)
-        setPagination(results.pagination)
+        const response = await getProducts()
+        setAllProducts(response.products || [])
       } catch (error) {
-        console.error('Search failed:', error)
+        console.error('Failed to fetch products:', error)
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchResults()
+    fetchProducts()
+  }, [])
+
+  // Filter products locally based on search query
+  const filteredProducts = useMemo(() => {
+    if (!query) return []
+    const lowerQuery = query.toLowerCase()
+    return allProducts.filter(
+      (product) =>
+        product.name.toLowerCase().includes(lowerQuery) ||
+        product.product_id.toLowerCase().includes(lowerQuery) ||
+        product.category.toLowerCase().includes(lowerQuery)
+    )
+  }, [allProducts, query])
+
+  useEffect(() => {
     setSearchInput(query)
   }, [query])
 
@@ -43,21 +50,6 @@ export function SearchPage() {
     e.preventDefault()
     if (searchInput.trim()) {
       setSearchParams({ q: searchInput.trim() })
-    }
-  }
-
-  const handleLoadMore = async () => {
-    if (!pagination?.hasNext || !query) return
-
-    try {
-      const nextPage = await searchProducts(query, {
-        page: pagination.page + 1,
-        limit: 12,
-      })
-      setProducts((prev) => [...prev, ...nextPage.data])
-      setPagination(nextPage.pagination)
-    } catch (error) {
-      console.error('Failed to load more:', error)
     }
   }
 
@@ -98,11 +90,9 @@ export function SearchPage() {
             <h1 className="text-2xl font-bold">
               Search results for "{query}"
             </h1>
-            {pagination && (
-              <p className="text-muted-foreground mt-1">
-                {pagination.total} {pagination.total === 1 ? 'product' : 'products'} found
-              </p>
-            )}
+            <p className="text-muted-foreground mt-1">
+              {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'} found
+            </p>
           </div>
 
           {isLoading ? (
@@ -111,23 +101,12 @@ export function SearchPage() {
                 <ProductCardSkeleton key={i} />
               ))}
             </div>
-          ) : products.length > 0 ? (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {products.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
-
-              {/* Load More */}
-              {pagination?.hasNext && (
-                <div className="mt-8 text-center">
-                  <Button variant="outline" onClick={handleLoadMore}>
-                    Load More Results
-                  </Button>
-                </div>
-              )}
-            </>
+          ) : filteredProducts.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredProducts.map((product) => (
+                <ProductCard key={product.product_id} product={product} />
+              ))}
+            </div>
           ) : (
             <div className="text-center py-12">
               <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -140,7 +119,7 @@ export function SearchPage() {
                 <ul className="list-disc list-inside space-y-1">
                   <li>Using different keywords</li>
                   <li>Searching for a product ID (e.g., E482305)</li>
-                  <li>Browsing categories instead</li>
+                  <li>Browsing all products instead</li>
                 </ul>
               </div>
             </div>

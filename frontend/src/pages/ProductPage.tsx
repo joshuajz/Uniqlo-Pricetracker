@@ -3,18 +3,16 @@ import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, ExternalLink, TrendingDown, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PriceChart } from '@/components/PriceChart'
-import { NotificationForm } from '@/components/NotificationForm'
-import { getProduct, getPriceHistory } from '@/lib/api'
+import { getProduct } from '@/lib/api'
 import { formatPrice, formatDate, calculateDiscount } from '@/lib/utils'
-import type { Product, PricePoint } from '@/types'
+import type { ProductDetail } from '@/types'
 
 export function ProductPage() {
   const { id } = useParams<{ id: string }>()
-  const [product, setProduct] = useState<Product | null>(null)
-  const [priceHistory, setPriceHistory] = useState<PricePoint[]>([])
+  const [product, setProduct] = useState<ProductDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -26,12 +24,8 @@ export function ProductPage() {
       setError(null)
 
       try {
-        const [productData, historyData] = await Promise.all([
-          getProduct(id),
-          getPriceHistory(id),
-        ])
+        const productData = await getProduct(id)
         setProduct(productData)
-        setPriceHistory(historyData.history)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load product')
       } finally {
@@ -41,17 +35,6 @@ export function ProductPage() {
 
     fetchData()
   }, [id])
-
-  const handleRangeChange = async (days: number | null) => {
-    if (!id) return
-
-    try {
-      const historyData = await getPriceHistory(id, days ?? undefined)
-      setPriceHistory(historyData.history)
-    } catch (err) {
-      console.error('Failed to fetch price history:', err)
-    }
-  }
 
   if (isLoading) {
     return <ProductPageSkeleton />
@@ -74,12 +57,12 @@ export function ProductPage() {
     )
   }
 
-  const discount = calculateDiscount(product.currentPrice, product.originalPrice)
-  const isOnSale = product.currentPrice < product.originalPrice
-  const isAllTimeLow = product.currentPrice <= product.lowestPrice
+  const discount = calculateDiscount(product.current_price, product.regular_price)
+  const lowestPrice = product.lowest_price.lowest_price ?? product.current_price
+  const highestPrice = product.highest_price.highest_price ?? product.current_price
 
   // Parse category for breadcrumb
-  const categoryParts = product.category.split('/')
+  const categoryParts = product.datapoints[0]?.category?.split('/') || ['Unknown']
   const categoryName = categoryParts[categoryParts.length - 1]
     .split('-')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -109,18 +92,25 @@ export function ProductPage() {
         {/* Product Image */}
         <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-muted">
           <img
-            src={product.imageUrl}
+            src={`/api/product/${product.product_id}/image`}
             alt={product.name}
             className="h-full w-full object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+              e.currentTarget.nextElementSibling?.classList.remove('hidden')
+            }}
           />
+          <div className="hidden h-full w-full bg-gradient-to-br from-muted to-muted-foreground/20 items-center justify-center absolute inset-0 flex">
+            <span className="text-muted-foreground">No Image Available</span>
+          </div>
           {/* Badges */}
           <div className="absolute top-4 left-4 flex flex-col gap-2">
-            {isAllTimeLow && (
+            {product.is_all_time_low && (
               <Badge variant="success" className="text-sm">
                 All-Time Low
               </Badge>
             )}
-            {isOnSale && !isAllTimeLow && (
+            {product.on_sale && !product.is_all_time_low && (
               <Badge variant="default" className="text-sm">
                 On Sale
               </Badge>
@@ -132,7 +122,7 @@ export function ProductPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold mb-2">{product.name}</h1>
           <p className="text-sm text-muted-foreground mb-6">
-            Product ID: {product.id}
+            Product ID: {product.product_id}
           </p>
 
           {/* Price Card */}
@@ -140,12 +130,12 @@ export function ProductPage() {
             <CardContent className="pt-6">
               <div className="flex items-baseline gap-3 mb-4">
                 <span className="text-4xl font-bold">
-                  {formatPrice(product.currentPrice)}
+                  {formatPrice(product.current_price)}
                 </span>
-                {isOnSale && (
+                {product.on_sale && (
                   <>
                     <span className="text-xl text-muted-foreground line-through">
-                      {formatPrice(product.originalPrice)}
+                      {formatPrice(product.regular_price)}
                     </span>
                     <Badge variant="destructive" className="text-sm">
                       -{discount}%
@@ -160,28 +150,32 @@ export function ProductPage() {
                   <TrendingDown className="h-4 w-4 text-success" />
                   <div>
                     <p className="text-sm text-muted-foreground">Lowest</p>
-                    <p className="font-semibold">{formatPrice(product.lowestPrice)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(product.lowestPriceDate)}
-                    </p>
+                    <p className="font-semibold">{formatPrice(lowestPrice)}</p>
+                    {product.lowest_price.lowest_price_datetime && (
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(product.lowest_price.lowest_price_datetime)}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-destructive" />
                   <div>
                     <p className="text-sm text-muted-foreground">Highest</p>
-                    <p className="font-semibold">{formatPrice(product.highestPrice)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(product.highestPriceDate)}
-                    </p>
+                    <p className="font-semibold">{formatPrice(highestPrice)}</p>
+                    {product.highest_price.highest_price_datetime && (
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(product.highest_price.highest_price_datetime)}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
 
               <div className="border-t pt-4 mt-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Average Price</span>
-                  <span className="font-semibold">{formatPrice(product.averagePrice)}</span>
+                  <span className="text-sm text-muted-foreground">Regular Price</span>
+                  <span className="font-semibold">{formatPrice(product.regular_price)}</span>
                 </div>
               </div>
             </CardContent>
@@ -189,7 +183,7 @@ export function ProductPage() {
 
           {/* Actions */}
           <a
-            href={product.productUrl}
+            href={product.url}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block w-full"
@@ -201,31 +195,25 @@ export function ProductPage() {
           </a>
 
           {/* Last Updated */}
-          <p className="text-xs text-muted-foreground mt-4 text-center">
-            Last updated: {formatDate(product.lastUpdated)}
-          </p>
+          {product.datapoints.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-4 text-center">
+              Last updated: {formatDate(product.datapoints[product.datapoints.length - 1].datetime)}
+            </p>
+          )}
         </div>
       </div>
 
       {/* Price History Chart */}
-      <div className="mb-8">
-        <PriceChart
-          history={priceHistory}
-          lowestPrice={product.lowestPrice}
-          highestPrice={product.highestPrice}
-          currentPrice={product.currentPrice}
-          onRangeChange={handleRangeChange}
-        />
-      </div>
-
-      {/* Notification Form */}
-      <div className="max-w-md mx-auto">
-        <NotificationForm
-          productId={product.id}
-          currentPrice={product.currentPrice}
-          lowestPrice={product.lowestPrice}
-        />
-      </div>
+      {product.datapoints.length > 0 && (
+        <div className="mb-8">
+          <PriceChart
+            datapoints={product.datapoints}
+            lowestPrice={lowestPrice}
+            highestPrice={highestPrice}
+            currentPrice={product.current_price}
+          />
+        </div>
+      )}
     </div>
   )
 }

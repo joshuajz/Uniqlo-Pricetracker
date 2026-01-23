@@ -27,5 +27,8 @@ CREATE TABLE "scraper" (
 CREATE TABLE "stats" (
 	"product_id"	TEXT NOT NULL,
 	"lowest_price"	REAL NOT NULL,
-	"datetime"	TEXT NOT NULL
+	"lowest_price_datetime"	TEXT NOT NULL,
+	"highest_price"	REAL NOT NULL,
+	"highest_price_datetime"	TEXT NOT NULL,
+	"regular_price"	REAL NOT NULL
 );

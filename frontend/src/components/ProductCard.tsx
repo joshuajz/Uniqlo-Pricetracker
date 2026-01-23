@@ -11,29 +11,35 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const discount = calculateDiscount(product.currentPrice, product.originalPrice)
-  const isOnSale = product.currentPrice < product.originalPrice
-  const isAllTimeLow = product.currentPrice <= product.lowestPrice
+  const discount = calculateDiscount(product.price, product.regular_price)
+  const isOnSale = product.price < product.regular_price
 
   return (
-    <Link to={`/product/${product.id}`}>
+    <Link to={`/product/${product.product_id}`}>
       <Card className="group overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
         {/* Image Container */}
         <div className="relative aspect-[3/4] overflow-hidden bg-muted">
           <img
-            src={product.imageUrl}
+            src={`/api/product/${product.product_id}/image`}
             alt={product.name}
             className="h-full w-full object-cover transition-transform group-hover:scale-105"
             loading="lazy"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+              e.currentTarget.nextElementSibling?.classList.remove('hidden')
+            }}
           />
+          <div className="hidden h-full w-full bg-gradient-to-br from-muted to-muted-foreground/20 flex items-center justify-center absolute inset-0">
+            <span className="text-muted-foreground text-xs">No Image</span>
+          </div>
           {/* Badges */}
           <div className="absolute top-2 left-2 flex flex-col gap-1">
-            {isAllTimeLow && (
+            {product.is_all_time_low && (
               <Badge variant="success" className="text-xs">
                 All-Time Low
               </Badge>
             )}
-            {isOnSale && !isAllTimeLow && (
+            {isOnSale && !product.is_all_time_low && (
               <Badge variant="default" className="text-xs">
                 Sale
               </Badge>
@@ -51,12 +57,12 @@ export function ProductCard({ product }: ProductCardProps) {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold">
-                {formatPrice(product.currentPrice)}
+                {formatPrice(product.price)}
               </span>
               {isOnSale && (
                 <>
                   <span className="text-sm text-muted-foreground line-through">
-                    {formatPrice(product.originalPrice)}
+                    {formatPrice(product.regular_price)}
                   </span>
                   <Badge variant="destructive" className="text-xs">
                     -{discount}%
@@ -67,12 +73,12 @@ export function ProductCard({ product }: ProductCardProps) {
 
             {/* Lowest Price */}
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              {product.currentPrice <= product.lowestPrice ? (
+              {product.is_all_time_low ? (
                 <TrendingDown className="h-3 w-3 text-success" />
               ) : (
                 <TrendingUp className="h-3 w-3 text-destructive" />
               )}
-              <span>Lowest: {formatPrice(product.lowestPrice)}</span>
+              <span>Lowest: {formatPrice(product.lowest_price)}</span>
             </div>
           </div>
         </CardContent>

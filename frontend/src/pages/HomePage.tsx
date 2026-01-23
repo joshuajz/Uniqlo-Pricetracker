@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Search, TrendingDown, Package, Percent } from 'lucide-react'
+import { Search, TrendingDown, Package, Percent, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { Card, CardContent } from '@/components/ui/card'
 import { ProductCard, ProductCardSkeleton } from '@/components/ProductCard'
-import { getProducts, getStats } from '@/lib/api'
-import type { Product, Stats, Pagination } from '@/types'
+import { getProducts } from '@/lib/api'
+import type { Product } from '@/types'
 
 const sortOptions = [
   { value: 'recent', label: 'Recently Updated' },
@@ -16,27 +16,29 @@ const sortOptions = [
   { value: 'discount', label: 'Biggest Discount' },
 ]
 
+const ITEMS_PER_PAGE = 12
+
 export function HomePage() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const [products, setProducts] = useState<Product[]>([])
-  const [pagination, setPagination] = useState<Pagination | null>(null)
-  const [stats, setStats] = useState<Stats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [sort, setSort] = useState(searchParams.get('sort') || 'recent')
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(() => {
+    const page = searchParams.get('page')
+    return page ? parseInt(page, 10) : 1
+  })
+  const isFirstRender = useRef(true)
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true)
       try {
-        const [productsData, statsData] = await Promise.all([
-          getProducts({ sort, limit: 12 }),
-          getStats(),
-        ])
-        setProducts(productsData.data)
-        setPagination(productsData.pagination)
-        setStats(statsData)
+        const response = await getProducts()
+        setProducts(response.products || [])
+        setLastUpdated(response.datetime)
       } catch (error) {
         console.error('Failed to fetch data:', error)
       } finally {
@@ -45,28 +47,90 @@ export function HomePage() {
     }
 
     fetchData()
-  }, [sort])
+  }, [])
+
+  // Sort products locally
+  const sortedProducts = useMemo(() => {
+    const sorted = [...products]
+    switch (sort) {
+      case 'price-asc':
+        sorted.sort((a, b) => a.price - b.price)
+        break
+      case 'price-desc':
+        sorted.sort((a, b) => b.price - a.price)
+        break
+      case 'discount':
+        sorted.sort((a, b) => {
+          const discountA = a.regular_price > 0 ? (a.regular_price - a.price) / a.regular_price : 0
+          const discountB = b.regular_price > 0 ? (b.regular_price - b.price) / b.regular_price : 0
+          return discountB - discountA
+        })
+        break
+      case 'recent':
+      default:
+        // Keep original order (most recent)
+        break
+    }
+    return sorted
+  }, [products, sort])
+
+  // Pagination
+  const totalPages = Math.ceil(sortedProducts.length / ITEMS_PER_PAGE)
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE
+    return sortedProducts.slice(start, start + ITEMS_PER_PAGE)
+  }, [sortedProducts, currentPage])
+
+  // Reset to page 1 when sort changes (skip first render)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    setCurrentPage(1)
+    setSearchParams((params) => {
+      params.delete('page')
+      return params
+    })
+  }, [sort, setSearchParams])
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    setSearchParams((params) => {
+      if (page === 1) {
+        params.delete('page')
+      } else {
+        params.set('page', String(page))
+      }
+      return params
+    })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Calculate stats from products
+  const stats = useMemo(() => {
+    const totalProducts = products.length
+    const onSaleProducts = products.filter(p => p.price < p.regular_price)
+    const productsOnSale = onSaleProducts.length
+    const allTimeLows = products.filter(p => p.is_all_time_low).length
+
+    // Calculate average discount for products on sale
+    const averageDiscount = productsOnSale > 0
+      ? Math.round(
+          onSaleProducts.reduce((sum, p) => {
+            const discount = ((p.regular_price - p.price) / p.regular_price) * 100
+            return sum + discount
+          }, 0) / productsOnSale
+        )
+      : 0
+
+    return { totalProducts, productsOnSale, allTimeLows, averageDiscount }
+  }, [products])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
-    }
-  }
-
-  const handleLoadMore = async () => {
-    if (!pagination?.hasNext) return
-
-    try {
-      const nextPage = await getProducts({
-        sort,
-        page: pagination.page + 1,
-        limit: 12,
-      })
-      setProducts((prev) => [...prev, ...nextPage.data])
-      setPagination(nextPage.pagination)
-    } catch (error) {
-      console.error('Failed to load more:', error)
     }
   }
 
@@ -104,7 +168,7 @@ export function HomePage() {
       </section>
 
       {/* Stats Section */}
-      {stats && (
+      {!isLoading && (
         <section className="py-8 border-b">
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -153,7 +217,14 @@ export function HomePage() {
       <section className="py-8">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-            <h2 className="text-2xl font-bold">All Products</h2>
+            <div>
+              <h2 className="text-2xl font-bold">All Products</h2>
+              {lastUpdated && (
+                <p className="text-sm text-muted-foreground">
+                  Last updated: {new Date(lastUpdated).toLocaleString()}
+                </p>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Sort by:</span>
               <Select
@@ -168,27 +239,94 @@ export function HomePage() {
           {/* Product Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {isLoading
-              ? Array.from({ length: 8 }).map((_, i) => (
+              ? Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
                   <ProductCardSkeleton key={i} />
                 ))
-              : products.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+              : paginatedProducts.map((product) => (
+                  <ProductCard key={product.product_id} product={product} />
                 ))}
           </div>
 
-          {/* Load More */}
-          {pagination?.hasNext && (
-            <div className="mt-8 text-center">
-              <Button variant="outline" onClick={handleLoadMore}>
-                Load More Products
+          {/* Pagination */}
+          {!isLoading && totalPages > 1 && (
+            <div className="mt-8 flex items-center justify-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+
+              <div className="flex items-center gap-1">
+                {/* First page */}
+                {currentPage > 3 && (
+                  <>
+                    <Button
+                      variant={currentPage === 1 ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handlePageChange(1)}
+                      className="w-10"
+                    >
+                      1
+                    </Button>
+                    {currentPage > 4 && <span className="px-2 text-muted-foreground">...</span>}
+                  </>
+                )}
+
+                {/* Page numbers around current */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((page) => {
+                    if (totalPages <= 7) return true
+                    if (page === 1 || page === totalPages) return false
+                    return Math.abs(page - currentPage) <= 2
+                  })
+                  .map((page) => (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handlePageChange(page)}
+                      className="w-10"
+                    >
+                      {page}
+                    </Button>
+                  ))}
+
+                {/* Last page */}
+                {currentPage < totalPages - 2 && (
+                  <>
+                    {currentPage < totalPages - 3 && <span className="px-2 text-muted-foreground">...</span>}
+                    <Button
+                      variant={currentPage === totalPages ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handlePageChange(totalPages)}
+                      className="w-10"
+                    >
+                      {totalPages}
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           )}
 
           {/* Results Info */}
-          {pagination && (
+          {!isLoading && (
             <p className="mt-4 text-center text-sm text-muted-foreground">
-              Showing {products.length} of {pagination.total} products
+              Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, sortedProducts.length)} of {sortedProducts.length} products
             </p>
           )}
         </div>
