@@ -18,6 +18,14 @@ export interface ProductsResponse {
   products: Product[]
 }
 
+// Response from /api/category/:category
+export interface CategoryResponse {
+  datetime: string
+  category: string
+  count: number
+  products: Product[]
+}
+
 // Price datapoint from /api/product/:id
 export interface PriceDatapoint {
   price: number

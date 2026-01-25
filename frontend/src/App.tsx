@@ -18,7 +18,7 @@ function App() {
             <Route path="/product/:id" element={<ProductPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/categories" element={<CategoriesPage />} />
-            <Route path="/category/:slug" element={<CategoryPage />} />
+            <Route path="/category/*" element={<CategoryPage />} />
           </Routes>
         </main>
         <Footer />

@@ -30,7 +30,8 @@ export function HomePage() {
     const page = searchParams.get('page')
     return page ? parseInt(page, 10) : 1
   })
-  const isFirstRender = useRef(true)
+  const prevSortRef = useRef(sort)
+  const productsSectionRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -81,17 +82,16 @@ export function HomePage() {
     return sortedProducts.slice(start, start + ITEMS_PER_PAGE)
   }, [sortedProducts, currentPage])
 
-  // Reset to page 1 when sort changes (skip first render)
+  // Reset to page 1 when sort changes
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false
-      return
+    if (prevSortRef.current !== sort) {
+      prevSortRef.current = sort
+      setCurrentPage(1)
+      setSearchParams((params) => {
+        params.delete('page')
+        return params
+      })
     }
-    setCurrentPage(1)
-    setSearchParams((params) => {
-      params.delete('page')
-      return params
-    })
   }, [sort, setSearchParams])
 
   const handlePageChange = (page: number) => {
@@ -104,7 +104,7 @@ export function HomePage() {
       }
       return params
     })
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    productsSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
   // Calculate stats from products
@@ -214,7 +214,7 @@ export function HomePage() {
       )}
 
       {/* Products Section */}
-      <section className="py-8">
+      <section ref={productsSectionRef} className="py-8">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
             <div>

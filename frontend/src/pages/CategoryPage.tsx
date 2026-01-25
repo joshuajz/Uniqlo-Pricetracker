@@ -16,7 +16,10 @@ const sortOptions = [
 
 const ITEMS_PER_PAGE = 12
 
-function formatCategoryName(slug: string): string {
+function formatCategoryName(path: string): string {
+  // Get the last segment of the path (e.g., "men/tops" -> "tops")
+  const slug = path.split('/').pop() || path
+  // Format the slug (e.g., "sweaters-and-knitwear" -> "Sweaters And Knitwear")
   return slug
     .split('-')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -24,7 +27,7 @@ function formatCategoryName(slug: string): string {
 }
 
 export function CategoryPage() {
-  const { slug } = useParams<{ slug: string }>()
+  const { '*': categoryPath } = useParams()
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [sort, setSort] = useState('recent')
@@ -46,10 +49,11 @@ export function CategoryPage() {
     fetchData()
   }, [])
 
-  // Filter products by category
+  // Filter products by category path
   const categoryProducts = useMemo(() => {
-    return allProducts.filter((p) => p.category === slug)
-  }, [allProducts, slug])
+    if (!categoryPath) return []
+    return allProducts.filter((p) => p.category === categoryPath)
+  }, [allProducts, categoryPath])
 
   // Sort products
   const sortedProducts = useMemo(() => {
@@ -81,17 +85,17 @@ export function CategoryPage() {
     return sortedProducts.slice(start, start + ITEMS_PER_PAGE)
   }, [sortedProducts, currentPage])
 
-  // Reset page when sort changes
+  // Reset page when sort or category changes
   useEffect(() => {
     setCurrentPage(1)
-  }, [sort])
+  }, [sort, categoryPath])
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const categoryName = slug ? formatCategoryName(slug) : 'Category'
+  const categoryName = categoryPath ? formatCategoryName(categoryPath) : 'Category'
 
   return (
     <div className="container mx-auto px-4 py-8">

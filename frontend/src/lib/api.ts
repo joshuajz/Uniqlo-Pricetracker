@@ -1,4 +1,4 @@
-import type { ProductsResponse, ProductDetail } from '@/types'
+import type { ProductsResponse, ProductDetail, CategoryResponse } from '@/types'
 
 const API_BASE = '/api'
 const CACHE_DURATION = 10 * 60 * 1000 // 10 minutes in milliseconds
@@ -47,6 +47,20 @@ export async function getProduct(id: string): Promise<ProductDetail> {
   if (cached) return cached
 
   const response = await fetch(`${API_BASE}/product/${id}`)
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.status} ${response.statusText}`)
+  }
+  const data = await response.json()
+  setCache(cacheKey, data)
+  return data
+}
+
+export async function getProductsByCategory(category: string): Promise<CategoryResponse> {
+  const cacheKey = `category:${category}`
+  const cached = getCached<CategoryResponse>(cacheKey)
+  if (cached) return cached
+
+  const response = await fetch(`${API_BASE}/category/${encodeURIComponent(category)}`)
   if (!response.ok) {
     throw new Error(`API Error: ${response.status} ${response.statusText}`)
   }

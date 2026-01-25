@@ -597,11 +597,90 @@ func getProduct(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// getProductsByCategory returns all products from the most recent scrape filtered by category
+func getProductsByCategory(c *gin.Context) {
+	category := c.Param("category")
+	if category == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Category is required"})
+		return
+	}
+
+	db, err := sql.Open("sqlite", "database/products.db")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
+		return
+	}
+	defer db.Close()
+
+	// Get the newest datetime from products table
+	var newestDatetime string
+	err = db.QueryRow("SELECT MAX(datetime) FROM products").Scan(&newestDatetime)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get newest datetime"})
+		return
+	}
+
+	if newestDatetime == "" {
+		c.JSON(http.StatusOK, gin.H{"products": []ProductResponse{}, "datetime": nil, "category": category})
+		return
+	}
+
+	// Query products with the newest datetime filtered by category and join with stats
+	query := `
+		SELECT
+			p.product_id,
+			p.name,
+			p.price,
+			p.url,
+			p.category,
+			p.datetime,
+			COALESCE(s.lowest_price, p.price) as lowest_price,
+			COALESCE(s.regular_price, p.price) as regular_price
+		FROM products p
+		LEFT JOIN stats s ON p.product_id = s.product_id
+		WHERE p.datetime = ? AND p.category = ?
+	`
+
+	rows, err := db.Query(query, newestDatetime, category)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query products"})
+		return
+	}
+	defer rows.Close()
+
+	var products []ProductResponse
+	for rows.Next() {
+		var p ProductResponse
+		err := rows.Scan(&p.ProductID, &p.Name, &p.Price, &p.URL, &p.Category, &p.Datetime, &p.LowestPrice, &p.RegularPrice)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan product"})
+			return
+		}
+		p.IsAllTimeLow = p.Price <= p.LowestPrice
+		products = append(products, p)
+	}
+
+	if err = rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating products"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"datetime": newestDatetime,
+		"category": category,
+		"count":    len(products),
+		"products": products,
+	})
+}
+
 func main() {
 	router := gin.Default()
 
 	// Public endpoint to get products
 	router.GET("/api/products", getProducts)
+
+	// Public endpoint to get products by category
+	router.GET("/api/category/:category", getProductsByCategory)
 
 	// Public endpoint to get single product with all datapoints
 	router.GET("/api/product/:id", getProduct)
