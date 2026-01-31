@@ -4,7 +4,7 @@ export interface Product {
   name: string
   price: number
   url: string
-  category: string
+  categories: string[]
   datetime: string
   lowest_price: number
   regular_price: number
@@ -29,7 +29,7 @@ export interface CategoryResponse {
 // Price datapoint from /api/product/:id
 export interface PriceDatapoint {
   price: number
-  category: string
+  categories: string[]
   datetime: string
 }
 

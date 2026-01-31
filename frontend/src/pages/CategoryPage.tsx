@@ -8,10 +8,9 @@ import { getProducts } from '@/lib/api'
 import type { Product } from '@/types'
 
 const sortOptions = [
-  { value: 'recent', label: 'Recently Updated' },
+  { value: 'discount', label: 'Biggest Discount' },
   { value: 'price-asc', label: 'Price: Low to High' },
   { value: 'price-desc', label: 'Price: High to Low' },
-  { value: 'discount', label: 'Biggest Discount' },
 ]
 
 const ITEMS_PER_PAGE = 12
@@ -30,7 +29,7 @@ export function CategoryPage() {
   const { '*': categoryPath } = useParams()
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [sort, setSort] = useState('recent')
+  const [sort, setSort] = useState('discount')
   const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
@@ -52,7 +51,7 @@ export function CategoryPage() {
   // Filter products by category path
   const categoryProducts = useMemo(() => {
     if (!categoryPath) return []
-    return allProducts.filter((p) => p.category === categoryPath)
+    return allProducts.filter((p) => p.categories.includes(categoryPath))
   }, [allProducts, categoryPath])
 
   // Sort products
@@ -144,7 +143,7 @@ export function CategoryPage() {
               <ProductCardSkeleton key={i} />
             ))
           : paginatedProducts.map((product) => (
-              <ProductCard key={product.product_id} product={product} />
+              <ProductCard key={product.product_id} product={product} category={categoryPath} />
             ))}
       </div>
 

@@ -8,14 +8,18 @@ import type { Product } from '@/types'
 
 interface ProductCardProps {
   product: Product
+  category?: string
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, category }: ProductCardProps) {
   const discount = calculateDiscount(product.price, product.regular_price)
   const isOnSale = product.price < product.regular_price
+  const linkTo = category
+    ? `/product/${product.product_id}?category=${encodeURIComponent(category)}`
+    : `/product/${product.product_id}`
 
   return (
-    <Link to={`/product/${product.product_id}`}>
+    <Link to={linkTo}>
       <Card className="group overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
         {/* Image Container */}
         <div className="relative aspect-[3/4] overflow-hidden bg-muted">

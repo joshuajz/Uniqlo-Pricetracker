@@ -45,8 +45,10 @@ export function CategoriesPage() {
     const categoryMap = new Map<string, Product[]>()
 
     products.forEach((product) => {
-      const existing = categoryMap.get(product.category) || []
-      categoryMap.set(product.category, [...existing, product])
+      for (const cat of product.categories) {
+        const existing = categoryMap.get(cat) || []
+        categoryMap.set(cat, [...existing, product])
+      }
     })
 
     const categoryList: CategoryInfo[] = []

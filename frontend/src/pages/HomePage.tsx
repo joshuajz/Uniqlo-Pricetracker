@@ -10,10 +10,9 @@ import { getProducts } from '@/lib/api'
 import type { Product } from '@/types'
 
 const sortOptions = [
-  { value: 'recent', label: 'Recently Updated' },
+  { value: 'discount', label: 'Biggest Discount' },
   { value: 'price-asc', label: 'Price: Low to High' },
   { value: 'price-desc', label: 'Price: High to Low' },
-  { value: 'discount', label: 'Biggest Discount' },
 ]
 
 const ITEMS_PER_PAGE = 12
@@ -24,7 +23,7 @@ export function HomePage() {
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [sort, setSort] = useState(searchParams.get('sort') || 'recent')
+  const [sort, setSort] = useState(searchParams.get('sort') || 'discount')
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(() => {
     const page = searchParams.get('page')

@@ -38,7 +38,7 @@ export function SearchPage() {
       (product) =>
         product.name.toLowerCase().includes(lowerQuery) ||
         product.product_id.toLowerCase().includes(lowerQuery) ||
-        product.category.toLowerCase().includes(lowerQuery)
+        product.categories.some((c) => c.toLowerCase().includes(lowerQuery))
     )
   }, [allProducts, query])
 

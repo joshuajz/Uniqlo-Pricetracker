@@ -53,22 +53,22 @@ type Product struct {
 
 // ProductResponse represents a product in the API response with price stats
 type ProductResponse struct {
-	ProductID    string  `json:"product_id"`
-	Name         string  `json:"name"`
-	Price        float64 `json:"price"`
-	URL          string  `json:"url"`
-	Category     string  `json:"category"`
-	Datetime     string  `json:"datetime"`
-	LowestPrice  float64 `json:"lowest_price"`
-	RegularPrice float64 `json:"regular_price"`
-	IsAllTimeLow bool    `json:"is_all_time_low"`
+	ProductID    string   `json:"product_id"`
+	Name         string   `json:"name"`
+	Price        float64  `json:"price"`
+	URL          string   `json:"url"`
+	Categories   []string `json:"categories"`
+	Datetime     string   `json:"datetime"`
+	LowestPrice  float64  `json:"lowest_price"`
+	RegularPrice float64  `json:"regular_price"`
+	IsAllTimeLow bool     `json:"is_all_time_low"`
 }
 
 // ProductDatapoint represents a single price datapoint for a product
 type ProductDatapoint struct {
-	Price    float64 `json:"price"`
-	Category string  `json:"category"`
-	Datetime string  `json:"datetime"`
+	Price      float64  `json:"price"`
+	Categories []string `json:"categories"`
+	Datetime   string   `json:"datetime"`
 }
 
 // LowestPriceInfo contains the lowest price information from stats table
@@ -125,7 +125,7 @@ func calculateRegularPrice(db *sql.DB, productID string) (float64, error) {
 // updateProductStats updates the stats table with lowest, highest, and regular price tracking
 // Case 1: Product doesn't exist -> insert with current price as lowest, highest, and regular
 // Case 2: Product exists -> update lowest if current < lowest, update highest if current > highest, recalculate regular
-func updateProductStats(db *sql.DB, productID string, currentPrice float64, datetime time.Time) error {
+func updateProductStats(db *sql.DB, productID string, currentPrice float64, datetime string) error {
 	// Query for existing stats record
 	var lowestPrice, highestPrice float64
 	err := db.QueryRow("SELECT lowest_price, highest_price FROM stats WHERE product_id = ?", productID).Scan(&lowestPrice, &highestPrice)
@@ -255,64 +255,91 @@ func injestProducts(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
 		return
 	}
-	// Inject products into the database
-	count := 0
+	// Consolidate products by product_id across categories
+	type ConsolidatedProduct struct {
+		Product    Product
+		Categories []string
+		Price      string
+	}
+	consolidated := map[string]*ConsolidatedProduct{}
 
-	date := time.Now()
 	for category, categoryProducts := range scraperOutput.Products {
 		for _, product := range categoryProducts {
-			sql := "INSERT INTO products (product_id, name, price, url, category, datetime) VALUES (?, ?, ?, ?, ?, ?);"
-
-			price := strings.Split(product.Price, "CA $ ")[1]
-
-			_, err := db.Exec(sql, product.ProductID, product.Name, price, product.URL, category, date)
-
-			if err != nil {
-				fmt.Println("Error:", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to insert product into database", "details": err.Error()})
-				return
-			}
-
-			// Update stats table with lowest price tracking
-			priceFloat, err := strconv.ParseFloat(price, 64)
-			if err != nil {
-				fmt.Println("Warning: Failed to parse price for stats:", err)
+			if existing, ok := consolidated[product.ProductID]; ok {
+				existing.Categories = append(existing.Categories, category)
 			} else {
-				if err := updateProductStats(db, product.ProductID, priceFloat, date); err != nil {
-					fmt.Println("Warning: Failed to update stats:", err)
+				price := strings.Split(product.Price, "CA $ ")[1]
+				consolidated[product.ProductID] = &ConsolidatedProduct{
+					Product:    product,
+					Categories: []string{category},
+					Price:      price,
 				}
 			}
+		}
+	}
 
-			fmt.Println("Category:", category, "Product:", product)
-			fmt.Println("Image:", product.Image)
+	// Inject consolidated products into the database
+	count := 0
+	date := time.Now().Format(time.RFC3339)
 
-			imageFile, ok := images[product.Image]
-			if !ok {
-				fmt.Println("Warning: Image not found in ZIP:", product.Image)
-				continue
-			}
+	for _, cp := range consolidated {
+		categoriesJSON, err := json.Marshal(cp.Categories)
+		if err != nil {
+			fmt.Println("Error marshaling categories:", err)
+			continue
+		}
 
-			rc, err := imageFile.Open()
-			if err != nil {
-				fmt.Println("Warning: Failed to open image:", err)
-				continue
-			}
+		sqlStmt := "INSERT INTO products (product_id, name, price, url, category, datetime) VALUES (?, ?, ?, ?, ?, ?);"
+		_, err = db.Exec(sqlStmt, cp.Product.ProductID, cp.Product.Name, cp.Price, cp.Product.URL, string(categoriesJSON), date)
+		if err != nil {
+			fmt.Println("Error:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to insert product into database", "details": err.Error()})
+			return
+		}
 
-			imageBytes, err := io.ReadAll(rc)
-			rc.Close()
-			if err != nil {
-				fmt.Println("Warning: Failed to read image:", err)
-				continue
-			}
-
-			image_sql := "INSERT INTO images (product_id, image, last_updated) VALUES (?, ?, ?);"
-			_, err = db.Exec(image_sql, product.ProductID, imageBytes, date)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to insert image into database", "details": err.Error()})
-				return
+		// Update stats table with lowest price tracking
+		priceFloat, err := strconv.ParseFloat(cp.Price, 64)
+		if err != nil {
+			fmt.Println("Warning: Failed to parse price for stats:", err)
+		} else {
+			if err := updateProductStats(db, cp.Product.ProductID, priceFloat, date); err != nil {
+				fmt.Println("Warning: Failed to update stats:", err)
 			}
 		}
-		count += len(categoryProducts)
+
+		fmt.Println("Product:", cp.Product.ProductID, "Categories:", cp.Categories)
+		fmt.Println("Image:", cp.Product.Image)
+
+		imageFile, ok := images[cp.Product.Image]
+		if !ok {
+			fmt.Println("Warning: Image not found in ZIP:", cp.Product.Image)
+			count++
+			continue
+		}
+
+		rc, err := imageFile.Open()
+		if err != nil {
+			fmt.Println("Warning: Failed to open image:", err)
+			count++
+			continue
+		}
+
+		imageBytes, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			fmt.Println("Warning: Failed to read image:", err)
+			count++
+			continue
+		}
+
+		image_sql := "INSERT OR REPLACE INTO images (product_id, image, last_updated) VALUES (?, ?, ?);"
+		_, err = db.Exec(image_sql, cp.Product.ProductID, imageBytes, date)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to insert image into database", "details": err.Error()})
+			return
+		}
+
+		count++
 	}
 	db.Close()
 
@@ -393,10 +420,15 @@ func getProducts(c *gin.Context) {
 	var products []ProductResponse
 	for rows.Next() {
 		var p ProductResponse
-		err := rows.Scan(&p.ProductID, &p.Name, &p.Price, &p.URL, &p.Category, &p.Datetime, &p.LowestPrice, &p.RegularPrice)
+		var categoryJSON string
+		err := rows.Scan(&p.ProductID, &p.Name, &p.Price, &p.URL, &categoryJSON, &p.Datetime, &p.LowestPrice, &p.RegularPrice)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan product"})
 			return
+		}
+		if err := json.Unmarshal([]byte(categoryJSON), &p.Categories); err != nil {
+			// Fallback: treat as plain string (legacy data)
+			p.Categories = []string{categoryJSON}
 		}
 		// Product is at all-time low if current price equals the lowest recorded price
 		p.IsAllTimeLow = p.Price <= p.LowestPrice
@@ -499,10 +531,14 @@ func getProduct(c *gin.Context) {
 
 	for rows.Next() {
 		var dp ProductDatapoint
-		err := rows.Scan(&dp.Price, &dp.Category, &dp.Datetime)
+		var categoryJSON string
+		err := rows.Scan(&dp.Price, &categoryJSON, &dp.Datetime)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan datapoint"})
 			return
+		}
+		if err := json.Unmarshal([]byte(categoryJSON), &dp.Categories); err != nil {
+			dp.Categories = []string{categoryJSON}
 		}
 		datapoints = append(datapoints, dp)
 	}
@@ -625,7 +661,7 @@ func getProductsByCategory(c *gin.Context) {
 		return
 	}
 
-	// Query products with the newest datetime filtered by category and join with stats
+	// Query products with the newest datetime filtered by category (JSON array LIKE match) and join with stats
 	query := `
 		SELECT
 			p.product_id,
@@ -638,7 +674,7 @@ func getProductsByCategory(c *gin.Context) {
 			COALESCE(s.regular_price, p.price) as regular_price
 		FROM products p
 		LEFT JOIN stats s ON p.product_id = s.product_id
-		WHERE p.datetime = ? AND p.category = ?
+		WHERE p.datetime = ? AND p.category LIKE '%"' || ? || '"%'
 	`
 
 	rows, err := db.Query(query, newestDatetime, category)
@@ -651,10 +687,14 @@ func getProductsByCategory(c *gin.Context) {
 	var products []ProductResponse
 	for rows.Next() {
 		var p ProductResponse
-		err := rows.Scan(&p.ProductID, &p.Name, &p.Price, &p.URL, &p.Category, &p.Datetime, &p.LowestPrice, &p.RegularPrice)
+		var categoryJSON string
+		err := rows.Scan(&p.ProductID, &p.Name, &p.Price, &p.URL, &categoryJSON, &p.Datetime, &p.LowestPrice, &p.RegularPrice)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan product"})
 			return
+		}
+		if err := json.Unmarshal([]byte(categoryJSON), &p.Categories); err != nil {
+			p.Categories = []string{categoryJSON}
 		}
 		p.IsAllTimeLow = p.Price <= p.LowestPrice
 		products = append(products, p)

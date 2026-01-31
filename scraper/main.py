@@ -120,8 +120,7 @@ def scrape_url(url, worker_id):
                     folder_path = Path("images") / url_key
                     folder_path.mkdir(parents=True, exist_ok=True)
 
-                    safe_name = re.sub(r'[<>:"/\\|?*\s]+', '_', name).strip('_')
-                    image_path = folder_path / f"{safe_name}.jpg"
+                    image_path = folder_path / f"{product_id}.jpg"
 
                     urllib.request.urlretrieve(image_url, str(image_path))
                     # Store as POSIX path for cross-platform compatibility
@@ -167,6 +166,13 @@ def scrape_url(url, worker_id):
 
 
 def main():
+    # Clean up old images before starting
+    images_path = Path("images")
+    if images_path.exists():
+        import shutil
+        shutil.rmtree(images_path)
+        print("INFO: Cleaned up old images folder")
+
     print(f"INFO: Starting scraper with {MAX_WORKERS} concurrent browsers")
     print(f"INFO: Processing {len(URLS)} URLs")
 

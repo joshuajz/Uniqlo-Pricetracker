@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { ArrowLeft, ExternalLink, TrendingDown, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -12,9 +12,15 @@ import type { ProductDetail } from '@/types'
 
 export function ProductPage() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
+  const categoryParam = searchParams.get('category')
   const [product, setProduct] = useState<ProductDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [id])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -61,12 +67,14 @@ export function ProductPage() {
   const lowestPrice = product.lowest_price.lowest_price ?? product.current_price
   const highestPrice = product.highest_price.highest_price ?? product.current_price
 
-  // Parse category for breadcrumb
-  const categoryParts = product.datapoints[0]?.category?.split('/') || ['Unknown']
-  const categoryName = categoryParts[categoryParts.length - 1]
-    .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
+  // Resolve category: prefer query param, fall back to first category from datapoints
+  const categoryPath = categoryParam || product.datapoints[0]?.categories?.[0] || null
+  const categoryName = categoryPath
+    ? (categoryPath.split('/').pop() || categoryPath)
+        .split('-')
+        .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+    : 'Unknown'
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -83,14 +91,18 @@ export function ProductPage() {
       <nav className="text-sm text-muted-foreground mb-6">
         <Link to="/" className="hover:text-foreground">Home</Link>
         <span className="mx-2">/</span>
-        <span>{categoryName}</span>
+        {categoryPath ? (
+          <Link to={`/category/${categoryPath}`} className="hover:text-foreground">{categoryName}</Link>
+        ) : (
+          <span>{categoryName}</span>
+        )}
         <span className="mx-2">/</span>
         <span className="text-foreground">{product.name}</span>
       </nav>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-8 mb-8">
         {/* Product Image */}
-        <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-muted">
+        <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-muted max-w-md">
           <img
             src={`/api/product/${product.product_id}/image`}
             alt={product.name}
@@ -200,20 +212,20 @@ export function ProductPage() {
               Last updated: {formatDate(product.datapoints[product.datapoints.length - 1].datetime)}
             </p>
           )}
+
+          {/* Price History Chart */}
+          {product.datapoints.length > 0 && (
+            <div className="mt-6">
+              <PriceChart
+                datapoints={product.datapoints}
+                lowestPrice={lowestPrice}
+                highestPrice={highestPrice}
+                currentPrice={product.current_price}
+              />
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Price History Chart */}
-      {product.datapoints.length > 0 && (
-        <div className="mb-8">
-          <PriceChart
-            datapoints={product.datapoints}
-            lowestPrice={lowestPrice}
-            highestPrice={highestPrice}
-            currentPrice={product.current_price}
-          />
-        </div>
-      )}
     </div>
   )
 }
