@@ -1,6 +1,6 @@
 import type { ProductsResponse, ProductDetail, CategoryResponse } from '@/types'
 
-const API_BASE = '/api'
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
 const CACHE_DURATION = 10 * 60 * 1000 // 10 minutes in milliseconds
 
 interface CacheEntry<T> {

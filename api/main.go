@@ -103,6 +103,38 @@ type Image struct {
 	File      zip.File
 }
 
+const dbPath = "database/products.db"
+
+// initDB creates the database directory and tables if they don't exist
+func initDB() error {
+	// Create the database directory if it doesn't exist
+	if err := os.MkdirAll("database", 0755); err != nil {
+		return fmt.Errorf("failed to create database directory: %w", err)
+	}
+
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS "images" ("product_id" TEXT NOT NULL UNIQUE, "image" BLOB NOT NULL, "last_updated" TEXT)`,
+		`CREATE TABLE IF NOT EXISTS "products" ("product_id" TEXT NOT NULL, "name" TEXT NOT NULL, "price" REAL NOT NULL, "url" TEXT NOT NULL, "category" TEXT NOT NULL, "datetime" TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS "scraper" ("datetime" TEXT NOT NULL, "scraper_version" TEXT NOT NULL, "total_products" INTEGER NOT NULL, "total_failed" INTEGER NOT NULL, "categories_scraped" INTEGER NOT NULL, "categories" TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS "stats" ("product_id" TEXT NOT NULL, "lowest_price" REAL NOT NULL, "lowest_price_datetime" TEXT NOT NULL, "highest_price" REAL NOT NULL, "highest_price_datetime" TEXT NOT NULL, "regular_price" REAL NOT NULL)`,
+	}
+
+	for _, q := range queries {
+		if _, err := db.Exec(q); err != nil {
+			return fmt.Errorf("failed to create table: %w", err)
+		}
+	}
+
+	fmt.Println("Database initialized successfully")
+	return nil
+}
+
 // calculateRegularPrice calculates the mode (most frequent price) for a product
 func calculateRegularPrice(db *sql.DB, productID string) (float64, error) {
 	// Query to find the most frequent price for this product
