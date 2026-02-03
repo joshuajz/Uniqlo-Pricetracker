@@ -283,7 +283,7 @@ func injestProducts(c *gin.Context) {
 		return
 	}
 
-	db, err := sql.Open("sqlite", "database/products.db")
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
 		return
@@ -407,7 +407,7 @@ func getProducts(c *gin.Context) {
 	productsCache.mu.RUnlock()
 
 	// Cache miss or expired, fetch from database
-	db, err := sql.Open("sqlite", "database/products.db")
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
 		return
@@ -496,7 +496,7 @@ func getProductImage(c *gin.Context) {
 		return
 	}
 
-	db, err := sql.Open("sqlite", "database/products.db")
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
 		return
@@ -537,7 +537,7 @@ func getProduct(c *gin.Context) {
 	productDetailCache.mu.RUnlock()
 
 	// Cache miss or expired, fetch from database
-	db, err := sql.Open("sqlite", "database/products.db")
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
 		return
@@ -674,7 +674,7 @@ func getProductsByCategory(c *gin.Context) {
 		return
 	}
 
-	db, err := sql.Open("sqlite", "database/products.db")
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
 		return
@@ -746,8 +746,42 @@ func getProductsByCategory(c *gin.Context) {
 	})
 }
 
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
+		allowedOrigins := os.Getenv("CORS_ORIGINS") // comma-separated list, e.g. "https://uniqlotracker.com,http://localhost:5173"
+		if allowedOrigins == "" {
+			allowedOrigins = "http://localhost:5173" // default for local dev
+		}
+
+		for _, allowed := range strings.Split(allowedOrigins, ",") {
+			if strings.TrimSpace(allowed) == origin {
+				c.Header("Access-Control-Allow-Origin", origin)
+				break
+			}
+		}
+
+		c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
+		c.Header("Access-Control-Max-Age", "86400")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+
+		c.Next()
+	}
+}
+
 func main() {
+	// Initialize database on startup
+	if err := initDB(); err != nil {
+		panic(fmt.Sprintf("Failed to initialize database: %v", err))
+	}
+
 	router := gin.Default()
+	router.Use(corsMiddleware())
 
 	// Public endpoint to get products
 	router.GET("/api/products", getProducts)
