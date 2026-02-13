@@ -1,0 +1,28 @@
+name: Selenium Web Scraper
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  scrape-latest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.x"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install scraper/requirements.txt
+      - name: Run scraper
+        run: |
+          python scraper/main.py
+      - name: Make an API Request to store the scraped results
+        run: |
+          curl -X POST -H "Content-Type: application/zip" -d scraper/output.zip -u ${{secrets.AUTH_USER}}:${{secrets.AUTH_PASS}} https://api.uniqlotracker.com/api/products/injest

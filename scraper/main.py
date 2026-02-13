@@ -51,6 +51,7 @@ def create_driver():
     # opts.add_argument("--headless")  # modern headless mode (Chrome 109+)
     opts.add_argument("--no-sandbox")         # handy for CI or Docker
     opts.add_argument("--disable-dev-shm-usage")  # avoids /dev/shm issues in containers
+    opts.add_arguments("--headless=new")
     return webdriver.Chrome(options=opts)
 
 
