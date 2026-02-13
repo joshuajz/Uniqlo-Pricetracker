@@ -224,8 +224,7 @@ def main():
     print(f"INFO: Prices saved to prices.json ({total_products} products across {len(categories_scraped)} categories)")
 
     # Create zip archive with images and prices.json
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    zip_filename = f"Uniqlo_{date_str}.zip"
+    zip_filename = "output.zip"
 
     with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
         # Add prices.json
