@@ -796,7 +796,12 @@ func main() {
 	router.GET("/api/product/:id/image", getProductImage)
 
 	// Protected endpoint to ingest scraped data
-	router.POST("/api/products/injest", gin.BasicAuth(gin.Accounts{"admin": "password"}), injestProducts)
+	authUser := os.Getenv("AUTH_USER")
+	authPass := os.Getenv("AUTH_PASS")
+	if authUser == "" || authPass == "" {
+		panic("AUTH_USER and AUTH_PASS environment variables must be set")
+	}
+	router.POST("/api/products/injest", gin.BasicAuth(gin.Accounts{authUser: authPass}), injestProducts)
 
 	port := os.Getenv("PORT")
 	if port == "" {
