@@ -69,6 +69,10 @@ export async function getProductsByCategory(category: string): Promise<CategoryR
   return data
 }
 
+export function getProductImageUrl(productId: string): string {
+  return `${API_BASE}/product/${productId}/image`
+}
+
 // Utility to manually clear cache if needed
 export function clearCache(): void {
   cache.clear()

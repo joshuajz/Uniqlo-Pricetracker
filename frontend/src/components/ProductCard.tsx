@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatPrice, calculateDiscount } from '@/lib/utils'
+import { getProductImageUrl } from '@/lib/api'
 import type { Product } from '@/types'
 
 interface ProductCardProps {
@@ -24,7 +25,7 @@ export function ProductCard({ product, category }: ProductCardProps) {
         {/* Image Container */}
         <div className="relative aspect-[3/4] overflow-hidden bg-muted">
           <img
-            src={`/api/product/${product.product_id}/image`}
+            src={getProductImageUrl(product.product_id)}
             alt={product.name}
             className="h-full w-full object-cover transition-transform group-hover:scale-105"
             loading="lazy"

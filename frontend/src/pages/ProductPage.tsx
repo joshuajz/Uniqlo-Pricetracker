@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PriceChart } from '@/components/PriceChart'
-import { getProduct } from '@/lib/api'
+import { getProduct, getProductImageUrl } from '@/lib/api'
 import { formatPrice, formatDate, calculateDiscount } from '@/lib/utils'
 import type { ProductDetail } from '@/types'
 
@@ -104,7 +104,7 @@ export function ProductPage() {
         {/* Product Image */}
         <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-muted max-w-md">
           <img
-            src={`/api/product/${product.product_id}/image`}
+            src={getProductImageUrl(product.product_id)}
             alt={product.name}
             className="h-full w-full object-cover"
             onError={(e) => {

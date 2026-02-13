@@ -130,6 +130,7 @@ func initDB() error {
 		}
 	}
 
+
 	fmt.Println("Database initialized successfully")
 	return nil
 }
