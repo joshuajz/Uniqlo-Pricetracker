@@ -25,4 +25,4 @@ jobs:
           uv run main.py
       - name: Make an API Request to store the scraped results
         run: |
-          curl -X POST -H "Content-Type: application/zip" -d output.zip -u ${{secrets.AUTH_USER}}:${{secrets.AUTH_PASS}} https://api.uniqlotracker.com/api/products/injest
+          curl -X POST -F "file=@output.zip" -u "${{secrets.AUTH_USER}}:${{secrets.AUTH_PASS}}" https://api.uniqlotracker.com/api/products/injest

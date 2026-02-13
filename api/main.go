@@ -98,11 +98,6 @@ type ScraperOutput struct {
 	Products map[string][]Product `json:"products"`
 }
 
-type Image struct {
-	ImagePath string
-	File      zip.File
-}
-
 const dbPath = "database/products.db"
 
 // initDB creates the database directory and tables if they don't exist
@@ -118,8 +113,12 @@ func initDB() error {
 	}
 	defer db.Close()
 
+	// Create images directory for filesystem-based image storage
+	if err := os.MkdirAll("images", 0755); err != nil {
+		return fmt.Errorf("failed to create images directory: %w", err)
+	}
+
 	queries := []string{
-		`CREATE TABLE IF NOT EXISTS "images" ("product_id" TEXT NOT NULL UNIQUE, "image" BLOB NOT NULL, "last_updated" TEXT)`,
 		`CREATE TABLE IF NOT EXISTS "products" ("product_id" TEXT NOT NULL, "name" TEXT NOT NULL, "price" REAL NOT NULL, "url" TEXT NOT NULL, "category" TEXT NOT NULL, "datetime" TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS "scraper" ("datetime" TEXT NOT NULL, "scraper_version" TEXT NOT NULL, "total_products" INTEGER NOT NULL, "total_failed" INTEGER NOT NULL, "categories_scraped" INTEGER NOT NULL, "categories" TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS "stats" ("product_id" TEXT NOT NULL, "lowest_price" REAL NOT NULL, "lowest_price_datetime" TEXT NOT NULL, "highest_price" REAL NOT NULL, "highest_price_datetime" TEXT NOT NULL, "regular_price" REAL NOT NULL)`,
@@ -365,10 +364,9 @@ func injestProducts(c *gin.Context) {
 			continue
 		}
 
-		image_sql := "INSERT OR REPLACE INTO images (product_id, image, last_updated) VALUES (?, ?, ?);"
-		_, err = db.Exec(image_sql, cp.Product.ProductID, imageBytes, date)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to insert image into database", "details": err.Error()})
+		imagePath := fmt.Sprintf("images/%s.jpg", cp.Product.ProductID)
+		if err := os.WriteFile(imagePath, imageBytes, 0644); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image to disk", "details": err.Error()})
 			return
 		}
 
@@ -488,7 +486,7 @@ func getProducts(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// getProductImage returns the product image as JPEG
+// getProductImage returns the product image as JPEG from the filesystem
 func getProductImage(c *gin.Context) {
 	productID := c.Param("id")
 	if productID == "" {
@@ -496,26 +494,14 @@ func getProductImage(c *gin.Context) {
 		return
 	}
 
-	db, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
-		return
-	}
-	defer db.Close()
-
-	var imageData []byte
-	err = db.QueryRow("SELECT image FROM images WHERE product_id = ?", productID).Scan(&imageData)
-	if err == sql.ErrNoRows {
+	imagePath := fmt.Sprintf("images/%s.jpg", productID)
+	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
-		return
-	}
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query image"})
 		return
 	}
 
 	c.Header("Cache-Control", "public, max-age=86400") // Cache for 24 hours
-	c.Data(http.StatusOK, "image/jpeg", imageData)
+	c.File(imagePath)
 }
 
 // getProduct returns all datapoints and lowest price info for a specific product ID
