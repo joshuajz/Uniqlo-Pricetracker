@@ -16,7 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/lib/pq"
 )
 
 // ProductsCache holds cached products response with expiration
@@ -98,30 +98,55 @@ type ScraperOutput struct {
 	Products map[string][]Product `json:"products"`
 }
 
-const dbPath = "database/products.db"
+var db *sql.DB
 
-// initDB creates the database directory and tables if they don't exist
+// initDB connects to PostgreSQL and creates tables if they don't exist
 func initDB() error {
-	// Create the database directory if it doesn't exist
-	if err := os.MkdirAll("database", 0755); err != nil {
-		return fmt.Errorf("failed to create database directory: %w", err)
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		return fmt.Errorf("DATABASE_URL environment variable must be set")
 	}
 
-	db, err := sql.Open("sqlite", dbPath)
+	var err error
+	db, err = sql.Open("postgres", databaseURL)
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
-	defer db.Close()
 
-	// Create images directory for filesystem-based image storage
-	if err := os.MkdirAll("images", 0755); err != nil {
-		return fmt.Errorf("failed to create images directory: %w", err)
+	if err = db.Ping(); err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	queries := []string{
-		`CREATE TABLE IF NOT EXISTS "products" ("product_id" TEXT NOT NULL, "name" TEXT NOT NULL, "price" REAL NOT NULL, "url" TEXT NOT NULL, "category" TEXT NOT NULL, "datetime" TEXT NOT NULL)`,
-		`CREATE TABLE IF NOT EXISTS "scraper" ("datetime" TEXT NOT NULL, "scraper_version" TEXT NOT NULL, "total_products" INTEGER NOT NULL, "total_failed" INTEGER NOT NULL, "categories_scraped" INTEGER NOT NULL, "categories" TEXT NOT NULL)`,
-		`CREATE TABLE IF NOT EXISTS "stats" ("product_id" TEXT NOT NULL, "lowest_price" REAL NOT NULL, "lowest_price_datetime" TEXT NOT NULL, "highest_price" REAL NOT NULL, "highest_price_datetime" TEXT NOT NULL, "regular_price" REAL NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS products (
+			product_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			price NUMERIC(10,2) NOT NULL,
+			url TEXT NOT NULL,
+			category JSONB NOT NULL,
+			datetime TIMESTAMPTZ NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS scraper (
+			datetime TIMESTAMPTZ NOT NULL,
+			scraper_version TEXT NOT NULL,
+			total_products INTEGER NOT NULL,
+			total_failed INTEGER NOT NULL,
+			categories_scraped INTEGER NOT NULL,
+			categories TEXT NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS stats (
+			product_id TEXT NOT NULL UNIQUE,
+			lowest_price NUMERIC(10,2) NOT NULL,
+			lowest_price_datetime TIMESTAMPTZ NOT NULL,
+			highest_price NUMERIC(10,2) NOT NULL,
+			highest_price_datetime TIMESTAMPTZ NOT NULL,
+			regular_price NUMERIC(10,2) NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS images (
+			product_id TEXT NOT NULL UNIQUE,
+			image BYTEA NOT NULL,
+			last_updated TIMESTAMPTZ DEFAULT NOW()
+		)`,
 	}
 
 	for _, q := range queries {
@@ -130,18 +155,16 @@ func initDB() error {
 		}
 	}
 
-
 	fmt.Println("Database initialized successfully")
 	return nil
 }
 
 // calculateRegularPrice calculates the mode (most frequent price) for a product
 func calculateRegularPrice(db *sql.DB, productID string) (float64, error) {
-	// Query to find the most frequent price for this product
 	query := `
 		SELECT price, COUNT(*) as count
 		FROM products
-		WHERE product_id = ?
+		WHERE product_id = $1
 		GROUP BY price
 		ORDER BY count DESC, price DESC
 		LIMIT 1
@@ -158,15 +181,13 @@ func calculateRegularPrice(db *sql.DB, productID string) (float64, error) {
 // updateProductStats updates the stats table with lowest, highest, and regular price tracking
 // Case 1: Product doesn't exist -> insert with current price as lowest, highest, and regular
 // Case 2: Product exists -> update lowest if current < lowest, update highest if current > highest, recalculate regular
-func updateProductStats(db *sql.DB, productID string, currentPrice float64, datetime string) error {
-	// Query for existing stats record
+func updateProductStats(db *sql.DB, productID string, currentPrice float64, datetime time.Time) error {
 	var lowestPrice, highestPrice float64
-	err := db.QueryRow("SELECT lowest_price, highest_price FROM stats WHERE product_id = ?", productID).Scan(&lowestPrice, &highestPrice)
+	err := db.QueryRow("SELECT lowest_price, highest_price FROM stats WHERE product_id = $1", productID).Scan(&lowestPrice, &highestPrice)
 
 	if err == sql.ErrNoRows {
-		// Case 1: Product doesn't exist in stats, insert new record with current price as lowest, highest, and regular
 		_, err := db.Exec(
-			"INSERT INTO stats (product_id, lowest_price, lowest_price_datetime, highest_price, highest_price_datetime, regular_price) VALUES (?, ?, ?, ?, ?, ?)",
+			"INSERT INTO stats (product_id, lowest_price, lowest_price_datetime, highest_price, highest_price_datetime, regular_price) VALUES ($1, $2, $3, $4, $5, $6)",
 			productID, currentPrice, datetime, currentPrice, datetime, currentPrice,
 		)
 		if err != nil {
@@ -178,10 +199,9 @@ func updateProductStats(db *sql.DB, productID string, currentPrice float64, date
 		return fmt.Errorf("failed to query stats: %w", err)
 	}
 
-	// Case 2: Product exists, check if we need to update lowest or highest
 	if currentPrice < lowestPrice {
 		_, err := db.Exec(
-			"UPDATE stats SET lowest_price = ?, lowest_price_datetime = ? WHERE product_id = ?",
+			"UPDATE stats SET lowest_price = $1, lowest_price_datetime = $2 WHERE product_id = $3",
 			currentPrice, datetime, productID,
 		)
 		if err != nil {
@@ -192,7 +212,7 @@ func updateProductStats(db *sql.DB, productID string, currentPrice float64, date
 
 	if currentPrice > highestPrice {
 		_, err := db.Exec(
-			"UPDATE stats SET highest_price = ?, highest_price_datetime = ? WHERE product_id = ?",
+			"UPDATE stats SET highest_price = $1, highest_price_datetime = $2 WHERE product_id = $3",
 			currentPrice, datetime, productID,
 		)
 		if err != nil {
@@ -201,14 +221,13 @@ func updateProductStats(db *sql.DB, productID string, currentPrice float64, date
 		fmt.Printf("Stats: Product %s updated highest price from %.2f to %.2f\n", productID, highestPrice, currentPrice)
 	}
 
-	// Always recalculate regular price (mode) after adding new datapoint
 	regularPrice, err := calculateRegularPrice(db, productID)
 	if err != nil {
 		return fmt.Errorf("failed to calculate regular price: %w", err)
 	}
 
 	_, err = db.Exec(
-		"UPDATE stats SET regular_price = ? WHERE product_id = ?",
+		"UPDATE stats SET regular_price = $1 WHERE product_id = $2",
 		regularPrice, productID,
 	)
 	if err != nil {
@@ -221,14 +240,12 @@ func updateProductStats(db *sql.DB, productID string, currentPrice float64, date
 
 // injestProducts accepts a ZIP file and extracts product data
 func injestProducts(c *gin.Context) {
-	// Get the uploaded file
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded"})
 		return
 	}
 
-	// Open the uploaded file
 	src, err := file.Open()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open file"})
@@ -236,23 +253,19 @@ func injestProducts(c *gin.Context) {
 	}
 	defer src.Close()
 
-	// Read file into memory
 	fileBytes, err := io.ReadAll(src)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
 		return
 	}
 
-	// Open as ZIP archive
 	zipReader, err := zip.NewReader(bytes.NewReader(fileBytes), int64(len(fileBytes)))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ZIP file"})
 		return
 	}
 
-	// Find and parse prices.json
 	var scraperOutput ScraperOutput
-
 	images := map[string]*zip.File{}
 	foundPrices := false
 
@@ -283,11 +296,6 @@ func injestProducts(c *gin.Context) {
 		return
 	}
 
-	db, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
-		return
-	}
 	// Consolidate products by product_id across categories
 	type ConsolidatedProduct struct {
 		Product    Product
@@ -313,7 +321,7 @@ func injestProducts(c *gin.Context) {
 
 	// Inject consolidated products into the database
 	count := 0
-	date := time.Now().Format(time.RFC3339)
+	date := time.Now()
 
 	for _, cp := range consolidated {
 		categoriesJSON, err := json.Marshal(cp.Categories)
@@ -322,7 +330,7 @@ func injestProducts(c *gin.Context) {
 			continue
 		}
 
-		sqlStmt := "INSERT INTO products (product_id, name, price, url, category, datetime) VALUES (?, ?, ?, ?, ?, ?);"
+		sqlStmt := "INSERT INTO products (product_id, name, price, url, category, datetime) VALUES ($1, $2, $3, $4, $5, $6)"
 		_, err = db.Exec(sqlStmt, cp.Product.ProductID, cp.Product.Name, cp.Price, cp.Product.URL, string(categoriesJSON), date)
 		if err != nil {
 			fmt.Println("Error:", err)
@@ -365,15 +373,18 @@ func injestProducts(c *gin.Context) {
 			continue
 		}
 
-		imagePath := fmt.Sprintf("images/%s.jpg", cp.Product.ProductID)
-		if err := os.WriteFile(imagePath, imageBytes, 0644); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image to disk", "details": err.Error()})
+		_, err = db.Exec(
+			`INSERT INTO images (product_id, image) VALUES ($1, $2)
+			 ON CONFLICT (product_id) DO UPDATE SET image = EXCLUDED.image, last_updated = NOW()`,
+			cp.Product.ProductID, imageBytes,
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image to database", "details": err.Error()})
 			return
 		}
 
 		count++
 	}
-	db.Close()
 
 	// Invalidate caches after ingesting new data
 	productsCache.mu.Lock()
@@ -405,23 +416,15 @@ func getProducts(c *gin.Context) {
 	}
 	productsCache.mu.RUnlock()
 
-	// Cache miss or expired, fetch from database
-	db, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
-		return
-	}
-	defer db.Close()
-
 	// Get the newest datetime from products table
-	var newestDatetime string
-	err = db.QueryRow("SELECT MAX(datetime) FROM products").Scan(&newestDatetime)
+	var newestDatetime sql.NullTime
+	err := db.QueryRow("SELECT MAX(datetime) FROM products").Scan(&newestDatetime)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get newest datetime"})
 		return
 	}
 
-	if newestDatetime == "" {
+	if !newestDatetime.Valid {
 		c.JSON(http.StatusOK, gin.H{"products": []ProductResponse{}, "datetime": nil})
 		return
 	}
@@ -439,10 +442,10 @@ func getProducts(c *gin.Context) {
 			COALESCE(s.regular_price, p.price) as regular_price
 		FROM products p
 		LEFT JOIN stats s ON p.product_id = s.product_id
-		WHERE p.datetime = ?
+		WHERE p.datetime = $1
 	`
 
-	rows, err := db.Query(query, newestDatetime)
+	rows, err := db.Query(query, newestDatetime.Time)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query products"})
 		return
@@ -453,16 +456,16 @@ func getProducts(c *gin.Context) {
 	for rows.Next() {
 		var p ProductResponse
 		var categoryJSON string
-		err := rows.Scan(&p.ProductID, &p.Name, &p.Price, &p.URL, &categoryJSON, &p.Datetime, &p.LowestPrice, &p.RegularPrice)
+		var datetime time.Time
+		err := rows.Scan(&p.ProductID, &p.Name, &p.Price, &p.URL, &categoryJSON, &datetime, &p.LowestPrice, &p.RegularPrice)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan product"})
 			return
 		}
+		p.Datetime = datetime.Format(time.RFC3339)
 		if err := json.Unmarshal([]byte(categoryJSON), &p.Categories); err != nil {
-			// Fallback: treat as plain string (legacy data)
 			p.Categories = []string{categoryJSON}
 		}
-		// Product is at all-time low if current price equals the lowest recorded price
 		p.IsAllTimeLow = p.Price <= p.LowestPrice
 		products = append(products, p)
 	}
@@ -474,7 +477,7 @@ func getProducts(c *gin.Context) {
 
 	// Build response and cache it
 	response := gin.H{
-		"datetime": newestDatetime,
+		"datetime": newestDatetime.Time.Format(time.RFC3339),
 		"count":    len(products),
 		"products": products,
 	}
@@ -487,7 +490,7 @@ func getProducts(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// getProductImage returns the product image as JPEG from the filesystem
+// getProductImage returns the product image as JPEG from the database
 func getProductImage(c *gin.Context) {
 	productID := c.Param("id")
 	if productID == "" {
@@ -495,14 +498,19 @@ func getProductImage(c *gin.Context) {
 		return
 	}
 
-	imagePath := fmt.Sprintf("images/%s.jpg", productID)
-	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
+	var imageBytes []byte
+	err := db.QueryRow("SELECT image FROM images WHERE product_id = $1", productID).Scan(&imageBytes)
+	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
 		return
 	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve image"})
+		return
+	}
 
-	c.Header("Cache-Control", "public, max-age=86400") // Cache for 24 hours
-	c.File(imagePath)
+	c.Header("Cache-Control", "public, max-age=86400")
+	c.Data(http.StatusOK, "image/jpeg", imageBytes)
 }
 
 // getProduct returns all datapoints and lowest price info for a specific product ID
@@ -523,19 +531,11 @@ func getProduct(c *gin.Context) {
 	}
 	productDetailCache.mu.RUnlock()
 
-	// Cache miss or expired, fetch from database
-	db, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
-		return
-	}
-	defer db.Close()
-
 	// Get all datapoints for this product
 	query := `
 		SELECT price, category, datetime
 		FROM products
-		WHERE product_id = ?
+		WHERE product_id = $1
 		ORDER BY datetime ASC
 	`
 
@@ -552,11 +552,13 @@ func getProduct(c *gin.Context) {
 	for rows.Next() {
 		var dp ProductDatapoint
 		var categoryJSON string
-		err := rows.Scan(&dp.Price, &categoryJSON, &dp.Datetime)
+		var datetime time.Time
+		err := rows.Scan(&dp.Price, &categoryJSON, &datetime)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan datapoint"})
 			return
 		}
+		dp.Datetime = datetime.Format(time.RFC3339)
 		if err := json.Unmarshal([]byte(categoryJSON), &dp.Categories); err != nil {
 			dp.Categories = []string{categoryJSON}
 		}
@@ -574,7 +576,7 @@ func getProduct(c *gin.Context) {
 	}
 
 	// Get product name and URL from the most recent entry
-	err = db.QueryRow("SELECT name, url FROM products WHERE product_id = ? ORDER BY datetime DESC LIMIT 1", productID).Scan(&name, &url)
+	err = db.QueryRow("SELECT name, url FROM products WHERE product_id = $1 ORDER BY datetime DESC LIMIT 1", productID).Scan(&name, &url)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get product details"})
 		return
@@ -584,10 +586,11 @@ func getProduct(c *gin.Context) {
 	var lowestPriceInfo LowestPriceInfo
 	var highestPriceInfo HighestPriceInfo
 	var regularPrice float64
+	var lowestDatetime, highestDatetime time.Time
 	err = db.QueryRow(
-		"SELECT lowest_price, lowest_price_datetime, highest_price, highest_price_datetime, regular_price FROM stats WHERE product_id = ?",
+		"SELECT lowest_price, lowest_price_datetime, highest_price, highest_price_datetime, regular_price FROM stats WHERE product_id = $1",
 		productID,
-	).Scan(&lowestPriceInfo.LowestPrice, &lowestPriceInfo.Datetime, &highestPriceInfo.HighestPrice, &highestPriceInfo.Datetime, &regularPrice)
+	).Scan(&lowestPriceInfo.LowestPrice, &lowestDatetime, &highestPriceInfo.HighestPrice, &highestDatetime, &regularPrice)
 	if err == sql.ErrNoRows {
 		// If no stats entry, calculate from datapoints
 		minPrice := datapoints[0].Price
@@ -610,7 +613,6 @@ func getProduct(c *gin.Context) {
 		lowestPriceInfo.Datetime = minDatetime
 		highestPriceInfo.HighestPrice = maxPrice
 		highestPriceInfo.Datetime = maxDatetime
-		// Calculate mode for regular price
 		maxCount := 0
 		for price, count := range priceCount {
 			if count > maxCount || (count == maxCount && price > regularPrice) {
@@ -621,12 +623,14 @@ func getProduct(c *gin.Context) {
 	} else if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get price stats"})
 		return
+	} else {
+		lowestPriceInfo.Datetime = lowestDatetime.Format(time.RFC3339)
+		highestPriceInfo.Datetime = highestDatetime.Format(time.RFC3339)
 	}
 
 	// Determine if product is on sale (current price < regular price)
 	currentPrice := datapoints[len(datapoints)-1].Price
 	onSale := currentPrice < regularPrice
-	// Product is at all-time low if current price equals the lowest recorded price
 	isAllTimeLow := currentPrice <= lowestPriceInfo.LowestPrice
 
 	// Build response and cache it
@@ -661,27 +665,22 @@ func getProductsByCategory(c *gin.Context) {
 		return
 	}
 
-	db, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
-		return
-	}
-	defer db.Close()
-
 	// Get the newest datetime from products table
-	var newestDatetime string
-	err = db.QueryRow("SELECT MAX(datetime) FROM products").Scan(&newestDatetime)
+	var newestDatetime sql.NullTime
+	err := db.QueryRow("SELECT MAX(datetime) FROM products").Scan(&newestDatetime)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get newest datetime"})
 		return
 	}
 
-	if newestDatetime == "" {
+	if !newestDatetime.Valid {
 		c.JSON(http.StatusOK, gin.H{"products": []ProductResponse{}, "datetime": nil, "category": category})
 		return
 	}
 
-	// Query products with the newest datetime filtered by category (JSON array LIKE match) and join with stats
+	// Query products with the newest datetime filtered by category using JSONB contains and join with stats
+	categoryFilter, _ := json.Marshal([]string{category})
+
 	query := `
 		SELECT
 			p.product_id,
@@ -694,10 +693,10 @@ func getProductsByCategory(c *gin.Context) {
 			COALESCE(s.regular_price, p.price) as regular_price
 		FROM products p
 		LEFT JOIN stats s ON p.product_id = s.product_id
-		WHERE p.datetime = ? AND p.category LIKE '%"' || ? || '"%'
+		WHERE p.datetime = $1 AND p.category @> $2::jsonb
 	`
 
-	rows, err := db.Query(query, newestDatetime, category)
+	rows, err := db.Query(query, newestDatetime.Time, string(categoryFilter))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query products"})
 		return
@@ -708,11 +707,13 @@ func getProductsByCategory(c *gin.Context) {
 	for rows.Next() {
 		var p ProductResponse
 		var categoryJSON string
-		err := rows.Scan(&p.ProductID, &p.Name, &p.Price, &p.URL, &categoryJSON, &p.Datetime, &p.LowestPrice, &p.RegularPrice)
+		var datetime time.Time
+		err := rows.Scan(&p.ProductID, &p.Name, &p.Price, &p.URL, &categoryJSON, &datetime, &p.LowestPrice, &p.RegularPrice)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan product"})
 			return
 		}
+		p.Datetime = datetime.Format(time.RFC3339)
 		if err := json.Unmarshal([]byte(categoryJSON), &p.Categories); err != nil {
 			p.Categories = []string{categoryJSON}
 		}
@@ -726,7 +727,7 @@ func getProductsByCategory(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"datetime": newestDatetime,
+		"datetime": newestDatetime.Time.Format(time.RFC3339),
 		"category": category,
 		"count":    len(products),
 		"products": products,
@@ -766,6 +767,7 @@ func main() {
 	if err := initDB(); err != nil {
 		panic(fmt.Sprintf("Failed to initialize database: %v", err))
 	}
+	defer db.Close()
 
 	router := gin.Default()
 	router.Use(corsMiddleware())

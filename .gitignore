@@ -37,3 +37,4 @@ api/database/*.db
 api/database/backups/
 api/api.exe
 api/database/products.db
+api/images/

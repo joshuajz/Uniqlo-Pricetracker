@@ -6,6 +6,7 @@
 |-----------|---------|------|
 | Frontend | Vercel (free Hobby tier) | $0 |
 | API | Railway ($5/mo Hobby plan) | $5/mo |
+| Database | Railway PostgreSQL add-on | included |
 | Scraper | GitHub Actions cron (free for public repos) | $0 |
 | Domain | uniqlotracker.com (or similar) | ~$10/yr |
 | **Total** | | **~$5/mo** |
@@ -29,11 +30,14 @@
 - Settings:
   - **Root directory:** `api`
   - Railway auto-detects Go via Nixpacks
+- **Database:** Add PostgreSQL plugin from the Railway dashboard. Railway automatically sets the `DATABASE_URL` environment variable.
 - Environment variables:
-  - `PORT` is set automatically by Railway
-- **Database:** Attach a persistent volume at `/app/database/` for `products.db`
+  - `PORT` — set automatically by Railway
+  - `DATABASE_URL` — set automatically by Railway PostgreSQL add-on
+  - `AUTH_USER` — basic auth username for the ingest endpoint
+  - `AUTH_PASS` — basic auth password for the ingest endpoint
+  - `CORS_ORIGINS` — comma-separated allowed origins (e.g. `https://uniqlotracker.com`)
 - **Custom domain:** Add `api.uniqlotracker.com` in Railway settings
-- **CORS:** Configure the Go API to allow requests from your Vercel frontend domain
 
 ### Key fix applied
 The API was binding to `localhost:8080` which prevents Railway's proxy from reaching it. Changed to `0.0.0.0:$PORT`.
@@ -89,17 +93,16 @@ jobs:
 GitHub Actions (cron daily)
   → Scraper runs, produces ZIP with prices.json + images
   → POST /api/products/injest to Railway API
-  → API ingests into SQLite products.db
+  → API ingests into PostgreSQL
   → Frontend fetches from /api/products
 ```
 
 ## TODO
 
 - [ ] Update `frontend/src/lib/api.ts` to use `VITE_API_URL` env var
-- [ ] Add CORS middleware to Go API
 - [ ] Change basic auth credentials for `/api/products/injest`
 - [ ] Set up Vercel project + custom domain
-- [ ] Set up Railway project + persistent volume + custom domain
+- [ ] Set up Railway project + PostgreSQL add-on + custom domain
 - [ ] Create GitHub Actions workflow file
 - [ ] Add GitHub secrets (API_URL, API_AUTH)
 - [ ] Buy domain and configure DNS
