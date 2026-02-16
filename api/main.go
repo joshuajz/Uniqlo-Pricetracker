@@ -270,7 +270,6 @@ func injestProducts(c *gin.Context) {
 	foundPrices := false
 
 	for _, f := range zipReader.File {
-		fmt.Println("f.name:", f.Name)
 		if f.Name == "prices.json" {
 			rc, err := f.Open()
 			if err != nil {
@@ -286,7 +285,6 @@ func injestProducts(c *gin.Context) {
 			rc.Close()
 			foundPrices = true
 		} else {
-			fmt.Println("f.Name:", f.Name)
 			images[f.Name] = f
 		}
 	}
@@ -321,19 +319,23 @@ func injestProducts(c *gin.Context) {
 
 	// Inject consolidated products into the database
 	count := 0
+	total := len(consolidated)
 	date := time.Now()
 
+	fmt.Printf("Ingesting %d products...\n", total)
+
 	for _, cp := range consolidated {
+		count++
+
 		categoriesJSON, err := json.Marshal(cp.Categories)
 		if err != nil {
-			fmt.Println("Error marshaling categories:", err)
+			fmt.Printf("[%d/%d] %s - ERROR marshaling categories: %v\n", count, total, cp.Product.ProductID, err)
 			continue
 		}
 
 		sqlStmt := "INSERT INTO products (product_id, name, price, url, category, datetime) VALUES ($1, $2, $3, $4, $5, $6)"
 		_, err = db.Exec(sqlStmt, cp.Product.ProductID, cp.Product.Name, cp.Price, cp.Product.URL, string(categoriesJSON), date)
 		if err != nil {
-			fmt.Println("Error:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to insert product into database", "details": err.Error()})
 			return
 		}
@@ -341,35 +343,30 @@ func injestProducts(c *gin.Context) {
 		// Update stats table with lowest price tracking
 		priceFloat, err := strconv.ParseFloat(cp.Price, 64)
 		if err != nil {
-			fmt.Println("Warning: Failed to parse price for stats:", err)
+			fmt.Printf("[%d/%d] %s $%s - WARNING bad price\n", count, total, cp.Product.ProductID, cp.Price)
 		} else {
 			if err := updateProductStats(db, cp.Product.ProductID, priceFloat, date); err != nil {
-				fmt.Println("Warning: Failed to update stats:", err)
+				fmt.Printf("[%d/%d] %s $%s - WARNING stats failed: %v\n", count, total, cp.Product.ProductID, cp.Price, err)
 			}
 		}
 
-		fmt.Println("Product:", cp.Product.ProductID, "Categories:", cp.Categories)
-		fmt.Println("Image:", cp.Product.Image)
-
+		// Save image to filesystem
 		imageFile, ok := images[cp.Product.Image]
 		if !ok {
-			fmt.Println("Warning: Image not found in ZIP:", cp.Product.Image)
-			count++
+			fmt.Printf("[%d/%d] %s $%s - no image\n", count, total, cp.Product.ProductID, cp.Price)
 			continue
 		}
 
 		rc, err := imageFile.Open()
 		if err != nil {
-			fmt.Println("Warning: Failed to open image:", err)
-			count++
+			fmt.Printf("[%d/%d] %s $%s - image read error\n", count, total, cp.Product.ProductID, cp.Price)
 			continue
 		}
 
 		imageBytes, err := io.ReadAll(rc)
 		rc.Close()
 		if err != nil {
-			fmt.Println("Warning: Failed to read image:", err)
-			count++
+			fmt.Printf("[%d/%d] %s $%s - image read error\n", count, total, cp.Product.ProductID, cp.Price)
 			continue
 		}
 
@@ -379,7 +376,7 @@ func injestProducts(c *gin.Context) {
 			return
 		}
 
-		count++
+		fmt.Printf("[%d/%d] %s $%s OK\n", count, total, cp.Product.ProductID, cp.Price)
 	}
 
 	// Invalidate caches after ingesting new data
