@@ -5,10 +5,10 @@
 CREATE TABLE products (
     product_id TEXT NOT NULL,
     name TEXT NOT NULL,
-    price NUMERIC(10,2) NOT NULL,
+    price MONEY NOT NULL,
     url TEXT NOT NULL,
-    category JSONB NOT NULL,
-    datetime TIMESTAMPTZ NOT NULL
+    category JSON NOT NULL,
+    datetime DATE NOT NULL
 );
 
 CREATE TABLE scraper (
@@ -29,11 +29,6 @@ CREATE TABLE stats (
     regular_price NUMERIC(10,2) NOT NULL
 );
 
-CREATE TABLE images (
-    product_id TEXT NOT NULL UNIQUE,
-    image BYTEA NOT NULL,
-    last_updated TIMESTAMPTZ DEFAULT NOW()
-);
 ```
 
 ## Connection

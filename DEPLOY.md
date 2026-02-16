@@ -31,6 +31,7 @@
   - **Root directory:** `api`
   - Railway auto-detects Go via Nixpacks
 - **Database:** Add PostgreSQL plugin from the Railway dashboard. Railway automatically sets the `DATABASE_URL` environment variable.
+- **Images:** Attach a persistent volume at `/app/images/` for product image storage
 - Environment variables:
   - `PORT` — set automatically by Railway
   - `DATABASE_URL` — set automatically by Railway PostgreSQL add-on

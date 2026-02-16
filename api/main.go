@@ -117,6 +117,11 @@ func initDB() error {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
+	// Create images directory for filesystem-based image storage
+	if err := os.MkdirAll("images", 0755); err != nil {
+		return fmt.Errorf("failed to create images directory: %w", err)
+	}
+
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS products (
 			product_id TEXT NOT NULL,
@@ -141,11 +146,6 @@ func initDB() error {
 			highest_price NUMERIC(10,2) NOT NULL,
 			highest_price_datetime TIMESTAMPTZ NOT NULL,
 			regular_price NUMERIC(10,2) NOT NULL
-		)`,
-		`CREATE TABLE IF NOT EXISTS images (
-			product_id TEXT NOT NULL UNIQUE,
-			image BYTEA NOT NULL,
-			last_updated TIMESTAMPTZ DEFAULT NOW()
 		)`,
 	}
 
@@ -373,13 +373,9 @@ func injestProducts(c *gin.Context) {
 			continue
 		}
 
-		_, err = db.Exec(
-			`INSERT INTO images (product_id, image) VALUES ($1, $2)
-			 ON CONFLICT (product_id) DO UPDATE SET image = EXCLUDED.image, last_updated = NOW()`,
-			cp.Product.ProductID, imageBytes,
-		)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image to database", "details": err.Error()})
+		imagePath := fmt.Sprintf("images/%s.jpg", cp.Product.ProductID)
+		if err := os.WriteFile(imagePath, imageBytes, 0644); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image to disk", "details": err.Error()})
 			return
 		}
 
@@ -490,7 +486,7 @@ func getProducts(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// getProductImage returns the product image as JPEG from the database
+// getProductImage returns the product image as JPEG from the filesystem
 func getProductImage(c *gin.Context) {
 	productID := c.Param("id")
 	if productID == "" {
@@ -498,19 +494,14 @@ func getProductImage(c *gin.Context) {
 		return
 	}
 
-	var imageBytes []byte
-	err := db.QueryRow("SELECT image FROM images WHERE product_id = $1", productID).Scan(&imageBytes)
-	if err == sql.ErrNoRows {
+	imagePath := fmt.Sprintf("images/%s.jpg", productID)
+	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
-		return
-	}
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve image"})
 		return
 	}
 
 	c.Header("Cache-Control", "public, max-age=86400")
-	c.Data(http.StatusOK, "image/jpeg", imageBytes)
+	c.File(imagePath)
 }
 
 // getProduct returns all datapoints and lowest price info for a specific product ID
