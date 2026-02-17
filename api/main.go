@@ -117,11 +117,6 @@ func initDB() error {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Create images directory for filesystem-based image storage
-	if err := os.MkdirAll("images", 0755); err != nil {
-		return fmt.Errorf("failed to create images directory: %w", err)
-	}
-
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS products (
 			product_id TEXT NOT NULL,
@@ -193,7 +188,6 @@ func updateProductStats(db *sql.DB, productID string, currentPrice float64, date
 		if err != nil {
 			return fmt.Errorf("failed to insert stats: %w", err)
 		}
-		fmt.Printf("Stats: New product %s added with price %.2f (lowest, highest, and regular)\n", productID, currentPrice)
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("failed to query stats: %w", err)
@@ -207,7 +201,6 @@ func updateProductStats(db *sql.DB, productID string, currentPrice float64, date
 		if err != nil {
 			return fmt.Errorf("failed to update lowest price: %w", err)
 		}
-		fmt.Printf("Stats: Product %s updated lowest price from %.2f to %.2f\n", productID, lowestPrice, currentPrice)
 	}
 
 	if currentPrice > highestPrice {
@@ -218,7 +211,6 @@ func updateProductStats(db *sql.DB, productID string, currentPrice float64, date
 		if err != nil {
 			return fmt.Errorf("failed to update highest price: %w", err)
 		}
-		fmt.Printf("Stats: Product %s updated highest price from %.2f to %.2f\n", productID, highestPrice, currentPrice)
 	}
 
 	regularPrice, err := calculateRegularPrice(db, productID)
@@ -233,7 +225,6 @@ func updateProductStats(db *sql.DB, productID string, currentPrice float64, date
 	if err != nil {
 		return fmt.Errorf("failed to update regular price: %w", err)
 	}
-	fmt.Printf("Stats: Product %s regular price updated to %.2f\n", productID, regularPrice)
 
 	return nil
 }
@@ -350,7 +341,7 @@ func injestProducts(c *gin.Context) {
 			}
 		}
 
-		// Save image to filesystem
+		// Save image to database
 		imageFile, ok := images[cp.Product.Image]
 		if !ok {
 			fmt.Printf("[%d/%d] %s $%s - no image\n", count, total, cp.Product.ProductID, cp.Price)
@@ -370,10 +361,14 @@ func injestProducts(c *gin.Context) {
 			continue
 		}
 
-		imagePath := fmt.Sprintf("images/%s.jpg", cp.Product.ProductID)
-		if err := os.WriteFile(imagePath, imageBytes, 0644); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image to disk", "details": err.Error()})
-			return
+		_, err = db.Exec(
+			`INSERT INTO images (product_id, image) VALUES ($1, $2)
+			 ON CONFLICT (product_id) DO UPDATE SET image = EXCLUDED.image, last_updated = NOW()`,
+			cp.Product.ProductID, imageBytes,
+		)
+		if err != nil {
+			fmt.Printf("[%d/%d] %s $%s - image save error: %v\n", count, total, cp.Product.ProductID, cp.Price, err)
+			continue
 		}
 
 		fmt.Printf("[%d/%d] %s $%s OK\n", count, total, cp.Product.ProductID, cp.Price)
@@ -483,7 +478,7 @@ func getProducts(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// getProductImage returns the product image as JPEG from the filesystem
+// getProductImage returns the product image as JPEG from the database
 func getProductImage(c *gin.Context) {
 	productID := c.Param("id")
 	if productID == "" {
@@ -491,14 +486,19 @@ func getProductImage(c *gin.Context) {
 		return
 	}
 
-	imagePath := fmt.Sprintf("images/%s.jpg", productID)
-	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
+	var imageBytes []byte
+	err := db.QueryRow("SELECT image FROM images WHERE product_id = $1", productID).Scan(&imageBytes)
+	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve image"})
 		return
 	}
 
 	c.Header("Cache-Control", "public, max-age=86400")
-	c.File(imagePath)
+	c.Data(http.StatusOK, "image/jpeg", imageBytes)
 }
 
 // getProduct returns all datapoints and lowest price info for a specific product ID
