@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Uniqlo Tracker — Bento Grid</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    body{font-family:'Inter',sans-serif;background:#f0f0ed;color:#111;margin:0}
+    [x-cloak]{display:none!important}
+    .bento-grid{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:200px;gap:10px}
+    .b-cell{position:relative;overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s;background:#fff}
+    .b-cell:hover{transform:scale(.99);box-shadow:0 12px 40px rgba(0,0,0,.15)}
+    .b-img{position:absolute;inset:0;transition:transform .3s}
+    .b-cell:hover .b-img{transform:scale(1.04)}
+    .b-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.65) 0%,rgba(0,0,0,.1) 50%,transparent 100%)}
+    .b-text{position:absolute;bottom:0;left:0;right:0;padding:16px;color:#fff}
+    .bs{background:#dc2626;color:#fff;font-size:11px;font-weight:700;padding:3px 8px}
+    .ba{background:rgba(255,255,255,.9);color:#111;font-size:10px;font-weight:700;padding:2px 7px}
+    .mbg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px}
+    .pill{font-size:12px;font-weight:600;padding:6px 16px;border:1.5px solid;cursor:pointer;transition:all .15s;font-family:inherit;background:none}
+    .pill.on{background:#111;color:#fff;border-color:#111}
+    .pill:not(.on){color:#666;border-color:#ddd}
+    .pill:not(.on):hover{border-color:#999;color:#111}
+  </style>
+</head>
+<body x-data="app()" x-cloak>
+
+<header style="background:#fff;border-bottom:1px solid #e0e0e0">
+  <div style="max-width:1400px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:baseline;gap:10px">
+      <span style="font-size:20px;font-weight:900;letter-spacing:-.01em">UNIQLO</span>
+      <span style="font-size:10px;font-weight:700;color:#dc2626;letter-spacing:.14em;text-transform:uppercase">Price Tracker</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <input type="text" x-model="search" placeholder="Search…"
+        style="border:1px solid #ddd;padding:6px 12px;font-size:13px;font-family:inherit;width:180px;outline:none"
+        onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#ddd'"/>
+      <a href="../index.html" style="font-size:11px;color:#aaa;font-weight:500;letter-spacing:.06em;text-decoration:none">ALL DESIGNS</a>
+    </div>
+  </div>
+</header>
+
+<div style="max-width:1400px;margin:0 auto;padding:32px 24px 80px">
+
+  <!-- Stats row -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px">
+    <div style="background:#dc2626;color:#fff;padding:20px;display:flex;flex-direction:column;justify-content:space-between">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.8">Tracked</div>
+      <div style="font-size:44px;font-weight:900;letter-spacing:-.03em;line-height:1">16</div>
+    </div>
+    <div style="background:#fff;padding:20px;display:flex;flex-direction:column;justify-content:space-between">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#999">On Sale</div>
+      <div style="font-size:44px;font-weight:900;letter-spacing:-.03em;line-height:1">16</div>
+    </div>
+    <div style="background:#111;color:#fff;padding:20px;display:flex;flex-direction:column;justify-content:space-between">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.6">Categories</div>
+      <div style="font-size:44px;font-weight:900;letter-spacing:-.03em;line-height:1">5</div>
+    </div>
+    <div style="background:#fff;padding:20px;display:flex;flex-direction:column;justify-content:space-between">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#999">Avg. Off</div>
+      <div style="font-size:44px;font-weight:900;letter-spacing:-.03em;line-height:1">30%</div>
+    </div>
+  </div>
+
+  <!-- Category filters -->
+  <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+    <template x-for="cat in ['All','Tops','Bottoms','Outerwear','Accessories','Innerwear']" :key="cat">
+      <button @click="category=cat" class="pill" :class="category===cat?'on':''" x-text="cat"></button>
+    </template>
+    <div style="flex:1"></div>
+    <span style="font-size:12px;color:#888;line-height:36px" x-text="filtered.length+' items'"></span>
+  </div>
+
+  <!-- Bento grid -->
+  <div class="bento-grid" x-show="filtered.length > 0">
+    <template x-for="(p,i) in filtered" :key="p.id">
+      <div class="b-cell"
+        :style="i===0 ? 'grid-column:span 2;grid-row:span 2' : (i===1||i===2) ? 'grid-column:span 1;grid-row:span 2' : ''"
+        @click="sel=p">
+        <div class="b-img" :style="`background:linear-gradient(160deg,hsl(${p.hue},30%,34%),hsl(${p.hue+20},24%,52%))`"></div>
+        <div class="b-overlay"></div>
+        <!-- Badges -->
+        <div style="position:absolute;top:12px;left:12px;display:flex;gap:6px">
+          <span class="bs" x-text="'-'+p.disc+'%'"></span>
+          <span x-show="p.atl" class="ba">ATL</span>
+        </div>
+        <!-- Text -->
+        <div class="b-text">
+          <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;opacity:.7;margin-bottom:4px" x-text="p.cat"></div>
+          <div :style="i===0?'font-size:20px;font-weight:800;line-height:1.2;margin-bottom:8px':'font-size:14px;font-weight:700;line-height:1.2;margin-bottom:6px'" x-text="p.name"></div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <span :style="i===0?'font-size:26px;font-weight:900':'font-size:18px;font-weight:800'" x-text="'$'+p.price.toFixed(2)"></span>
+            <span style="font-size:13px;opacity:.5;text-decoration:line-through" x-text="'$'+p.reg.toFixed(2)"></span>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <div x-show="filtered.length===0" style="text-align:center;padding:80px 0;color:#aaa;font-size:14px">No products match your search.</div>
+</div>
+
+<!-- Modal -->
+<div x-show="sel" class="mbg" @click.self="sel=null" x-cloak>
+  <div style="background:#fff;max-width:460px;width:100%;max-height:90vh;overflow-y:auto">
+    <div style="position:relative;height:300px" :style="`background:linear-gradient(160deg,hsl(${sel?.hue},30%,34%),hsl(${sel?.hue+20},24%,52%))`">
+      <button @click="sel=null" style="position:absolute;top:14px;right:14px;background:rgba(0,0,0,.4);border:none;color:#fff;width:32px;height:32px;cursor:pointer;font-size:18px;line-height:1">×</button>
+      <div style="position:absolute;bottom:14px;left:14px;display:flex;gap:6px">
+        <span class="bs" x-text="'-'+sel?.disc+'%'"></span>
+        <span x-show="sel?.atl" style="background:#fff;color:#111;font-size:11px;font-weight:700;padding:3px 7px">ALL-TIME LOW</span>
+      </div>
+    </div>
+    <div style="padding:24px">
+      <div style="font-size:11px;color:#aaa;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px" x-text="sel?.cat"></div>
+      <h2 style="font-size:22px;font-weight:800;margin:0 0 14px;line-height:1.2" x-text="sel?.name"></h2>
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:16px">
+        <span style="font-size:30px;font-weight:900;color:#dc2626" x-text="'$'+sel?.price.toFixed(2)"></span>
+        <span style="font-size:16px;color:#bbb;text-decoration:line-through" x-text="'$'+sel?.reg.toFixed(2)"></span>
+        <span style="font-size:14px;color:#dc2626;font-weight:700" x-text="'Save '+sel?.disc+'%'"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;border-top:1px solid #eee;padding-top:14px">
+        <div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#aaa;font-weight:600;margin-bottom:3px">Gender</div><div x-text="sel?.g==='M'?'Men':sel?.g==='W'?'Women':'Unisex'"></div></div>
+        <div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#aaa;font-weight:600;margin-bottom:3px">All-Time Low</div><div x-text="sel?.atl?'✓ Current price!':'$'+sel?.low.toFixed(2)"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function app(){
+  return {
+    search:'',category:'All',sel:null,
+    products:[
+      {id:'473220',name:'Heattech Turtleneck Sweater',g:'W',cat:'Tops',price:99.90,reg:149.90,low:89.90,hue:220,disc:33,atl:false},
+      {id:'452891',name:'AIRism Polo Shirt',g:'M',cat:'Tops',price:14.90,reg:24.90,low:14.90,hue:195,disc:40,atl:true},
+      {id:'467341',name:'Flannel Checked Shirt',g:'M',cat:'Tops',price:29.90,reg:39.90,low:24.90,hue:15,disc:25,atl:false},
+      {id:'489201',name:'Soufflé Yarn Knit Sweater',g:'W',cat:'Tops',price:49.90,reg:59.90,low:44.90,hue:280,disc:17,atl:false},
+      {id:'471823',name:'Slim-Fit Chino Trousers',g:'M',cat:'Bottoms',price:34.90,reg:49.90,low:29.90,hue:40,disc:30,atl:false},
+      {id:'461027',name:'Ultra Stretch Skinny Jeans',g:'W',cat:'Bottoms',price:39.90,reg:59.90,low:34.90,hue:225,disc:33,atl:false},
+      {id:'482934',name:'Sweat Wide-Fit Trousers',g:'U',cat:'Bottoms',price:24.90,reg:29.90,low:19.90,hue:200,disc:17,atl:false},
+      {id:'478102',name:'Light Warm Padded Vest',g:'M',cat:'Outerwear',price:49.90,reg:69.90,low:44.90,hue:30,disc:29,atl:false},
+      {id:'465892',name:'BlockTech Parka',g:'U',cat:'Outerwear',price:119.90,reg:149.90,low:99.90,hue:210,disc:20,atl:false},
+      {id:'491023',name:'Fleece Full-Zip Jacket',g:'U',cat:'Outerwear',price:29.90,reg:49.90,low:29.90,hue:160,disc:40,atl:true},
+      {id:'455123',name:'UV Protection Cap',g:'U',cat:'Accessories',price:14.90,reg:19.90,low:12.90,hue:350,disc:25,atl:false},
+      {id:'469045',name:'Socks 3-Pack',g:'U',cat:'Accessories',price:9.90,reg:14.90,low:9.90,hue:0,disc:34,atl:true},
+      {id:'488234',name:'Mini Shoulder Bag',g:'U',cat:'Accessories',price:19.90,reg:29.90,low:17.90,hue:25,disc:33,atl:false},
+      {id:'492011',name:'Knit Beanie',g:'U',cat:'Accessories',price:9.90,reg:14.90,low:7.90,hue:270,disc:34,atl:false},
+      {id:'463891',name:'Wireless Bra',g:'W',cat:'Innerwear',price:19.90,reg:29.90,low:17.90,hue:340,disc:33,atl:false},
+      {id:'475023',name:'Heattech Extra Warm L/S',g:'W',cat:'Innerwear',price:19.90,reg:29.90,low:16.90,hue:260,disc:33,atl:false},
+    ],
+    get filtered(){
+      let ps=this.products;
+      if(this.category!=='All') ps=ps.filter(p=>p.cat===this.category);
+      if(this.search){const q=this.search.toLowerCase();ps=ps.filter(p=>p.name.toLowerCase().includes(q)||p.cat.toLowerCase().includes(q));}
+      return [...ps].sort((a,b)=>b.disc-a.disc);
+    }
+  }
+}
+</script>
+</body>
+</html>

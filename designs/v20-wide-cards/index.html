@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Uniqlo Tracker — Wide Cards</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    body{font-family:'Inter',sans-serif;background:#f8f8f6;color:#111;margin:0}
+    [x-cloak]{display:none!important}
+    .w-card{display:grid;grid-template-columns:200px 1fr 160px;align-items:stretch;background:#fff;border-bottom:1px solid #ebebeb;cursor:pointer;transition:background .1s}
+    .w-card:hover{background:#fafaf8}
+    .w-card:hover .w-img{transform:scale(1.04)}
+    .w-img-wrap{overflow:hidden;height:140px;flex-shrink:0}
+    .w-img{width:100%;height:100%;transition:transform .3s}
+    .bs{background:#dc2626;color:#fff;font-size:10px;font-weight:700;padding:2px 7px}
+    .ba{background:#111;color:#fff;font-size:10px;font-weight:700;padding:2px 6px}
+    .srt{font-size:12px;font-weight:600;padding:6px 12px;cursor:pointer;border:1px solid #ddd;background:#fff;font-family:inherit;transition:all .15s}
+    .srt.on{background:#111;color:#fff;border-color:#111}
+    .srt:not(.on){color:#666}
+    .mbg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px}
+    .detail-row{overflow:hidden;transition:max-height .3s ease,opacity .3s}
+    .bar-fill{height:100%;border-radius:2px;background:#dc2626;transition:width .4s}
+  </style>
+</head>
+<body x-data="app()" x-cloak>
+
+<header style="background:#fff;border-bottom:3px solid #111">
+  <div style="max-width:1100px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px">
+    <div>
+      <span style="font-size:22px;font-weight:900;letter-spacing:-.02em">Uniqlo</span>
+      <span style="font-size:22px;font-weight:300;letter-spacing:-.02em"> </span>
+      <span style="font-size:22px;font-weight:900;letter-spacing:-.02em;color:#dc2626">Tracker</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <span style="font-size:12px;color:#aaa">Feb 18, 2026</span>
+      <a href="../index.html" style="font-size:11px;color:#aaa;font-weight:500;letter-spacing:.06em;text-decoration:none">ALL DESIGNS</a>
+    </div>
+  </div>
+</header>
+
+<div style="max-width:1100px;margin:0 auto;padding:36px 24px 0">
+  <!-- Stats -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);border-top:3px solid #111;border-left:1px solid #ddd;margin-bottom:36px">
+    <div style="padding:16px 18px;border-right:1px solid #ddd;border-bottom:1px solid #ddd;border-top:3px solid #dc2626;margin-top:-3px">
+      <div style="font-size:32px;font-weight:900;letter-spacing:-.03em;line-height:1;color:#dc2626">16</div>
+      <div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#999;margin-top:4px">Tracked</div>
+    </div>
+    <div style="padding:16px 18px;border-right:1px solid #ddd;border-bottom:1px solid #ddd">
+      <div style="font-size:32px;font-weight:900;letter-spacing:-.03em;line-height:1">16</div>
+      <div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#999;margin-top:4px">On Sale</div>
+    </div>
+    <div style="padding:16px 18px;border-right:1px solid #ddd;border-bottom:1px solid #ddd">
+      <div style="font-size:32px;font-weight:900;letter-spacing:-.03em;line-height:1">5</div>
+      <div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#999;margin-top:4px">Categories</div>
+    </div>
+    <div style="padding:16px 18px;border-bottom:1px solid #ddd">
+      <div style="font-size:32px;font-weight:900;letter-spacing:-.03em;line-height:1">30%</div>
+      <div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#999;margin-top:4px">Avg Off</div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+    <span style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#aaa;margin-right:4px">Sort:</span>
+    <template x-for="opt in sortOpts" :key="opt.key">
+      <button class="srt" :class="sort===opt.key?'on':''" @click="sort=opt.key" x-text="opt.label"></button>
+    </template>
+    <div style="flex:1"></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select x-model="category" style="border:1px solid #ddd;padding:6px 12px;font-size:13px;font-family:inherit;background:#fff;outline:none;cursor:pointer">
+        <option value="All">All Categories</option>
+        <option>Tops</option><option>Bottoms</option><option>Outerwear</option><option>Accessories</option><option>Innerwear</option>
+      </select>
+      <input type="text" x-model="search" placeholder="Search…"
+        style="border:1px solid #ddd;padding:6px 12px;font-size:13px;font-family:inherit;width:160px;outline:none"
+        onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#ddd'"/>
+    </div>
+    <span style="font-size:12px;color:#aaa" x-text="filtered.length+' results'"></span>
+  </div>
+
+  <!-- Wide card list -->
+  <div style="border-top:1px solid #ebebeb">
+    <template x-for="p in filtered" :key="p.id">
+      <div>
+        <div class="w-card" @click="expanded===p.id?expanded=null:expanded=p.id">
+          <!-- Image -->
+          <div class="w-img-wrap" style="position:relative">
+            <div class="w-img" :style="`background:linear-gradient(160deg,hsl(${p.hue},28%,36%),hsl(${p.hue+20},22%,54%))`"></div>
+            <div style="position:absolute;bottom:8px;left:8px;display:flex;gap:4px">
+              <span class="bs" x-text="'-'+p.disc+'%'"></span>
+              <span x-show="p.atl" class="ba">ATL</span>
+            </div>
+          </div>
+
+          <!-- Details -->
+          <div style="padding:20px 24px;display:flex;flex-direction:column;justify-content:center;gap:8px">
+            <div>
+              <div style="font-size:10px;font-weight:600;color:#aaa;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px" x-text="p.cat+' · '+(p.g==='M'?'Men':p.g==='W'?'Women':'Unisex')"></div>
+              <div style="font-size:17px;font-weight:700;line-height:1.3" x-text="p.name"></div>
+            </div>
+            <!-- Savings bar -->
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <span style="font-size:11px;color:#aaa">Discount</span>
+                <span style="font-size:12px;font-weight:700;color:#dc2626" x-text="p.disc+'% off'"></span>
+              </div>
+              <div style="height:4px;background:#f0f0f0;border-radius:2px;overflow:hidden">
+                <div class="bar-fill" :style="`width:${p.disc}%`"></div>
+              </div>
+            </div>
+            <div style="font-size:12px;color:#aaa" x-text="p.atl?'★ All-time low price today!':'All-time low: $'+p.low.toFixed(2)"></div>
+          </div>
+
+          <!-- Price column -->
+          <div style="padding:20px 24px;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;border-left:1px solid #ebebeb">
+            <div style="font-size:28px;font-weight:900;color:#dc2626;line-height:1" x-text="'$'+p.price.toFixed(2)"></div>
+            <div style="font-size:14px;color:#bbb;text-decoration:line-through;margin-top:4px" x-text="'$'+p.reg.toFixed(2)"></div>
+            <div style="font-size:12px;color:#aaa;margin-top:6px" x-text="'Save $'+(p.reg-p.price).toFixed(2)"></div>
+            <div style="margin-top:12px;font-size:11px;color:#888;font-weight:500" x-text="expanded===p.id?'↑ Less':'↓ History'"></div>
+          </div>
+        </div>
+
+        <!-- Expanded price history -->
+        <div x-show="expanded===p.id" style="background:#fff;border-bottom:1px solid #ebebeb;padding:16px 24px 20px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#aaa;margin-bottom:10px">Price History</div>
+          <div style="display:flex;align-items:flex-end;gap:4px;height:60px">
+            <template x-for="(v,hi) in histories[p.id]" :key="hi">
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+                <div :style="`width:100%;background:${hi===histories[p.id].length-1?'#dc2626':'#ddd'};border-radius:2px 2px 0 0;height:${Math.round((1-v/Math.max(...histories[p.id]))*48+12)}px`"></div>
+                <div style="font-size:9px;color:#aaa;text-align:center" x-text="'$'+v.toFixed(0)"></div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </template>
+    <div x-show="filtered.length===0" style="text-align:center;padding:60px 0;color:#aaa;font-size:14px">No products match your search.</div>
+  </div>
+
+  <div style="padding-bottom:80px"></div>
+</div>
+
+<script>
+function app(){
+  return {
+    search:'',sort:'disc',category:'All',expanded:null,
+    sortOpts:[
+      {key:'disc',label:'Most Discounted'},
+      {key:'price',label:'Lowest Price'},
+      {key:'name',label:'Name A–Z'},
+    ],
+    products:[
+      {id:'473220',name:'Heattech Turtleneck Sweater',g:'W',cat:'Tops',price:99.90,reg:149.90,low:89.90,hue:220,disc:33,atl:false},
+      {id:'452891',name:'AIRism Polo Shirt',g:'M',cat:'Tops',price:14.90,reg:24.90,low:14.90,hue:195,disc:40,atl:true},
+      {id:'467341',name:'Flannel Checked Shirt',g:'M',cat:'Tops',price:29.90,reg:39.90,low:24.90,hue:15,disc:25,atl:false},
+      {id:'489201',name:'Soufflé Yarn Knit Sweater',g:'W',cat:'Tops',price:49.90,reg:59.90,low:44.90,hue:280,disc:17,atl:false},
+      {id:'471823',name:'Slim-Fit Chino Trousers',g:'M',cat:'Bottoms',price:34.90,reg:49.90,low:29.90,hue:40,disc:30,atl:false},
+      {id:'461027',name:'Ultra Stretch Skinny Jeans',g:'W',cat:'Bottoms',price:39.90,reg:59.90,low:34.90,hue:225,disc:33,atl:false},
+      {id:'482934',name:'Sweat Wide-Fit Trousers',g:'U',cat:'Bottoms',price:24.90,reg:29.90,low:19.90,hue:200,disc:17,atl:false},
+      {id:'478102',name:'Light Warm Padded Vest',g:'M',cat:'Outerwear',price:49.90,reg:69.90,low:44.90,hue:30,disc:29,atl:false},
+      {id:'465892',name:'BlockTech Parka',g:'U',cat:'Outerwear',price:119.90,reg:149.90,low:99.90,hue:210,disc:20,atl:false},
+      {id:'491023',name:'Fleece Full-Zip Jacket',g:'U',cat:'Outerwear',price:29.90,reg:49.90,low:29.90,hue:160,disc:40,atl:true},
+      {id:'455123',name:'UV Protection Cap',g:'U',cat:'Accessories',price:14.90,reg:19.90,low:12.90,hue:350,disc:25,atl:false},
+      {id:'469045',name:'Socks 3-Pack',g:'U',cat:'Accessories',price:9.90,reg:14.90,low:9.90,hue:0,disc:34,atl:true},
+      {id:'488234',name:'Mini Shoulder Bag',g:'U',cat:'Accessories',price:19.90,reg:29.90,low:17.90,hue:25,disc:33,atl:false},
+      {id:'492011',name:'Knit Beanie',g:'U',cat:'Accessories',price:9.90,reg:14.90,low:7.90,hue:270,disc:34,atl:false},
+      {id:'463891',name:'Wireless Bra',g:'W',cat:'Innerwear',price:19.90,reg:29.90,low:17.90,hue:340,disc:33,atl:false},
+      {id:'475023',name:'Heattech Extra Warm L/S',g:'W',cat:'Innerwear',price:19.90,reg:29.90,low:16.90,hue:260,disc:33,atl:false},
+    ],
+    histories:{
+      '473220':[149.90,149.90,139.90,129.90,119.90,109.90,109.90,99.90,99.90,99.90],
+      '452891':[24.90,24.90,24.90,19.90,19.90,14.90,14.90,14.90,14.90,14.90],
+      '467341':[39.90,39.90,39.90,34.90,34.90,29.90,29.90,29.90,29.90,29.90],
+      '489201':[59.90,59.90,54.90,54.90,49.90,49.90,49.90,49.90,49.90,49.90],
+      '471823':[49.90,49.90,44.90,44.90,39.90,39.90,34.90,34.90,34.90,34.90],
+      '461027':[59.90,59.90,54.90,49.90,44.90,44.90,39.90,39.90,39.90,39.90],
+      '482934':[29.90,29.90,29.90,24.90,24.90,24.90,24.90,24.90,24.90,24.90],
+      '478102':[69.90,69.90,64.90,59.90,54.90,54.90,49.90,49.90,49.90,49.90],
+      '465892':[149.90,149.90,139.90,139.90,129.90,119.90,119.90,119.90,119.90,119.90],
+      '491023':[49.90,49.90,44.90,39.90,39.90,34.90,34.90,29.90,29.90,29.90],
+      '455123':[19.90,19.90,17.90,16.90,16.90,14.90,14.90,14.90,14.90,14.90],
+      '469045':[14.90,14.90,12.90,12.90,11.90,9.90,9.90,9.90,9.90,9.90],
+      '488234':[29.90,29.90,24.90,24.90,24.90,19.90,19.90,19.90,19.90,19.90],
+      '492011':[14.90,14.90,12.90,12.90,11.90,9.90,9.90,9.90,9.90,9.90],
+      '463891':[29.90,29.90,27.90,24.90,22.90,22.90,19.90,19.90,19.90,19.90],
+      '475023':[29.90,29.90,29.90,24.90,24.90,19.90,19.90,19.90,19.90,19.90],
+    },
+    get filtered(){
+      let ps=this.products;
+      if(this.category!=='All') ps=ps.filter(p=>p.cat===this.category);
+      if(this.search){const q=this.search.toLowerCase();ps=ps.filter(p=>p.name.toLowerCase().includes(q)||p.cat.toLowerCase().includes(q));}
+      return [...ps].sort((a,b)=>this.sort==='disc'?b.disc-a.disc:this.sort==='price'?a.price-b.price:a.name.localeCompare(b.name));
+    }
+  }
+}
+</script>
+</body>
+</html>

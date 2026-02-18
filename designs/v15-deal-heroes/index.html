@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Uniqlo Tracker — Deal Heroes</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    body{font-family:'Inter',sans-serif;background:#fafaf8;color:#111;margin:0}
+    [x-cloak]{display:none!important}
+    .hero-card{cursor:pointer;transition:transform .2s,box-shadow .2s;overflow:hidden}
+    .hero-card:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(0,0,0,.12)}
+    .sub-card{cursor:pointer;transition:transform .2s,box-shadow .2s;overflow:hidden}
+    .sub-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.1)}
+    .mini-card{cursor:pointer;transition:box-shadow .15s;overflow:hidden;background:#fff}
+    .mini-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08)}
+    .mbg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px}
+    .bs{background:#dc2626;color:#fff;font-size:11px;font-weight:700;padding:3px 8px}
+    .ba{background:#111;color:#fff;font-size:11px;font-weight:700;padding:3px 7px}
+  </style>
+</head>
+<body x-data="app()" x-cloak>
+
+<header style="background:#fff;border-bottom:3px solid #dc2626">
+  <div style="max-width:1200px;margin:0 auto;padding:16px 24px;display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#aaa">Uniqlo Canada</div>
+      <div style="font-size:26px;font-weight:900;letter-spacing:-.02em;line-height:1">Price<span style="color:#dc2626"> Tracker</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <div style="text-align:right">
+        <div style="font-size:11px;color:#aaa">Feb 18, 2026</div>
+        <div style="font-size:13px;font-weight:600">16 items · all on sale</div>
+      </div>
+      <a href="../index.html" style="font-size:11px;color:#aaa;font-weight:500;letter-spacing:.06em;text-decoration:none;border:1px solid #ddd;padding:5px 12px">ALL DESIGNS</a>
+    </div>
+  </div>
+</header>
+
+<div style="max-width:1200px;margin:0 auto;padding:40px 24px 0">
+  <!-- Stats -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:3px solid #111;border-left:1px solid #e0e0e0;margin-bottom:48px">
+    <div style="padding:18px 20px;border-right:1px solid #e0e0e0;border-bottom:1px solid #e0e0e0;background:#fff">
+      <div style="font-size:36px;font-weight:900;letter-spacing:-.03em;line-height:1;color:#dc2626">16</div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#999;margin-top:5px">Tracked</div>
+    </div>
+    <div style="padding:18px 20px;border-right:1px solid #e0e0e0;border-bottom:1px solid #e0e0e0;background:#fff">
+      <div style="font-size:36px;font-weight:900;letter-spacing:-.03em;line-height:1">16</div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#999;margin-top:5px">On Sale</div>
+    </div>
+    <div style="padding:18px 20px;border-right:1px solid #e0e0e0;border-bottom:1px solid #e0e0e0;background:#fff">
+      <div style="font-size:36px;font-weight:900;letter-spacing:-.03em;line-height:1">5</div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#999;margin-top:5px">Categories</div>
+    </div>
+    <div style="padding:18px 20px;border-bottom:1px solid #e0e0e0;background:#fff">
+      <div style="font-size:36px;font-weight:900;letter-spacing:-.03em;line-height:1">30%</div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#999;margin-top:5px">Avg Off</div>
+    </div>
+  </div>
+
+  <!-- Category filter -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:32px;flex-wrap:wrap">
+    <span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#888;margin-right:4px">Filter:</span>
+    <template x-for="cat in ['All','Tops','Bottoms','Outerwear','Accessories','Innerwear']" :key="cat">
+      <button @click="category=cat"
+        :style="category===cat?'background:#111;color:#fff;':'background:#fff;color:#666;border-color:#ddd'"
+        style="font-size:12px;font-weight:600;padding:5px 14px;border:1px solid;cursor:pointer;transition:all .15s;font-family:inherit"
+        x-text="cat"></button>
+    </template>
+    <div style="flex:1"></div>
+    <span style="font-size:12px;color:#aaa" x-text="sorted.length+' results'"></span>
+  </div>
+
+  <!-- TODAY'S BEST DEALS label -->
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+    <span style="font-size:10px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#dc2626">Today's Best Deals</span>
+    <div style="flex:1;height:1px;background:#e0e0e0"></div>
+  </div>
+
+  <!-- Hero section -->
+  <div x-show="sorted.length > 0">
+    <div style="display:grid;grid-template-columns:3fr 2fr;gap:12px;margin-bottom:12px">
+      <!-- Hero card (rank #1) -->
+      <div class="hero-card" style="background:#fff" @click="sel=sorted[0]" x-show="sorted[0]">
+        <div style="position:relative;height:420px" :style="`background:linear-gradient(160deg,hsl(${sorted[0]?.hue},30%,34%),hsl(${sorted[0]?.hue+20},24%,52%))`">
+          <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6) 0%,transparent 55%)"></div>
+          <div style="position:absolute;top:0;left:0;background:#dc2626;padding:6px 16px">
+            <span style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#fff;text-transform:uppercase">#1 Best Deal</span>
+          </div>
+          <div style="position:absolute;bottom:0;left:0;right:0;padding:24px">
+            <div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.7);margin-bottom:6px" x-text="sorted[0]?.cat"></div>
+            <div style="font-size:22px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:10px" x-text="sorted[0]?.name"></div>
+            <div style="display:flex;align-items:baseline;gap:10px">
+              <span style="font-size:32px;font-weight:900;color:#fff" x-text="'$'+sorted[0]?.price.toFixed(2)"></span>
+              <span style="font-size:16px;color:rgba(255,255,255,.5);text-decoration:line-through" x-text="'$'+sorted[0]?.reg.toFixed(2)"></span>
+              <span style="font-size:18px;font-weight:800;color:#fca5a5" x-text="'-'+sorted[0]?.disc+'%'"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Secondary cards (ranks #2 & #3) -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <template x-for="(p,i) in sorted.slice(1,3)" :key="p.id">
+          <div class="sub-card" style="flex:1;background:#fff" @click="sel=p">
+            <div style="position:relative;height:100%;min-height:200px" :style="`background:linear-gradient(160deg,hsl(${p.hue},30%,34%),hsl(${p.hue+20},24%,52%))`">
+              <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6) 0%,transparent 55%)"></div>
+              <div style="position:absolute;top:0;left:0;background:rgba(0,0,0,.4);padding:4px 12px">
+                <span style="font-size:10px;font-weight:700;letter-spacing:.08em;color:#fff;text-transform:uppercase" x-text="'#'+(i+2)+' Deal'"></span>
+              </div>
+              <div style="position:absolute;bottom:0;left:0;right:0;padding:16px">
+                <div style="font-size:10px;color:rgba(255,255,255,.6);margin-bottom:3px" x-text="p.cat"></div>
+                <div style="font-size:15px;font-weight:700;color:#fff;line-height:1.2;margin-bottom:6px" x-text="p.name"></div>
+                <div style="display:flex;align-items:baseline;gap:8px">
+                  <span style="font-size:20px;font-weight:900;color:#fff" x-text="'$'+p.price.toFixed(2)"></span>
+                  <span style="font-size:13px;color:rgba(255,255,255,.5);text-decoration:line-through" x-text="'$'+p.reg.toFixed(2)"></span>
+                  <span style="font-size:13px;font-weight:700;color:#fca5a5" x-text="'-'+p.disc+'%'"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <!-- All Deals label -->
+  <div style="display:flex;align-items:center;gap:16px;margin:40px 0 20px">
+    <span style="font-size:10px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#888">All Deals</span>
+    <div style="flex:1;height:1px;background:#e0e0e0"></div>
+    <span style="font-size:12px;color:#aaa" x-text="sorted.slice(3).length+' more items'"></span>
+  </div>
+
+  <!-- Mini grid (remaining items) -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding-bottom:80px">
+    <template x-for="p in sorted.slice(3)" :key="p.id">
+      <div class="mini-card" style="border:1px solid #eee" @click="sel=p">
+        <div style="position:relative;height:160px" :style="`background:linear-gradient(160deg,hsl(${p.hue},28%,36%),hsl(${p.hue+20},22%,54%))`">
+          <div style="position:absolute;top:8px;left:8px"><span class="bs" x-text="'-'+p.disc+'%'"></span></div>
+          <div x-show="p.atl" style="position:absolute;top:8px;right:8px"><span class="ba">ATL</span></div>
+        </div>
+        <div style="padding:12px">
+          <div style="font-size:10px;color:#aaa;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px" x-text="p.cat"></div>
+          <div style="font-size:13px;font-weight:600;line-height:1.3;margin-bottom:8px" x-text="p.name"></div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <span style="font-size:16px;font-weight:800;color:#dc2626" x-text="'$'+p.price.toFixed(2)"></span>
+            <span style="font-size:12px;color:#bbb;text-decoration:line-through" x-text="'$'+p.reg.toFixed(2)"></span>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+</div>
+
+<!-- Modal -->
+<div x-show="sel" class="mbg" @click.self="sel=null" x-cloak>
+  <div style="background:#fff;max-width:460px;width:100%;max-height:90vh;overflow-y:auto">
+    <div style="position:relative;height:300px" :style="`background:linear-gradient(160deg,hsl(${sel?.hue},28%,36%),hsl(${sel?.hue+20},22%,54%))`">
+      <button @click="sel=null" style="position:absolute;top:14px;right:14px;background:rgba(0,0,0,.4);border:none;color:#fff;width:32px;height:32px;cursor:pointer;font-size:18px;line-height:1">×</button>
+      <div style="position:absolute;bottom:14px;left:14px;display:flex;gap:6px">
+        <span class="bs" x-text="'-'+sel?.disc+'%'"></span>
+        <span x-show="sel?.atl" class="ba">ALL-TIME LOW</span>
+      </div>
+    </div>
+    <div style="padding:24px">
+      <div style="font-size:11px;color:#aaa;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px" x-text="sel?.cat"></div>
+      <h2 style="font-size:22px;font-weight:800;margin:0 0 14px;line-height:1.2" x-text="sel?.name"></h2>
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:16px">
+        <span style="font-size:30px;font-weight:900;color:#dc2626" x-text="'$'+sel?.price.toFixed(2)"></span>
+        <span style="font-size:16px;color:#bbb;text-decoration:line-through" x-text="'$'+sel?.reg.toFixed(2)"></span>
+        <span style="font-size:14px;color:#dc2626;font-weight:700" x-text="'Save '+sel?.disc+'%'"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;border-top:1px solid #eee;padding-top:14px">
+        <div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#aaa;font-weight:600;margin-bottom:3px">Gender</div><div x-text="sel?.g==='M'?'Men':sel?.g==='W'?'Women':'Unisex'"></div></div>
+        <div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#aaa;font-weight:600;margin-bottom:3px">All-Time Low</div><div x-text="sel?.atl?'✓ Current price is ATL!':'$'+sel?.low.toFixed(2)"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function app(){
+  return {
+    search:'',category:'All',sel:null,
+    products:[
+      {id:'473220',name:'Heattech Turtleneck Sweater',g:'W',cat:'Tops',price:99.90,reg:149.90,low:89.90,hue:220,disc:33,atl:false},
+      {id:'452891',name:'AIRism Polo Shirt',g:'M',cat:'Tops',price:14.90,reg:24.90,low:14.90,hue:195,disc:40,atl:true},
+      {id:'467341',name:'Flannel Checked Shirt',g:'M',cat:'Tops',price:29.90,reg:39.90,low:24.90,hue:15,disc:25,atl:false},
+      {id:'489201',name:'Soufflé Yarn Knit Sweater',g:'W',cat:'Tops',price:49.90,reg:59.90,low:44.90,hue:280,disc:17,atl:false},
+      {id:'471823',name:'Slim-Fit Chino Trousers',g:'M',cat:'Bottoms',price:34.90,reg:49.90,low:29.90,hue:40,disc:30,atl:false},
+      {id:'461027',name:'Ultra Stretch Skinny Jeans',g:'W',cat:'Bottoms',price:39.90,reg:59.90,low:34.90,hue:225,disc:33,atl:false},
+      {id:'482934',name:'Sweat Wide-Fit Trousers',g:'U',cat:'Bottoms',price:24.90,reg:29.90,low:19.90,hue:200,disc:17,atl:false},
+      {id:'478102',name:'Light Warm Padded Vest',g:'M',cat:'Outerwear',price:49.90,reg:69.90,low:44.90,hue:30,disc:29,atl:false},
+      {id:'465892',name:'BlockTech Parka',g:'U',cat:'Outerwear',price:119.90,reg:149.90,low:99.90,hue:210,disc:20,atl:false},
+      {id:'491023',name:'Fleece Full-Zip Jacket',g:'U',cat:'Outerwear',price:29.90,reg:49.90,low:29.90,hue:160,disc:40,atl:true},
+      {id:'455123',name:'UV Protection Cap',g:'U',cat:'Accessories',price:14.90,reg:19.90,low:12.90,hue:350,disc:25,atl:false},
+      {id:'469045',name:'Socks 3-Pack',g:'U',cat:'Accessories',price:9.90,reg:14.90,low:9.90,hue:0,disc:34,atl:true},
+      {id:'488234',name:'Mini Shoulder Bag',g:'U',cat:'Accessories',price:19.90,reg:29.90,low:17.90,hue:25,disc:33,atl:false},
+      {id:'492011',name:'Knit Beanie',g:'U',cat:'Accessories',price:9.90,reg:14.90,low:7.90,hue:270,disc:34,atl:false},
+      {id:'463891',name:'Wireless Bra',g:'W',cat:'Innerwear',price:19.90,reg:29.90,low:17.90,hue:340,disc:33,atl:false},
+      {id:'475023',name:'Heattech Extra Warm L/S',g:'W',cat:'Innerwear',price:19.90,reg:29.90,low:16.90,hue:260,disc:33,atl:false},
+    ],
+    get sorted(){
+      let ps=this.products;
+      if(this.category!=='All') ps=ps.filter(p=>p.cat===this.category);
+      return [...ps].sort((a,b)=>b.disc-a.disc);
+    }
+  }
+}
+</script>
+</body>
+</html>
