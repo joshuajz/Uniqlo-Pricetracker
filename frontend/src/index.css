@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #f8f8f6;
+    color: #111;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+/* Swiss Grid utilities */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  line-height: 1.4;
+}
+
+.badge-sale {
+  background: #dc2626;
+  color: #fff;
+}
+
+.badge-atl {
+  background: #111;
+  color: #fff;
+}
+
+.badge-cat {
+  background: #f1f1ef;
+  color: #555;
+}
+
+/* Stat card border trick */
+.stat-card { border-top: 3px solid #111; }
+.stat-card-accent { border-top: 3px solid #dc2626; }
+
+/* Product row hover */
+.product-row {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px;
+  border-bottom: 1px solid #ebebeb;
+  cursor: pointer;
+  margin: 0 -8px;
+  transition: background 0.1s;
+  grid-template-columns: 16px 1fr auto auto 96px 52px;
+}
+
+.product-row:hover {
+  background: #f5f5f3;
+}
+
+/* Category section header */
+.cat-header {
+  border-top: 3px solid #111;
+  padding-top: 12px;
+  margin-bottom: 2px;
+}
+
+.cat-header-accent {
+  border-top-color: #dc2626;
+}
+
+/* Sort option */
+.sort-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #555;
+  padding: 4px 0;
+  transition: color 0.1s;
+  user-select: none;
+}
+
+.sort-option:hover { color: #111; }
+.sort-option.active { color: #111; font-weight: 600; }
+
+/* Mosaic tile */
+.mosaic-tile {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.mosaic-tile:hover {
+  border-color: #ccc;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+/* FAQ accordion */
+.faq-item {
+  border-top: 1px solid #e8e8e8;
+}
+
+.faq-item:last-child {
+  border-bottom: 1px solid #e8e8e8;
+}
+
+/* Dashboard product row */
+.dash-row {
+  border-bottom: 1px solid #ebebeb;
+  transition: background 0.1s;
+}
+
+.dash-row:hover > .dash-row-header {
+  background: #f5f5f3;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #bbb; }
