@@ -374,6 +374,25 @@ func injestProducts(c *gin.Context) {
 		fmt.Printf("[%d/%d] %s $%s OK\n", count, total, cp.Product.ProductID, cp.Price)
 	}
 
+	// Insert scraper run metadata into scraper table
+	categoriesStr := strings.Join(scraperOutput.Metadata.Categories, ",")
+	scraperDatetime, err := time.Parse(time.RFC3339, scraperOutput.Metadata.Datetime)
+	if err != nil {
+		scraperDatetime = date
+	}
+	_, err = db.Exec(
+		"INSERT INTO scraper (datetime, scraper_version, total_products, total_failed, categories_scraped, categories) VALUES ($1, $2, $3, $4, $5, $6)",
+		scraperDatetime,
+		scraperOutput.Metadata.ScraperVersion,
+		scraperOutput.Metadata.TotalProducts,
+		scraperOutput.Metadata.TotalFailed,
+		scraperOutput.Metadata.CategoriesScraped,
+		categoriesStr,
+	)
+	if err != nil {
+		fmt.Printf("WARNING: failed to insert scraper stats: %v\n", err)
+	}
+
 	// Invalidate caches after ingesting new data
 	productsCache.mu.Lock()
 	productsCache.data = nil
