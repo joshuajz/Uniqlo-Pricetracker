@@ -5,6 +5,7 @@ import {
   PRODUCTS, CATEGORIES, discountPct, isAtl, isOnSale, genderLabel,
 } from '../data/mockData'
 import type { Product, SortKey } from '../types'
+import { getProducts } from '../data/api'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -177,6 +178,8 @@ export default function HomePage() {
   const [sort, setSort] = useState<SortKey>('discount')
   const [catFilter, setCatFilter] = useState('all')
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+
+  const {data, isLoading: productsLoading} = getProducts();
 
   const stats = useMemo(() => {
     const onSale = PRODUCTS.filter(isOnSale)
