@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Uniqlo Tracker — Dark</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            surface: '#111827',
+            card: '#1f2937',
+            'card-hover': '#263044',
+            border: '#374151',
+            red: { 500: '#ef4444', 600: '#dc2626' },
+            green: { 400: '#4ade80', 500: '#22c55e' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #0d1117; color: #f3f4f6; }
+    [x-cloak] { display: none !important; }
+    .product-card { transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease; }
+    .product-card:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(0,0,0,0.5); background: #1e2d42; }
+    .badge-sale { background: rgba(220,38,38,0.15); color: #f87171; border: 1px solid rgba(220,38,38,0.3); }
+    .badge-atl { background: rgba(34,197,94,0.12); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+    .stat-card { background: #1f2937; border: 1px solid #374151; }
+    input { background: #1f2937; border: 1px solid #374151; color: #f3f4f6; }
+    input::placeholder { color: #6b7280; }
+    input:focus { border-color: #dc2626; outline: none; }
+  </style>
+</head>
+<body x-data="app()" x-cloak>
+
+  <!-- Nav -->
+  <nav style="background:#0d1117; border-bottom: 1px solid #1f2937;" class="sticky top-0 z-20">
+    <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1">
+          <span class="text-red-500 font-bold text-sm tracking-widest">UNIQLO</span>
+          <span style="color:#dc2626" class="text-sm font-light">TRACKER</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          <input
+            type="text"
+            x-model="search"
+            placeholder="Search products…"
+            class="pl-8 pr-4 py-1.5 rounded-lg text-sm w-56"
+          />
+        </div>
+        <a href="../index.html" class="text-xs text-gray-500 hover:text-gray-300 transition-colors">← All designs</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-7xl mx-auto px-6 py-8">
+
+    <!-- Stats Row -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="stat-card rounded-xl p-4 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: rgba(220,38,38,0.12)">
+          <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"></path></svg>
+        </div>
+        <div>
+          <div class="text-2xl font-bold" x-text="products.length"></div>
+          <div class="text-xs text-gray-500">Tracked</div>
+        </div>
+      </div>
+      <div class="stat-card rounded-xl p-4 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: rgba(220,38,38,0.12)">
+          <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path></svg>
+        </div>
+        <div>
+          <div class="text-2xl font-bold text-red-400" x-text="products.filter(p=>p.onSale).length"></div>
+          <div class="text-xs text-gray-500">On Sale</div>
+        </div>
+      </div>
+      <div class="stat-card rounded-xl p-4 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: rgba(220,38,38,0.12)">
+          <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"></path></svg>
+        </div>
+        <div>
+          <div class="text-2xl font-bold" x-text="avgDiscount + '%'"></div>
+          <div class="text-xs text-gray-500">Avg. Discount</div>
+        </div>
+      </div>
+      <div class="stat-card rounded-xl p-4 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: rgba(34,197,94,0.1)">
+          <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path></svg>
+        </div>
+        <div>
+          <div class="text-2xl font-bold text-green-400" x-text="products.filter(p=>p.atl).length"></div>
+          <div class="text-xs text-gray-500">All-Time Lows</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters & Sort -->
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div class="flex items-center gap-2 flex-wrap">
+        <template x-for="cat in ['All', 'Outerwear', 'Tops', 'Sweaters', 'Bottoms']" :key="cat">
+          <button
+            @click="category = cat"
+            class="text-xs px-3 py-1.5 rounded-full border transition-all"
+            :class="category === cat
+              ? 'bg-red-600 border-red-600 text-white'
+              : 'border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200'"
+            x-text="cat"
+          ></button>
+        </template>
+        <button
+          @click="showAtlOnly = !showAtlOnly"
+          class="text-xs px-3 py-1.5 rounded-full border transition-all"
+          :class="showAtlOnly
+            ? 'border-green-500 text-green-400 bg-green-500/10'
+            : 'border-gray-700 text-gray-400 hover:border-gray-500'"
+        >↓ All-Time Lows</button>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-gray-500">Sort:</span>
+        <select
+          x-model="sort"
+          class="text-xs rounded-lg px-3 py-1.5 border-0 cursor-pointer"
+          style="background: #1f2937; border: 1px solid #374151; color: #d1d5db;"
+        >
+          <option value="discount">Biggest Discount</option>
+          <option value="price_asc">Price: Low → High</option>
+          <option value="price_desc">Price: High → Low</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Product Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <template x-for="p in filtered" :key="p.id">
+        <div class="product-card rounded-xl overflow-hidden cursor-pointer" style="background: #1f2937; border: 1px solid #2d3748;">
+
+          <!-- Image area -->
+          <div class="relative aspect-[3/4] overflow-hidden" :style="`background: hsl(${p.hue}, ${p.hue === 0 ? '5' : '30'}%, 18%)`">
+            <!-- Placeholder pattern -->
+            <div class="absolute inset-0 opacity-10" style="background-image: repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 0, transparent 50%); background-size: 12px 12px;"></div>
+            <!-- Category label -->
+            <div class="absolute bottom-3 left-3">
+              <span class="text-[10px] text-gray-400 font-medium tracking-wider uppercase" x-text="p.category"></span>
+            </div>
+            <!-- Badges -->
+            <div class="absolute top-3 left-3 flex flex-col gap-1.5">
+              <span x-show="p.atl" class="badge-atl text-[10px] font-semibold px-2 py-0.5 rounded-full">All-Time Low</span>
+              <span x-show="p.onSale && !p.atl" class="badge-sale text-[10px] font-semibold px-2 py-0.5 rounded-full">Sale</span>
+            </div>
+            <!-- Discount badge top-right -->
+            <div x-show="p.onSale" class="absolute top-3 right-3">
+              <span
+                class="text-xs font-bold px-2 py-0.5 rounded"
+                style="background: #dc2626; color: white;"
+                x-text="'-' + Math.round((1 - p.price / p.regular) * 100) + '%'"
+              ></span>
+            </div>
+          </div>
+
+          <!-- Content -->
+          <div class="p-4">
+            <h3 class="text-sm font-medium text-gray-100 leading-snug mb-3 line-clamp-2" x-text="p.name"></h3>
+            <div class="flex items-end justify-between">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-lg font-bold text-white" x-text="'$' + p.price.toFixed(2)"></span>
+                  <span x-show="p.onSale" class="text-sm text-gray-500 line-through" x-text="'$' + p.regular.toFixed(2)"></span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <svg class="w-3 h-3" :class="p.atl ? 'text-green-400' : 'text-gray-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path></svg>
+                  <span class="text-xs text-gray-500" x-text="'Lowest: $' + p.lowest.toFixed(2)"></span>
+                </div>
+              </div>
+              <span class="text-[10px] text-gray-600 px-2 py-1 rounded" style="background:#111827;" x-text="p.gender"></span>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Empty state -->
+    <div x-show="filtered.length === 0" class="py-24 text-center">
+      <div class="text-gray-500 mb-2">No results found</div>
+      <div class="text-sm text-gray-600">Try adjusting your search or filters</div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-12 pt-6 text-center" style="border-top: 1px solid #1f2937;">
+      <p class="text-xs text-gray-600">Prices updated daily from Uniqlo Canada</p>
+    </div>
+  </div>
+
+  <script>
+    function app() {
+      const PRODUCTS = [
+        { id: "473220", name: "Ultra Warm Down Jacket",         gender: "Men",    price: 99.90,  regular: 149.90, lowest: 79.90,  category: "Outerwear", atl: false, hue: 220 },
+        { id: "452891", name: "Heattech Extra Warm Turtleneck", gender: "Men",    price: 14.90,  regular: 24.90,  lowest: 14.90,  category: "Tops",      atl: true,  hue: 185 },
+        { id: "461203", name: "Merino Wool Crew Neck Sweater",  gender: "Women",  price: 49.90,  regular: 59.90,  lowest: 39.90,  category: "Sweaters",  atl: false, hue: 30  },
+        { id: "489102", name: "Wide Fit Straight Jeans",        gender: "Men",    price: 59.90,  regular: 69.90,  lowest: 49.90,  category: "Bottoms",   atl: false, hue: 210 },
+        { id: "392847", name: "Fleece Full-Zip Jacket",         gender: "Women",  price: 34.90,  regular: 59.90,  lowest: 29.90,  category: "Outerwear", atl: true,  hue: 20  },
+        { id: "512394", name: "AIRism Cotton T-Shirt",          gender: "Men",    price: 19.90,  regular: 19.90,  lowest: 14.90,  category: "Tops",      atl: false, hue: 0   },
+        { id: "478234", name: "Cashmere V-Neck Sweater",        gender: "Women",  price: 69.90,  regular: 99.90,  lowest: 59.90,  category: "Sweaters",  atl: false, hue: 340 },
+        { id: "434892", name: "Pile-Lined Fleece Hoodie",       gender: "Unisex", price: 44.90,  regular: 49.90,  lowest: 39.90,  category: "Outerwear", atl: false, hue: 280 },
+        { id: "501293", name: "Smart Ankle Pants",              gender: "Women",  price: 34.90,  regular: 59.90,  lowest: 34.90,  category: "Bottoms",   atl: true,  hue: 150 },
+        { id: "467812", name: "Oxford Shirt",                   gender: "Men",    price: 39.90,  regular: 49.90,  lowest: 29.90,  category: "Tops",      atl: false, hue: 200 },
+        { id: "523817", name: "Blocktech Parka",                gender: "Men",    price: 149.90, regular: 199.90, lowest: 119.90, category: "Outerwear", atl: false, hue: 0   },
+        { id: "498234", name: "Ribbed Turtleneck Sweater",      gender: "Women",  price: 39.90,  regular: 49.90,  lowest: 39.90,  category: "Sweaters",  atl: true,  hue: 35  },
+      ].map(p => ({ ...p, onSale: p.price < p.regular }))
+
+      return {
+        products: PRODUCTS,
+        search: '',
+        sort: 'discount',
+        category: 'All',
+        showAtlOnly: false,
+
+        get avgDiscount() {
+          const onSale = this.products.filter(p => p.onSale)
+          if (!onSale.length) return 0
+          return Math.round(onSale.reduce((a, p) => a + (1 - p.price / p.regular) * 100, 0) / onSale.length)
+        },
+
+        get filtered() {
+          let list = this.products
+          if (this.search.trim()) {
+            const q = this.search.toLowerCase()
+            list = list.filter(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q))
+          }
+          if (this.category !== 'All') list = list.filter(p => p.category === this.category)
+          if (this.showAtlOnly) list = list.filter(p => p.atl)
+          return [...list].sort((a, b) => {
+            if (this.sort === 'price_asc')  return a.price - b.price
+            if (this.sort === 'price_desc') return b.price - a.price
+            const da = a.onSale ? (1 - a.price / a.regular) : 0
+            const db = b.onSale ? (1 - b.price / b.regular) : 0
+            return db - da
+          })
+        }
+      }
+    }
+  </script>
+</body>
+</html>

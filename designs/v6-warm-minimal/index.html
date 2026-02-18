@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Uniqlo Tracker — Warm Minimal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root { --cream: #fefcf9; --warm-border: #e8e2d9; --warm-text: #2d2a26; --warm-muted: #9a8f85; --red: #c0392b; }
+    body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--warm-text); }
+    [x-cloak] { display: none !important; }
+    .row { border-bottom: 1px solid var(--warm-border); transition: background .12s; }
+    .row:hover { background: #f7f2eb; }
+    input { background: transparent; border-bottom: 1px solid var(--warm-border); outline: none; transition: border-color .2s; }
+    input:focus { border-color: var(--warm-text); }
+    .sale-tag { color: var(--red); }
+    .atl-tag { color: #2d6a4f; }
+    .chart-area { fill: rgba(192,57,43,0.06); }
+    .chart-line { fill: none; stroke: var(--red); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .chart-ref { stroke-dasharray: 4,3; stroke-width: 1; }
+    .back-btn { color: var(--warm-muted); transition: color .15s; cursor: pointer; }
+    .back-btn:hover { color: var(--warm-text); }
+    .view-enter { animation: fadeUp 0.2s ease; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body x-data="app()" x-cloak>
+
+  <!-- Header -->
+  <header style="border-bottom: 1px solid var(--warm-border); background: var(--cream);" class="sticky top-0 z-20">
+    <div class="max-w-4xl mx-auto px-6 h-13 flex items-center justify-between py-3.5">
+      <div class="flex items-center gap-3">
+        <button x-show="view !== 'list'" @click="view='list'; selected=null" class="back-btn text-sm">←</button>
+        <button @click="view='list'; selected=null" class="flex items-center gap-2.5">
+          <span style="color:var(--red)" class="text-xs font-semibold tracking-widest">UNIQLO</span>
+          <span style="color:var(--warm-border)" class="text-sm">|</span>
+          <span style="color:var(--warm-muted)" class="text-xs font-light tracking-wide">Price Tracker</span>
+        </button>
+      </div>
+      <div class="flex items-center gap-6">
+        <div x-show="view === 'list'" class="flex items-center gap-4">
+          <input type="text" x-model="search" placeholder="Search…" class="text-xs py-1 w-36 placeholder-stone-300" style="color:var(--warm-text)" />
+        </div>
+        <a href="../index.html" style="color:var(--warm-muted)" class="text-xs hover:opacity-70">← All designs</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- LIST VIEW -->
+  <div x-show="view === 'list'" class="view-enter">
+    <div class="max-w-4xl mx-auto px-6">
+
+      <!-- Stats -->
+      <div class="pt-10 pb-8 flex flex-wrap gap-10" style="border-bottom: 1px solid var(--warm-border)">
+        <div>
+          <div class="text-3xl font-light" x-text="products.length"></div>
+          <div class="text-xs mt-1 tracking-wide" style="color:var(--warm-muted)">items tracked</div>
+        </div>
+        <div>
+          <div class="text-3xl font-light sale-tag" x-text="products.filter(p=>p.onSale).length"></div>
+          <div class="text-xs mt-1 tracking-wide" style="color:var(--warm-muted)">on sale</div>
+        </div>
+        <div>
+          <div class="text-3xl font-light" x-text="avgDiscount + '%'"></div>
+          <div class="text-xs mt-1 tracking-wide" style="color:var(--warm-muted)">avg. discount</div>
+        </div>
+        <div>
+          <div class="text-3xl font-light atl-tag" x-text="products.filter(p=>p.atl).length"></div>
+          <div class="text-xs mt-1 tracking-wide" style="color:var(--warm-muted)">all-time lows</div>
+        </div>
+      </div>
+
+      <!-- Sort & filters -->
+      <div class="py-5 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-1 text-xs" style="color:var(--warm-muted)">
+          <span class="mr-2">Sort</span>
+          <template x-for="opt in [{v:'discount',l:'Discount'},{v:'price_asc',l:'Price ↑'},{v:'price_desc',l:'Price ↓'}]" :key="opt.v">
+            <button
+              @click="sort = opt.v"
+              class="px-3 py-1 rounded-full transition-all"
+              :style="sort === opt.v ? 'background:#2d2a26;color:#fefcf9' : 'color:var(--warm-muted)'"
+              x-text="opt.l"
+            ></button>
+          </template>
+        </div>
+        <div class="flex items-center gap-3 text-xs" style="color:var(--warm-muted)">
+          <template x-for="cat in ['All','Outerwear','Tops','Sweaters','Bottoms']" :key="cat">
+            <button @click="category=cat" :style="category===cat ? 'color:var(--warm-text);font-weight:500' : ''" x-text="cat" class="transition-colors"></button>
+          </template>
+        </div>
+      </div>
+
+      <!-- Column headers -->
+      <div class="grid grid-cols-12 gap-3 pb-2 text-[10px] tracking-wider uppercase" style="color:var(--warm-muted); border-bottom: 1px solid var(--warm-border)">
+        <div class="col-span-1"></div>
+        <div class="col-span-5">Product</div>
+        <div class="col-span-2 text-right">Regular</div>
+        <div class="col-span-2 text-right">Price</div>
+        <div class="col-span-1 text-right">Off</div>
+        <div class="col-span-1 text-right">Trend</div>
+      </div>
+
+      <!-- Rows -->
+      <div>
+        <template x-for="p in filtered" :key="p.id">
+          <div class="row grid grid-cols-12 gap-3 py-4 items-center cursor-pointer" @click="selectProduct(p)">
+            <div class="col-span-1">
+              <div class="w-8 h-10 rounded-sm" :style="`background:hsl(${p.hue},${p.hue===0?'5':'25'}%,45%)`"></div>
+            </div>
+            <div class="col-span-5">
+              <div class="text-sm font-medium leading-snug" x-text="p.name"></div>
+              <div class="flex items-center gap-2 mt-0.5">
+                <span class="text-xs" style="color:var(--warm-muted)" x-text="p.gender + ' · ' + p.category"></span>
+                <span x-show="p.atl" class="text-[10px] atl-tag font-medium">↓ Lowest ever</span>
+              </div>
+            </div>
+            <div class="col-span-2 text-right text-sm" :style="p.onSale ? 'color:var(--warm-border);text-decoration:line-through' : 'color:var(--warm-muted)'" x-text="'$' + p.regular.toFixed(2)"></div>
+            <div class="col-span-2 text-right text-sm font-medium" :class="p.atl ? 'atl-tag' : p.onSale ? 'sale-tag' : ''" x-text="'$' + p.price.toFixed(2)"></div>
+            <div class="col-span-1 text-right text-xs" :class="p.onSale ? 'sale-tag font-medium' : ''" x-text="p.onSale ? '-'+Math.round((1-p.price/p.regular)*100)+'%' : '—'" :style="!p.onSale ? 'color:var(--warm-border)' : ''"></div>
+            <!-- Mini sparkline -->
+            <div class="col-span-1 flex justify-end">
+              <svg width="44" height="20" style="overflow:visible">
+                <polyline :points="sparkPath(HISTORIES[p.id], 44, 20)" class="chart-line" style="stroke-width:1.2" />
+              </svg>
+            </div>
+          </div>
+        </template>
+        <div x-show="filtered.length===0" class="py-16 text-center text-sm" style="color:var(--warm-muted)">No products found</div>
+      </div>
+
+      <div class="py-8 text-center text-xs" style="color:var(--warm-border)">Updated daily · Uniqlo Canada</div>
+    </div>
+  </div>
+
+  <!-- PRODUCT DETAIL VIEW -->
+  <div x-show="view === 'detail' && selected" class="view-enter">
+    <div class="max-w-4xl mx-auto px-6 py-8">
+      <!-- Breadcrumb -->
+      <div class="flex items-center gap-2 text-xs mb-8" style="color:var(--warm-muted)">
+        <button @click="view='list'; selected=null">All products</button>
+        <span>›</span>
+        <span x-text="selected?.category"></span>
+        <span>›</span>
+        <span class="font-medium" style="color:var(--warm-text)" x-text="selected?.name"></span>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-12">
+        <!-- Left: product info -->
+        <div>
+          <!-- Color block image -->
+          <div
+            class="rounded-lg w-full mb-6 flex items-end p-6"
+            style="aspect-ratio:4/5; position:relative; overflow:hidden;"
+            :style="`background:hsl(${selected?.hue},${selected?.hue===0?'8':'28'}%,38%)`"
+          >
+            <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.3),transparent);"></div>
+            <div style="position:relative">
+              <div class="text-[10px] text-white/50 uppercase tracking-widest font-medium" x-text="selected?.category"></div>
+              <div x-show="selected?.atl" class="mt-2 inline-flex items-center gap-1.5 text-xs font-medium" style="background:rgba(255,255,255,0.15);backdrop-filter:blur(4px);padding:4px 10px;border-radius:4px;color:#fff">
+                ↓ All-time low price
+              </div>
+            </div>
+          </div>
+
+          <!-- Badges -->
+          <div class="flex items-center gap-2 mb-3">
+            <span x-show="selected?.atl" class="text-xs atl-tag font-medium tracking-wide">↓ LOWEST EVER RECORDED</span>
+            <span x-show="selected?.onSale && !selected?.atl" class="text-xs sale-tag font-medium tracking-wide">ON SALE</span>
+          </div>
+
+          <h1 class="text-2xl font-medium leading-snug mb-6" x-text="selected?.name"></h1>
+
+          <div style="border-top:1px solid var(--warm-border);border-bottom:1px solid var(--warm-border);padding:20px 0;margin-bottom:24px;">
+            <div class="flex items-end gap-4">
+              <div>
+                <div class="text-xs mb-1" style="color:var(--warm-muted)">Current price</div>
+                <div class="text-4xl font-light" :class="selected?.atl ? 'atl-tag' : selected?.onSale ? 'sale-tag' : ''" x-text="'$' + (selected?.price||0).toFixed(2)"></div>
+              </div>
+              <div x-show="selected?.onSale" class="pb-1">
+                <div class="text-xs mb-1" style="color:var(--warm-muted)">Regular</div>
+                <div class="text-xl line-through" style="color:var(--warm-border)" x-text="'$' + (selected?.regular||0).toFixed(2)"></div>
+              </div>
+              <div x-show="selected?.onSale" class="pb-1 ml-auto">
+                <span class="text-lg font-medium sale-tag" x-text="'-' + Math.round((1-(selected?.price||0)/(selected?.regular||1))*100) + '% off'"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-3 text-sm" style="color:var(--warm-muted)">
+            <div class="flex justify-between"><span>Lowest ever</span><span class="font-medium" style="color:var(--warm-text)" x-text="'$' + (selected?.lowest||0).toFixed(2)"></span></div>
+            <div class="flex justify-between"><span>Regular price</span><span x-text="'$' + (selected?.regular||0).toFixed(2)"></span></div>
+            <div class="flex justify-between"><span>Category</span><span x-text="selected?.category + ' · ' + selected?.gender"></span></div>
+          </div>
+
+          <a
+            class="mt-8 block text-center text-sm font-medium py-3 rounded-md transition-all"
+            style="border:1px solid var(--warm-border);color:var(--warm-text)"
+            href="#"
+            onmouseover="this.style.background='#f7f2eb'"
+            onmouseout="this.style.background=''"
+          >View on Uniqlo Canada →</a>
+        </div>
+
+        <!-- Right: price chart -->
+        <div>
+          <div class="text-sm font-medium mb-4" style="color:var(--warm-muted)">Price History (10 months)</div>
+          <div class="rounded-lg p-4" style="background:#fff;border:1px solid var(--warm-border)">
+            <svg width="100%" :viewBox="`0 0 400 160`" preserveAspectRatio="none" style="display:block;height:180px">
+              <!-- Area fill -->
+              <path :d="areaPath(HISTORIES[selected?.id]||[], 400, 140, 10)" class="chart-area" />
+              <!-- Line -->
+              <polyline :points="sparkPath(HISTORIES[selected?.id]||[], 400, 140, 10)" class="chart-line" style="stroke-width:2" />
+              <!-- Current price ref line -->
+              <line
+                x1="0" :y1="priceY(selected?.price||0, HISTORIES[selected?.id]||[], 140, 10)"
+                x2="400" :y2="priceY(selected?.price||0, HISTORIES[selected?.id]||[], 140, 10)"
+                class="chart-ref" style="stroke:var(--red);opacity:0.4"
+              />
+              <!-- Lowest price ref line -->
+              <line
+                x1="0" :y1="priceY(selected?.lowest||0, HISTORIES[selected?.id]||[], 140, 10)"
+                x2="400" :y2="priceY(selected?.lowest||0, HISTORIES[selected?.id]||[], 140, 10)"
+                class="chart-ref" style="stroke:#2d6a4f;opacity:0.4"
+              />
+            </svg>
+            <!-- X axis labels -->
+            <div class="flex justify-between mt-2 text-[9px]" style="color:var(--warm-muted)">
+              <template x-for="d in DATES.filter((_,i)=>i%3===0)" :key="d">
+                <span x-text="d"></span>
+              </template>
+            </div>
+            <!-- Legend -->
+            <div class="flex items-center gap-6 mt-4 pt-3 text-xs" style="border-top:1px solid var(--warm-border);color:var(--warm-muted)">
+              <div class="flex items-center gap-1.5"><div class="w-6 h-px" style="background:var(--red)"></div><span>Current</span></div>
+              <div class="flex items-center gap-1.5"><div class="w-6 h-px" style="background:#2d6a4f"></div><span>Lowest ever</span></div>
+            </div>
+          </div>
+
+          <!-- Recent price points -->
+          <div class="mt-6">
+            <div class="text-xs font-medium mb-3 tracking-wide uppercase" style="color:var(--warm-muted)">Recent Prices</div>
+            <div class="space-y-2">
+              <template x-for="(price, i) in (HISTORIES[selected?.id]||[]).slice().reverse().slice(0,5)" :key="i">
+                <div class="flex items-center justify-between text-sm py-2" style="border-bottom:1px solid var(--warm-border)">
+                  <span style="color:var(--warm-muted)" x-text="DATES.slice().reverse()[i]"></span>
+                  <span :style="i===0 ? 'font-medium' : 'color:var(--warm-muted)'" x-text="'$' + price.toFixed(2)"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DATES = ["May '25","Jun '25","Jul '25","Aug '25","Sep '25","Oct '25","Nov '25","Dec '25","Jan '26","Feb '26"]
+    const HISTORIES = {
+      "473220": [149.90,149.90,139.90,139.90,129.90,119.90,109.90,109.90,99.90,99.90],
+      "452891": [24.90,24.90,24.90,19.90,19.90,19.90,14.90,14.90,14.90,14.90],
+      "461203": [59.90,59.90,59.90,54.90,54.90,49.90,49.90,54.90,49.90,49.90],
+      "489102": [69.90,69.90,69.90,69.90,64.90,64.90,59.90,59.90,59.90,59.90],
+      "392847": [59.90,54.90,49.90,44.90,39.90,44.90,39.90,34.90,34.90,34.90],
+      "512394": [19.90,19.90,19.90,19.90,19.90,19.90,19.90,19.90,19.90,19.90],
+      "478234": [99.90,99.90,89.90,89.90,79.90,79.90,79.90,69.90,69.90,69.90],
+      "434892": [49.90,49.90,49.90,44.90,44.90,44.90,44.90,44.90,44.90,44.90],
+      "501293": [59.90,59.90,54.90,49.90,44.90,39.90,39.90,34.90,34.90,34.90],
+      "467812": [49.90,49.90,49.90,49.90,44.90,44.90,39.90,39.90,39.90,39.90],
+      "523817": [199.90,199.90,189.90,179.90,169.90,169.90,159.90,149.90,149.90,149.90],
+      "498234": [49.90,49.90,49.90,49.90,44.90,44.90,39.90,39.90,39.90,39.90],
+    }
+
+    function sparkPath(prices, w, h, pad=4) {
+      if (!prices||prices.length<2) return ''
+      const min=Math.min(...prices), max=Math.max(...prices), rng=max-min||1
+      return prices.map((v,i)=>{
+        const x=(i/(prices.length-1))*w
+        const y=h-pad-((v-min)/rng)*(h-pad*2)
+        return `${x.toFixed(1)},${y.toFixed(1)}`
+      }).join(' ')
+    }
+    function areaPath(prices, w, h, pad=4) {
+      if (!prices||prices.length<2) return ''
+      const pts=sparkPath(prices,w,h,pad).split(' ')
+      return `M 0,${h} L ${pts.join(' L ')} L ${w},${h} Z`
+    }
+    function priceY(price, prices, h, pad=4) {
+      if (!prices||!prices.length) return h/2
+      const min=Math.min(...prices), max=Math.max(...prices), rng=max-min||1
+      return h-pad-((price-min)/rng)*(h-pad*2)
+    }
+
+    function app() {
+      const PRODUCTS = [
+        {id:"473220",name:"Ultra Warm Down Jacket",        gender:"Men",   price:99.90, regular:149.90,lowest:79.90, category:"Outerwear",atl:false,hue:220},
+        {id:"452891",name:"Heattech Extra Warm Turtleneck",gender:"Men",   price:14.90, regular:24.90, lowest:14.90, category:"Tops",     atl:true, hue:185},
+        {id:"461203",name:"Merino Wool Crew Neck Sweater", gender:"Women", price:49.90, regular:59.90, lowest:39.90, category:"Sweaters", atl:false,hue:30 },
+        {id:"489102",name:"Wide Fit Straight Jeans",       gender:"Men",   price:59.90, regular:69.90, lowest:49.90, category:"Bottoms",  atl:false,hue:210},
+        {id:"392847",name:"Fleece Full-Zip Jacket",        gender:"Women", price:34.90, regular:59.90, lowest:29.90, category:"Outerwear",atl:true, hue:20 },
+        {id:"512394",name:"AIRism Cotton T-Shirt",         gender:"Men",   price:19.90, regular:19.90, lowest:14.90, category:"Tops",     atl:false,hue:0  },
+        {id:"478234",name:"Cashmere V-Neck Sweater",       gender:"Women", price:69.90, regular:99.90, lowest:59.90, category:"Sweaters", atl:false,hue:340},
+        {id:"434892",name:"Pile-Lined Fleece Hoodie",      gender:"Unisex",price:44.90, regular:49.90, lowest:39.90, category:"Outerwear",atl:false,hue:280},
+        {id:"501293",name:"Smart Ankle Pants",             gender:"Women", price:34.90, regular:59.90, lowest:34.90, category:"Bottoms",  atl:true, hue:150},
+        {id:"467812",name:"Oxford Shirt",                  gender:"Men",   price:39.90, regular:49.90, lowest:29.90, category:"Tops",     atl:false,hue:200},
+        {id:"523817",name:"Blocktech Parka",               gender:"Men",   price:149.90,regular:199.90,lowest:119.90,category:"Outerwear",atl:false,hue:0  },
+        {id:"498234",name:"Ribbed Turtleneck Sweater",     gender:"Women", price:39.90, regular:49.90, lowest:39.90, category:"Sweaters", atl:true, hue:35 },
+      ].map(p=>({...p,onSale:p.price<p.regular}))
+
+      return {
+        products: PRODUCTS,
+        HISTORIES, DATES,
+        search:'', sort:'discount', category:'All',
+        view:'list', selected:null,
+
+        sparkPath, areaPath, priceY,
+
+        get avgDiscount() {
+          const s=this.products.filter(p=>p.onSale)
+          return s.length ? Math.round(s.reduce((a,p)=>a+(1-p.price/p.regular)*100,0)/s.length) : 0
+        },
+        get filtered() {
+          let l=this.products
+          if(this.search.trim()){const q=this.search.toLowerCase();l=l.filter(p=>p.name.toLowerCase().includes(q)||p.category.toLowerCase().includes(q))}
+          if(this.category!=='All') l=l.filter(p=>p.category===this.category)
+          return [...l].sort((a,b)=>{
+            if(this.sort==='price_asc') return a.price-b.price
+            if(this.sort==='price_desc') return b.price-a.price
+            return (b.onSale?(1-b.price/b.regular):0)-(a.onSale?(1-a.price/a.regular):0)
+          })
+        },
+        selectProduct(p) { this.selected=p; this.view='detail'; window.scrollTo(0,0) }
+      }
+    }
+  </script>
+</body>
+</html>

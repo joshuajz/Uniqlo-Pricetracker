@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Uniqlo Tracker — Minimal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    [x-cloak] { display: none !important; }
+    .row-hover { transition: background 0.12s; }
+    .row-hover:hover { background: #fafafa; }
+  </style>
+</head>
+<body class="bg-white text-gray-900 min-h-screen" x-data="app()" x-cloak>
+
+  <!-- Header -->
+  <header class="sticky top-0 bg-white border-b border-gray-100 z-20">
+    <div class="max-w-4xl mx-auto px-6 h-12 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-semibold tracking-widest text-red-600">UNIQLO</span>
+        <span class="text-gray-200">|</span>
+        <span class="text-xs font-light text-gray-400 tracking-wide">Price Tracker</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <input
+          type="text"
+          placeholder="Search…"
+          x-model="search"
+          class="text-xs border-0 border-b border-gray-200 focus:border-gray-600 outline-none py-1 w-40 placeholder-gray-300 transition-colors"
+        />
+        <span class="text-xs text-gray-300 hidden sm:block">Updated daily 6 AM EST</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-6">
+
+    <!-- Stats -->
+    <div class="pt-10 pb-8 flex flex-wrap gap-10 border-b border-gray-100">
+      <div>
+        <div class="text-3xl font-light text-gray-900" x-text="products.length"></div>
+        <div class="text-xs text-gray-400 mt-1 tracking-wide">products tracked</div>
+      </div>
+      <div>
+        <div class="text-3xl font-light text-red-600" x-text="products.filter(p => p.onSale).length"></div>
+        <div class="text-xs text-gray-400 mt-1 tracking-wide">on sale now</div>
+      </div>
+      <div>
+        <div class="text-3xl font-light text-gray-900" x-text="products.filter(p => p.atl).length"></div>
+        <div class="text-xs text-gray-400 mt-1 tracking-wide">all-time lows</div>
+      </div>
+      <div>
+        <div class="text-3xl font-light text-gray-900" x-text="avgDiscount + '%'"></div>
+        <div class="text-xs text-gray-400 mt-1 tracking-wide">avg. discount</div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="py-5 flex items-center justify-between">
+      <span class="text-xs text-gray-400" x-text="filtered.length + ' results'"></span>
+      <div class="flex items-center gap-1">
+        <span class="text-xs text-gray-300 mr-2">Sort by</span>
+        <button
+          @click="sort = 'discount'"
+          class="text-xs px-3 py-1 rounded transition-colors"
+          :class="sort === 'discount' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-gray-700'"
+        >Discount</button>
+        <button
+          @click="sort = 'price_asc'"
+          class="text-xs px-3 py-1 rounded transition-colors"
+          :class="sort === 'price_asc' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-gray-700'"
+        >Price ↑</button>
+        <button
+          @click="sort = 'price_desc'"
+          class="text-xs px-3 py-1 rounded transition-colors"
+          :class="sort === 'price_desc' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-gray-700'"
+        >Price ↓</button>
+        <button
+          @click="showAtlOnly = !showAtlOnly"
+          class="text-xs px-3 py-1 rounded transition-colors ml-3"
+          :class="showAtlOnly ? 'bg-green-700 text-white' : 'text-gray-400 hover:text-gray-700'"
+        >All-time lows</button>
+      </div>
+    </div>
+
+    <!-- Column Headers -->
+    <div class="grid grid-cols-12 gap-4 py-2 border-b border-gray-100 text-[10px] text-gray-400 tracking-wider uppercase">
+      <div class="col-span-1"></div>
+      <div class="col-span-5">Product</div>
+      <div class="col-span-2 text-right">Regular</div>
+      <div class="col-span-2 text-right">Sale Price</div>
+      <div class="col-span-1 text-right">Disc.</div>
+      <div class="col-span-1 text-right">Lowest</div>
+    </div>
+
+    <!-- Product Rows -->
+    <div class="divide-y divide-gray-50">
+      <template x-for="p in filtered" :key="p.id">
+        <div class="grid grid-cols-12 gap-4 py-3.5 items-center row-hover cursor-pointer -mx-2 px-2 rounded">
+
+          <!-- Color swatch -->
+          <div class="col-span-1">
+            <div
+              class="w-8 h-10 rounded flex-shrink-0"
+              :style="`background: hsl(${p.hue}, ${p.hue === 0 ? '0' : '25'}%, 40%)`"
+            ></div>
+          </div>
+
+          <!-- Name + meta -->
+          <div class="col-span-5">
+            <div class="text-sm font-medium text-gray-900 leading-snug" x-text="p.name"></div>
+            <div class="flex items-center gap-2 mt-0.5">
+              <span class="text-xs text-gray-400" x-text="p.gender + ' · ' + p.category"></span>
+              <span
+                x-show="p.atl"
+                class="text-[10px] text-green-600 font-medium tracking-wide"
+              >↓ Lowest ever</span>
+            </div>
+          </div>
+
+          <!-- Regular price -->
+          <div class="col-span-2 text-right">
+            <span
+              class="text-sm"
+              :class="p.onSale ? 'text-gray-300 line-through' : 'text-gray-700'"
+              x-text="'$' + p.regular.toFixed(2)"
+            ></span>
+          </div>
+
+          <!-- Current price -->
+          <div class="col-span-2 text-right">
+            <span
+              class="text-sm font-medium"
+              :class="p.atl ? 'text-green-700' : p.onSale ? 'text-gray-900' : 'text-gray-500'"
+              x-text="'$' + p.price.toFixed(2)"
+            ></span>
+          </div>
+
+          <!-- Discount -->
+          <div class="col-span-1 text-right">
+            <span
+              x-show="p.onSale"
+              class="text-xs font-medium text-red-600"
+              x-text="'-' + Math.round((1 - p.price / p.regular) * 100) + '%'"
+            ></span>
+            <span x-show="!p.onSale" class="text-xs text-gray-200">—</span>
+          </div>
+
+          <!-- Lowest price -->
+          <div class="col-span-1 text-right">
+            <span class="text-xs text-gray-400" x-text="'$' + p.lowest.toFixed(2)"></span>
+          </div>
+
+        </div>
+      </template>
+
+      <!-- Empty state -->
+      <div x-show="filtered.length === 0" class="py-16 text-center">
+        <div class="text-sm text-gray-400">No products match "<span x-text="search"></span>"</div>
+      </div>
+    </div>
+
+    <!-- Footer note -->
+    <div class="py-8 text-xs text-gray-300 text-center border-t border-gray-50 mt-4">
+      Prices updated daily from Uniqlo Canada · <a href="../index.html" class="text-gray-400 hover:text-gray-600">← All designs</a>
+    </div>
+
+  </main>
+
+  <script>
+    function app() {
+      const PRODUCTS = [
+        { id: "473220", name: "Ultra Warm Down Jacket", gender: "Men",    price: 99.90,  regular: 149.90, lowest: 79.90,  category: "Outerwear", atl: false, hue: 220 },
+        { id: "452891", name: "Heattech Extra Warm Turtleneck", gender: "Men",    price: 14.90,  regular: 24.90,  lowest: 14.90,  category: "Tops",      atl: true,  hue: 185 },
+        { id: "461203", name: "Merino Wool Crew Neck Sweater", gender: "Women",  price: 49.90,  regular: 59.90,  lowest: 39.90,  category: "Sweaters",  atl: false, hue: 30  },
+        { id: "489102", name: "Wide Fit Straight Jeans",        gender: "Men",    price: 59.90,  regular: 69.90,  lowest: 49.90,  category: "Bottoms",   atl: false, hue: 210 },
+        { id: "392847", name: "Fleece Full-Zip Jacket",         gender: "Women",  price: 34.90,  regular: 59.90,  lowest: 29.90,  category: "Outerwear", atl: true,  hue: 20  },
+        { id: "512394", name: "AIRism Cotton T-Shirt",          gender: "Men",    price: 19.90,  regular: 19.90,  lowest: 14.90,  category: "Tops",      atl: false, hue: 0   },
+        { id: "478234", name: "Cashmere V-Neck Sweater",        gender: "Women",  price: 69.90,  regular: 99.90,  lowest: 59.90,  category: "Sweaters",  atl: false, hue: 340 },
+        { id: "434892", name: "Pile-Lined Fleece Hoodie",       gender: "Unisex", price: 44.90,  regular: 49.90,  lowest: 39.90,  category: "Outerwear", atl: false, hue: 280 },
+        { id: "501293", name: "Smart Ankle Pants",              gender: "Women",  price: 34.90,  regular: 59.90,  lowest: 34.90,  category: "Bottoms",   atl: true,  hue: 150 },
+        { id: "467812", name: "Oxford Shirt",                   gender: "Men",    price: 39.90,  regular: 49.90,  lowest: 29.90,  category: "Tops",      atl: false, hue: 200 },
+        { id: "523817", name: "Blocktech Parka",                gender: "Men",    price: 149.90, regular: 199.90, lowest: 119.90, category: "Outerwear", atl: false, hue: 0   },
+        { id: "498234", name: "Ribbed Turtleneck Sweater",      gender: "Women",  price: 39.90,  regular: 49.90,  lowest: 39.90,  category: "Sweaters",  atl: true,  hue: 35  },
+      ].map(p => ({ ...p, onSale: p.price < p.regular }))
+
+      return {
+        products: PRODUCTS,
+        search: '',
+        sort: 'discount',
+        showAtlOnly: false,
+
+        get avgDiscount() {
+          const onSale = this.products.filter(p => p.onSale)
+          if (!onSale.length) return 0
+          const sum = onSale.reduce((acc, p) => acc + (1 - p.price / p.regular) * 100, 0)
+          return Math.round(sum / onSale.length)
+        },
+
+        get filtered() {
+          let list = this.products
+          if (this.search.trim()) {
+            const q = this.search.toLowerCase()
+            list = list.filter(p =>
+              p.name.toLowerCase().includes(q) ||
+              p.category.toLowerCase().includes(q) ||
+              p.gender.toLowerCase().includes(q)
+            )
+          }
+          if (this.showAtlOnly) list = list.filter(p => p.atl)
+          return [...list].sort((a, b) => {
+            if (this.sort === 'price_asc')  return a.price - b.price
+            if (this.sort === 'price_desc') return b.price - a.price
+            // discount
+            const da = a.onSale ? (1 - a.price / a.regular) : 0
+            const db = b.onSale ? (1 - b.price / b.regular) : 0
+            return db - da
+          })
+        }
+      }
+    }
+  </script>
+</body>
+</html>

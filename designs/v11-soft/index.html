@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Uniqlo Tracker — Soft</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root { --bg:#f0f2f8; --card:#fff; --red:#dc2626; --green:#16a34a; }
+    body { font-family:'Inter',sans-serif; background:var(--bg); min-height:100vh; }
+    [x-cloak] { display:none !important; }
+    .card { background:#fff; border-radius:20px; box-shadow:0 2px 16px rgba(0,0,0,0.06); border:1px solid rgba(255,255,255,0.8); transition:all .2s; }
+    .product-card { cursor:pointer; }
+    .product-card:hover { box-shadow:0 8px 32px rgba(0,0,0,0.12); transform:translateY(-3px); }
+    .pill { display:inline-flex;align-items:center;padding:6px 16px;border-radius:9999px;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;border:1.5px solid #e2e4f0; }
+    .pill.active { background:#1a1a2e;color:#fff;border-color:#1a1a2e; }
+    .pill:not(.active) { color:#7c86a0;background:#fff; }
+    .pill:not(.active):hover { border-color:#c0c5da;color:#4a5066; }
+    .pill-red { border-color:rgba(220,38,38,0.3);color:#dc2626;background:rgba(220,38,38,0.06); }
+    .pill-red.active { background:#dc2626;color:#fff;border-color:#dc2626; }
+    .pill-green { border-color:rgba(22,163,74,0.3);color:#16a34a;background:rgba(22,163,74,0.06); }
+    .pill-green.active { background:#16a34a;color:#fff;border-color:#16a34a; }
+    .badge { display:inline-block;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600; }
+    .badge-atl { background:#dcfce7;color:#15803d; }
+    .badge-sale { background:#fee2e2;color:#dc2626; }
+    .badge-disc { background:#fee2e2;color:#dc2626; }
+    input { background:#fff;border:1.5px solid #e2e4f0;border-radius:12px;outline:none;transition:all .2s; }
+    input:focus { border-color:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,0.1); }
+    .modal-overlay { position:fixed;inset:0;background:rgba(20,20,40,0.4);backdrop-filter:blur(4px);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px; }
+    .modal-box { background:#fff;border-radius:24px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,0.2); }
+    .stat-card { background:#fff;border-radius:16px;border:1.5px solid #e2e4f0;padding:16px; }
+    @keyframes fadeIn { from{opacity:0;transform:scale(0.96)} to{opacity:1;transform:scale(1)} }
+    .modal-enter { animation:fadeIn .2s ease; }
+    .chart-line { fill:none;stroke:#dc2626;stroke-width:2;stroke-linecap:round;stroke-linejoin:round; }
+  </style>
+</head>
+<body x-data="app()" x-cloak @keydown.escape="modal=null">
+
+  <!-- Header -->
+  <header class="bg-white/80 backdrop-blur-md sticky top-0 z-30" style="border-bottom:1.5px solid #e2e4f0">
+    <div class="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 bg-red-600 rounded-xl flex items-center justify-center">
+          <span class="text-[9px] font-black text-white tracking-wider">UQ</span>
+        </div>
+        <div>
+          <div class="text-sm font-semibold leading-none text-gray-800">Uniqlo Tracker</div>
+          <div class="text-[10px] text-gray-400 mt-0.5">Canada Prices</div>
+        </div>
+      </div>
+      <div class="flex-1 max-w-xs relative">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" x-model="search" placeholder="Search products…" class="pl-10 pr-4 py-2 text-sm w-full" />
+      </div>
+      <a href="../index.html" class="text-xs text-gray-400 hover:text-gray-600 px-3 py-2 bg-gray-100 rounded-xl transition-colors">← Back</a>
+    </div>
+  </header>
+
+  <div class="max-w-6xl mx-auto px-6 py-6">
+
+    <!-- Stats row -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div class="stat-card">
+        <div class="text-2xl font-bold text-gray-900" x-text="products.length"></div>
+        <div class="text-xs text-gray-400 mt-1">Products tracked</div>
+        <div class="h-1 bg-gray-100 rounded-full mt-3"><div class="h-full bg-gray-300 rounded-full" style="width:100%"></div></div>
+      </div>
+      <div class="stat-card">
+        <div class="text-2xl font-bold text-red-600" x-text="products.filter(p=>p.onSale).length"></div>
+        <div class="text-xs text-gray-400 mt-1">On sale now</div>
+        <div class="h-1 bg-red-100 rounded-full mt-3"><div class="h-full bg-red-400 rounded-full" :style="'width:'+Math.round(products.filter(p=>p.onSale).length/products.length*100)+'%'"></div></div>
+      </div>
+      <div class="stat-card">
+        <div class="text-2xl font-bold text-gray-900" x-text="avgDiscount+'%'"></div>
+        <div class="text-xs text-gray-400 mt-1">Avg. discount</div>
+        <div class="h-1 bg-orange-100 rounded-full mt-3"><div class="h-full bg-orange-400 rounded-full" :style="'width:'+avgDiscount+'%'"></div></div>
+      </div>
+      <div class="stat-card">
+        <div class="text-2xl font-bold text-green-600" x-text="products.filter(p=>p.atl).length"></div>
+        <div class="text-xs text-gray-400 mt-1">All-time lows</div>
+        <div class="h-1 bg-green-100 rounded-full mt-3"><div class="h-full bg-green-500 rounded-full" :style="'width:'+Math.round(products.filter(p=>p.atl).length/products.length*100)+'%'"></div></div>
+      </div>
+    </div>
+
+    <!-- Filter pills -->
+    <div class="flex flex-wrap items-center gap-2 mb-6">
+      <template x-for="cat in ['All','Outerwear','Tops','Sweaters','Bottoms']" :key="cat">
+        <button @click="category=cat" class="pill" :class="category===cat?'active':''" x-text="cat"></button>
+      </template>
+      <button @click="showSaleOnly=!showSaleOnly" class="pill pill-red" :class="showSaleOnly?'active':''">🔥 On Sale</button>
+      <button @click="showAtlOnly=!showAtlOnly" class="pill pill-green" :class="showAtlOnly?'active':''">↓ All-Time Low</button>
+      <div class="ml-auto flex items-center gap-2">
+        <span class="text-xs text-gray-400" x-text="filtered.length + ' items'"></span>
+        <select x-model="sort" class="text-xs px-3 py-1.5 rounded-xl border border-gray-200" style="background:#fff">
+          <option value="discount">Best Discount</option>
+          <option value="price_asc">Price ↑</option>
+          <option value="price_desc">Price ↓</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Product grid -->
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <template x-for="p in filtered" :key="p.id">
+        <div class="card product-card" @click="modal=p">
+          <!-- Image -->
+          <div
+            class="relative flex items-end p-4"
+            style="border-radius:20px 20px 0 0; aspect-ratio:3/4; overflow:hidden"
+            :style="`background:hsl(${p.hue},${p.hue===0?'8':'30'}%,42%)`"
+          >
+            <!-- Soft gradient -->
+            <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.25),transparent 60%)"></div>
+            <!-- Discount badge -->
+            <div x-show="p.onSale" class="absolute top-3 right-3">
+              <div class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-xl" x-text="'-'+Math.round((1-p.price/p.regular)*100)+'%'"></div>
+            </div>
+            <!-- ATL badge -->
+            <div x-show="p.atl" class="absolute top-3 left-3">
+              <div class="bg-white text-green-700 text-[10px] font-bold px-2 py-1 rounded-xl">↓ ATL</div>
+            </div>
+            <div class="relative">
+              <span class="text-[10px] text-white/60 uppercase tracking-widest" x-text="p.category"></span>
+            </div>
+          </div>
+
+          <!-- Card content -->
+          <div class="p-4">
+            <h3 class="text-sm font-medium text-gray-800 line-clamp-2 leading-snug mb-3" x-text="p.name"></h3>
+            <div class="flex items-end justify-between">
+              <div>
+                <div class="flex items-baseline gap-1.5">
+                  <span class="text-lg font-bold" :class="p.atl?'text-green-600':p.onSale?'text-red-600':'text-gray-900'" x-text="'$'+p.price.toFixed(2)"></span>
+                  <span x-show="p.onSale" class="text-sm text-gray-300 line-through" x-text="'$'+p.regular.toFixed(2)"></span>
+                </div>
+                <div class="text-[10px] text-gray-400 mt-0.5" x-text="'Lowest: $'+p.lowest.toFixed(2)"></div>
+              </div>
+              <span class="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded-lg" x-text="p.gender"></span>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <div x-show="filtered.length===0" class="py-16 text-center">
+      <div class="text-4xl mb-3">🔍</div>
+      <div class="text-gray-400">No products found</div>
+    </div>
+  </div>
+
+  <!-- Product modal -->
+  <div x-show="modal" class="modal-overlay" @click.self="modal=null"
+    x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+    x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+    <div class="modal-box modal-enter" x-show="modal">
+      <template x-if="modal">
+        <div>
+          <!-- Header image -->
+          <div class="relative h-52 flex items-end p-6" :style="`background:hsl(${modal.hue},${modal.hue===0?'8':'32'}%,38%);border-radius:24px 24px 0 0`">
+            <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.3),transparent);border-radius:24px 24px 0 0"></div>
+            <button @click="modal=null" class="absolute top-4 right-4 w-9 h-9 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white text-lg transition-colors leading-none">×</button>
+            <div class="relative">
+              <div class="flex gap-2 mb-2">
+                <span x-show="modal.atl" class="badge badge-atl">↓ All-Time Low</span>
+                <span x-show="modal.onSale && !modal.atl" class="badge badge-sale">On Sale</span>
+              </div>
+              <div class="text-xs text-white/50 uppercase tracking-widest" x-text="modal.category + ' · ' + modal.gender"></div>
+            </div>
+          </div>
+
+          <div class="p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4" x-text="modal.name"></h2>
+
+            <!-- Price section -->
+            <div class="bg-gray-50 rounded-2xl p-4 mb-5">
+              <div class="flex items-end gap-3 mb-4">
+                <span class="text-4xl font-bold" :class="modal.atl?'text-green-600':modal.onSale?'text-red-600':'text-gray-900'" x-text="'$'+modal.price.toFixed(2)"></span>
+                <span x-show="modal.onSale" class="text-xl text-gray-300 line-through pb-0.5" x-text="'$'+modal.regular.toFixed(2)"></span>
+              </div>
+              <div class="grid grid-cols-3 gap-3 text-sm">
+                <div class="text-center"><div class="text-gray-400 text-xs mb-1">Regular</div><div class="font-medium" x-text="'$'+modal.regular.toFixed(2)"></div></div>
+                <div class="text-center"><div class="text-gray-400 text-xs mb-1">Lowest ever</div><div class="font-medium text-green-600" x-text="'$'+modal.lowest.toFixed(2)"></div></div>
+                <div class="text-center" x-show="modal.onSale"><div class="text-gray-400 text-xs mb-1">You save</div><div class="font-bold text-red-600" x-text="'$'+(modal.regular-modal.price).toFixed(2)"></div></div>
+              </div>
+            </div>
+
+            <!-- Sparkline -->
+            <div class="mb-5">
+              <div class="text-xs text-gray-400 font-medium mb-2 uppercase tracking-wider">Price trend</div>
+              <div class="bg-gray-50 rounded-2xl p-4">
+                <svg width="100%" viewBox="0 0 400 70" preserveAspectRatio="none" style="display:block;height:70px">
+                  <path :d="areaPath(HISTORIES[modal.id]||[],400,65,5)" fill="rgba(220,38,38,0.08)"/>
+                  <polyline :points="sparkPath(HISTORIES[modal.id]||[],400,65,5)" class="chart-line" style="stroke-width:2.5"/>
+                </svg>
+                <div class="flex justify-between text-[10px] text-gray-400 mt-1">
+                  <span x-text="DATES[0]"></span><span x-text="DATES[DATES.length-1]"></span>
+                </div>
+              </div>
+            </div>
+
+            <a href="#" class="block w-full text-center py-3.5 bg-gray-900 hover:bg-gray-700 text-white text-sm font-semibold rounded-2xl transition-colors">View on Uniqlo Canada →</a>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <script>
+    const DATES=["May '25","Jun '25","Jul '25","Aug '25","Sep '25","Oct '25","Nov '25","Dec '25","Jan '26","Feb '26"]
+    const HISTORIES={"473220":[149.90,149.90,139.90,139.90,129.90,119.90,109.90,109.90,99.90,99.90],"452891":[24.90,24.90,24.90,19.90,19.90,19.90,14.90,14.90,14.90,14.90],"461203":[59.90,59.90,59.90,54.90,54.90,49.90,49.90,54.90,49.90,49.90],"489102":[69.90,69.90,69.90,69.90,64.90,64.90,59.90,59.90,59.90,59.90],"392847":[59.90,54.90,49.90,44.90,39.90,44.90,39.90,34.90,34.90,34.90],"512394":[19.90,19.90,19.90,19.90,19.90,19.90,19.90,19.90,19.90,19.90],"478234":[99.90,99.90,89.90,89.90,79.90,79.90,79.90,69.90,69.90,69.90],"434892":[49.90,49.90,49.90,44.90,44.90,44.90,44.90,44.90,44.90,44.90],"501293":[59.90,59.90,54.90,49.90,44.90,39.90,39.90,34.90,34.90,34.90],"467812":[49.90,49.90,49.90,49.90,44.90,44.90,39.90,39.90,39.90,39.90],"523817":[199.90,199.90,189.90,179.90,169.90,169.90,159.90,149.90,149.90,149.90],"498234":[49.90,49.90,49.90,49.90,44.90,44.90,39.90,39.90,39.90,39.90]}
+    function sparkPath(prices,w,h,pad=4){if(!prices||prices.length<2)return'';const min=Math.min(...prices),max=Math.max(...prices),rng=max-min||1;return prices.map((v,i)=>`${((i/(prices.length-1))*w).toFixed(1)},${(h-pad-((v-min)/rng)*(h-pad*2)).toFixed(1)}`).join(' ')}
+    function areaPath(prices,w,h,pad=4){if(!prices||prices.length<2)return'';return`M 0,${h} L ${sparkPath(prices,w,h,pad).split(' ').join(' L ')} L ${w},${h} Z`}
+    function app(){
+      const P=[{id:"473220",name:"Ultra Warm Down Jacket",gender:"Men",price:99.90,regular:149.90,lowest:79.90,category:"Outerwear",atl:false,hue:220},{id:"452891",name:"Heattech Extra Warm Turtleneck",gender:"Men",price:14.90,regular:24.90,lowest:14.90,category:"Tops",atl:true,hue:185},{id:"461203",name:"Merino Wool Crew Neck Sweater",gender:"Women",price:49.90,regular:59.90,lowest:39.90,category:"Sweaters",atl:false,hue:30},{id:"489102",name:"Wide Fit Straight Jeans",gender:"Men",price:59.90,regular:69.90,lowest:49.90,category:"Bottoms",atl:false,hue:210},{id:"392847",name:"Fleece Full-Zip Jacket",gender:"Women",price:34.90,regular:59.90,lowest:29.90,category:"Outerwear",atl:true,hue:20},{id:"512394",name:"AIRism Cotton T-Shirt",gender:"Men",price:19.90,regular:19.90,lowest:14.90,category:"Tops",atl:false,hue:0},{id:"478234",name:"Cashmere V-Neck Sweater",gender:"Women",price:69.90,regular:99.90,lowest:59.90,category:"Sweaters",atl:false,hue:340},{id:"434892",name:"Pile-Lined Fleece Hoodie",gender:"Unisex",price:44.90,regular:49.90,lowest:39.90,category:"Outerwear",atl:false,hue:280},{id:"501293",name:"Smart Ankle Pants",gender:"Women",price:34.90,regular:59.90,lowest:34.90,category:"Bottoms",atl:true,hue:150},{id:"467812",name:"Oxford Shirt",gender:"Men",price:39.90,regular:49.90,lowest:29.90,category:"Tops",atl:false,hue:200},{id:"523817",name:"Blocktech Parka",gender:"Men",price:149.90,regular:199.90,lowest:119.90,category:"Outerwear",atl:false,hue:0},{id:"498234",name:"Ribbed Turtleneck Sweater",gender:"Women",price:39.90,regular:49.90,lowest:39.90,category:"Sweaters",atl:true,hue:35}].map(p=>({...p,onSale:p.price<p.regular}))
+      return{
+        products:P,HISTORIES,DATES,sparkPath,areaPath,
+        search:'',sort:'discount',category:'All',showSaleOnly:false,showAtlOnly:false,modal:null,
+        get avgDiscount(){const s=this.products.filter(p=>p.onSale);return s.length?Math.round(s.reduce((a,p)=>a+(1-p.price/p.regular)*100,0)/s.length):0},
+        get filtered(){let l=this.products;if(this.search.trim()){const q=this.search.toLowerCase();l=l.filter(p=>p.name.toLowerCase().includes(q)||p.category.toLowerCase().includes(q))}if(this.category!=='All')l=l.filter(p=>p.category===this.category);if(this.showSaleOnly)l=l.filter(p=>p.onSale);if(this.showAtlOnly)l=l.filter(p=>p.atl);return[...l].sort((a,b)=>{if(this.sort==='price_asc')return a.price-b.price;if(this.sort==='price_desc')return b.price-a.price;return(b.onSale?(1-b.price/b.regular):0)-(a.onSale?(1-a.price/a.regular):0)})}
+      }
+    }
+  </script>
+</body>
+</html>

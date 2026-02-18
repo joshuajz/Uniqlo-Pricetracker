@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Uniqlo Tracker — Analytics</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #f8f9fa; }
+    [x-cloak] { display: none !important; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .nav-btn { padding: 6px 16px; font-size: 13px; font-weight: 500; border-radius: 6px; transition: all .15s; cursor: pointer; }
+    .nav-btn.active { background: #fff; color: #111; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+    .nav-btn:not(.active) { color: #6b7280; }
+    .nav-btn:not(.active):hover { color: #374151; }
+    .kpi { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:20px; }
+    .kpi-value { font-size:2rem; font-weight:700; line-height:1; }
+    .spark-up { stroke:#16a34a; }
+    .spark-down { stroke:#dc2626; }
+    .spark-flat { stroke:#9ca3af; }
+    .trend-up { color:#16a34a; background:#f0fdf4; }
+    .trend-down { color:#dc2626; background:#fef2f2; }
+    .cat-bar { height:6px; border-radius:3px; background:#e5e7eb; overflow:hidden; }
+    .cat-bar-fill { height:100%; border-radius:3px; background:#dc2626; transition:width .6s ease; }
+    .row:hover { background:#fafafa; }
+    input, select { background:#fff; border:1px solid #e5e7eb; border-radius:6px; outline:none; }
+    input:focus, select:focus { border-color:#dc2626; box-shadow:0 0 0 2px rgba(220,38,38,0.08); }
+    .view-enter { animation: fade .2s ease; }
+    @keyframes fade { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+    .chip-sale { background:#fef2f2;color:#dc2626;border:1px solid #fecaca; }
+    .chip-atl { background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0; }
+    .chip-reg { background:#f3f4f6;color:#6b7280; }
+  </style>
+</head>
+<body x-data="app()" x-cloak>
+
+  <!-- Top nav -->
+  <div class="bg-white border-b border-gray-200 sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto px-6 h-13 flex items-center justify-between py-3">
+      <div class="flex items-center gap-3">
+        <span class="text-sm font-bold tracking-widest text-red-600">UNIQLO</span>
+        <span class="text-gray-200">|</span>
+        <span class="text-sm text-gray-400 font-light">Tracker</span>
+      </div>
+      <!-- View switcher -->
+      <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+        <button class="nav-btn" :class="view==='dashboard'?'active':''" @click="view='dashboard'; selected=null">Dashboard</button>
+        <button class="nav-btn" :class="view==='products'?'active':''" @click="view='products'; selected=null">Products</button>
+        <button class="nav-btn" :class="view==='detail'?'active':''" @click="view='detail'" x-show="selected" x-text="'↳ ' + (selected?.name?.split(' ').slice(0,2).join(' ') || 'Detail')"></button>
+      </div>
+      <a href="../index.html" class="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5 bg-gray-100 rounded-md">← All designs</a>
+    </div>
+  </div>
+
+  <!-- DASHBOARD VIEW -->
+  <div x-show="view==='dashboard'" class="view-enter max-w-6xl mx-auto px-6 py-6">
+
+    <!-- Page title -->
+    <div class="mb-6">
+      <h1 class="text-xl font-semibold text-gray-900">Overview</h1>
+      <p class="text-sm text-gray-400 mt-0.5">Feb 17, 2026 · Updated 6:00 AM EST</p>
+    </div>
+
+    <!-- KPI row -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="kpi">
+        <div class="text-xs text-gray-400 font-medium mb-3">Total Tracked</div>
+        <div class="kpi-value mono" x-text="products.length"></div>
+        <div class="text-xs text-gray-400 mt-2">products</div>
+      </div>
+      <div class="kpi">
+        <div class="text-xs text-gray-400 font-medium mb-3">Currently on Sale</div>
+        <div class="kpi-value mono text-red-600" x-text="products.filter(p=>p.onSale).length"></div>
+        <div class="flex items-center gap-1.5 mt-2">
+          <span class="text-xs font-medium trend-down px-1.5 py-0.5 rounded" x-text="Math.round(products.filter(p=>p.onSale).length/products.length*100)+'%'"></span>
+          <span class="text-xs text-gray-400">of catalogue</span>
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="text-xs text-gray-400 font-medium mb-3">Avg. Discount</div>
+        <div class="kpi-value mono" x-text="avgDiscount + '%'"></div>
+        <div class="text-xs text-gray-400 mt-2">on sale items</div>
+      </div>
+      <div class="kpi">
+        <div class="text-xs text-gray-400 font-medium mb-3">All-Time Lows</div>
+        <div class="kpi-value mono text-green-600" x-text="products.filter(p=>p.atl).length"></div>
+        <div class="flex items-center gap-1.5 mt-2">
+          <span class="text-xs font-medium trend-up px-1.5 py-0.5 rounded" x-text="Math.round(products.filter(p=>p.atl).length/products.length*100)+'%'"></span>
+          <span class="text-xs text-gray-400">of tracked items</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 col: Category breakdown + Top Deals -->
+    <div class="grid lg:grid-cols-2 gap-4 mb-6">
+
+      <!-- Category breakdown -->
+      <div class="bg-white border border-gray-200 rounded-xl p-5">
+        <h2 class="text-sm font-semibold text-gray-900 mb-4">Category Breakdown</h2>
+        <div class="space-y-4">
+          <template x-for="cat in categories" :key="cat.name">
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm text-gray-700" x-text="cat.name"></span>
+                  <span class="text-xs text-gray-400 mono" x-text="cat.count + ' items'"></span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-medium text-red-600" x-text="cat.onSale + ' on sale'"></span>
+                  <span class="text-xs font-semibold mono" x-text="cat.avgDiscount > 0 ? '-'+cat.avgDiscount+'%' : '—'"></span>
+                </div>
+              </div>
+              <div class="cat-bar">
+                <div class="cat-bar-fill" :style="'width:'+Math.round(cat.onSale/cat.count*100)+'%'"></div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Top deals today -->
+      <div class="bg-white border border-gray-200 rounded-xl p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-sm font-semibold text-gray-900">Top Deals Today</h2>
+          <button @click="view='products'" class="text-xs text-red-600 hover:text-red-700 font-medium">View all →</button>
+        </div>
+        <div class="space-y-3">
+          <template x-for="p in topDeals" :key="p.id">
+            <div @click="selectProduct(p)" class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+              <div class="w-8 h-10 rounded flex-shrink-0" :style="`background:hsl(${p.hue},${p.hue===0?'5':'28'}%,42%)`"></div>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-gray-900 truncate" x-text="p.name"></div>
+                <div class="text-xs text-gray-400 mt-0.5" x-text="p.category + ' · ' + p.gender"></div>
+              </div>
+              <div class="text-right flex-shrink-0">
+                <div class="text-sm font-bold mono text-red-600" x-text="'$' + p.price.toFixed(2)"></div>
+                <div class="text-xs text-gray-400 mono line-through" x-text="'$' + p.regular.toFixed(2)"></div>
+              </div>
+              <div class="w-10 text-right">
+                <span class="text-xs font-bold text-red-600" x-text="'-'+Math.round((1-p.price/p.regular)*100)+'%'"></span>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Price chart: best deal history -->
+    <div class="bg-white border border-gray-200 rounded-xl p-5">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-sm font-semibold text-gray-900">Featured: Best Deal Price History</h2>
+          <p class="text-xs text-gray-400 mt-0.5" x-text="topDeals[0]?.name"></p>
+        </div>
+        <span class="text-xs font-semibold px-2 py-1 rounded chip-sale" x-text="'-' + Math.round((1-(topDeals[0]?.price||0)/(topDeals[0]?.regular||1))*100) + '% off'"></span>
+      </div>
+      <svg width="100%" viewBox="0 0 600 120" preserveAspectRatio="none" style="display:block;height:120px">
+        <defs>
+          <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#dc2626" stop-opacity="0.15"/>
+            <stop offset="100%" stop-color="#dc2626" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path :d="areaPath(HISTORIES[topDeals[0]?.id]||[], 600, 110, 8)" fill="url(#chartGrad)" />
+        <polyline :points="sparkPath(HISTORIES[topDeals[0]?.id]||[], 600, 110, 8)" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="flex justify-between text-[9px] text-gray-400 mt-2">
+        <template x-for="d in DATES" :key="d"><span x-text="d"></span></template>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRODUCTS VIEW -->
+  <div x-show="view==='products'" class="view-enter max-w-6xl mx-auto px-6 py-6">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div class="flex items-center gap-2">
+        <h1 class="text-xl font-semibold text-gray-900">Products</h1>
+        <span class="text-sm text-gray-400 mono" x-text="'(' + filtered.length + ')'"></span>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input type="text" x-model="search" placeholder="Search…" class="pl-8 pr-3 py-1.5 text-sm w-44" />
+        </div>
+        <select x-model="category" class="text-sm px-3 py-1.5">
+          <option value="All">All categories</option>
+          <template x-for="cat in ['Outerwear','Tops','Sweaters','Bottoms']" :key="cat"><option :value="cat" x-text="cat"></option></template>
+        </select>
+        <select x-model="sort" class="text-sm px-3 py-1.5">
+          <option value="discount">Biggest Discount</option>
+          <option value="price_asc">Price: Low → High</option>
+          <option value="price_desc">Price: High → Low</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-100 text-left">
+            <th class="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Product</th>
+            <th class="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Category</th>
+            <th class="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Regular</th>
+            <th class="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Price</th>
+            <th class="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Discount</th>
+            <th class="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Trend</th>
+            <th class="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          <template x-for="p in filtered" :key="p.id">
+            <tr class="row cursor-pointer transition-colors" @click="selectProduct(p)">
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-7 h-9 rounded flex-shrink-0" :style="`background:hsl(${p.hue},${p.hue===0?'5':'28'}%,42%)`"></div>
+                  <div>
+                    <div class="font-medium text-gray-900" x-text="p.name"></div>
+                    <div class="text-xs text-gray-400 mt-0.5" x-text="p.gender"></div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-3 text-gray-500" x-text="p.category"></td>
+              <td class="px-4 py-3 text-right mono" :class="p.onSale ? 'text-gray-300 line-through' : 'text-gray-600'" x-text="'$' + p.regular.toFixed(2)"></td>
+              <td class="px-4 py-3 text-right mono font-semibold" :class="p.atl ? 'text-green-600' : p.onSale ? 'text-red-600' : 'text-gray-700'" x-text="'$' + p.price.toFixed(2)"></td>
+              <td class="px-4 py-3 text-right">
+                <span x-show="p.onSale" class="text-xs font-bold mono text-red-600" x-text="'-'+Math.round((1-p.price/p.regular)*100)+'%'"></span>
+                <span x-show="!p.onSale" class="text-xs text-gray-300">—</span>
+              </td>
+              <td class="px-4 py-3">
+                <div class="flex justify-center">
+                  <svg width="60" height="24">
+                    <polyline :points="sparkPath(HISTORIES[p.id],60,24,3)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+                      :stroke="p.atl ? '#16a34a' : p.onSale ? '#dc2626' : '#9ca3af'" />
+                  </svg>
+                </div>
+              </td>
+              <td class="px-4 py-3">
+                <span :class="p.atl ? 'chip-atl' : p.onSale ? 'chip-sale' : 'chip-reg'" class="text-xs font-medium px-2 py-0.5 rounded-full" x-text="p.atl ? '↓ ATL' : p.onSale ? 'Sale' : 'Regular'"></span>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- DETAIL VIEW -->
+  <div x-show="view==='detail' && selected" class="view-enter max-w-6xl mx-auto px-6 py-6">
+    <div class="grid lg:grid-cols-3 gap-6">
+
+      <!-- Left col: product info -->
+      <div class="lg:col-span-1 space-y-4">
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div class="h-48 flex items-end p-4" :style="`background:hsl(${selected?.hue},${selected?.hue===0?'8':'28'}%,35%)`">
+            <div>
+              <div class="text-xs text-white/50 uppercase tracking-widest" x-text="selected?.category"></div>
+              <div x-show="selected?.atl" class="mt-1.5 text-xs font-medium text-white bg-white/20 px-2 py-0.5 rounded inline-block">↓ All-time low</div>
+            </div>
+          </div>
+          <div class="p-5">
+            <h2 class="font-semibold text-gray-900 text-base leading-snug mb-4" x-text="selected?.name"></h2>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between"><span class="text-gray-400">Current</span><span class="font-bold mono" :class="selected?.atl?'text-green-600':selected?.onSale?'text-red-600':''" x-text="'$'+(selected?.price||0).toFixed(2)"></span></div>
+              <div class="flex justify-between"><span class="text-gray-400">Regular</span><span class="mono" :class="selected?.onSale?'text-gray-300 line-through':''" x-text="'$'+(selected?.regular||0).toFixed(2)"></span></div>
+              <div class="flex justify-between"><span class="text-gray-400">Lowest ever</span><span class="mono text-green-600" x-text="'$'+(selected?.lowest||0).toFixed(2)"></span></div>
+              <div class="flex justify-between border-t border-gray-100 pt-2 mt-2"><span class="text-gray-400">Discount</span><span class="font-bold text-red-600" x-text="selected?.onSale ? '-'+Math.round((1-(selected?.price||0)/(selected?.regular||1))*100)+'%' : 'None'"></span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Savings card -->
+        <div x-show="selected?.onSale" class="bg-red-50 border border-red-100 rounded-xl p-4">
+          <div class="text-xs text-red-500 font-medium uppercase tracking-wider mb-1">You save</div>
+          <div class="text-3xl font-bold mono text-red-600" x-text="'$'+((selected?.regular||0)-(selected?.price||0)).toFixed(2)"></div>
+          <div class="text-xs text-red-400 mt-1" x-text="'vs regular price of $'+(selected?.regular||0).toFixed(2)"></div>
+        </div>
+      </div>
+
+      <!-- Right col: chart + history -->
+      <div class="lg:col-span-2 space-y-4">
+        <div class="bg-white border border-gray-200 rounded-xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-900">Price History — 10 months</h3>
+            <div class="flex items-center gap-4 text-xs text-gray-400">
+              <span class="flex items-center gap-1.5"><span class="w-4 h-px bg-red-500 inline-block"></span>Price</span>
+              <span class="flex items-center gap-1.5"><span class="w-4 h-px bg-green-500 inline-block" style="border-top:1px dashed #16a34a"></span>Lowest</span>
+            </div>
+          </div>
+          <svg width="100%" viewBox="0 0 500 140" preserveAspectRatio="none" style="display:block;height:160px;overflow:visible">
+            <defs>
+              <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#dc2626" stop-opacity="0.12"/>
+                <stop offset="100%" stop-color="#dc2626" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path :d="areaPath(HISTORIES[selected?.id]||[],500,130,10)" fill="url(#g1)" />
+            <polyline :points="sparkPath(HISTORIES[selected?.id]||[],500,130,10)" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- lowest ref -->
+            <line x1="0" :y1="priceY(selected?.lowest||0,HISTORIES[selected?.id]||[],130,10)" x2="500" :y2="priceY(selected?.lowest||0,HISTORIES[selected?.id]||[],130,10)" stroke="#16a34a" stroke-width="1" stroke-dasharray="5,3" opacity="0.5"/>
+          </svg>
+          <div class="flex justify-between text-[10px] text-gray-400 mt-2 px-1">
+            <template x-for="d in DATES" :key="d"><span x-text="d"></span></template>
+          </div>
+        </div>
+
+        <!-- Price history table -->
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div class="px-5 py-3 border-b border-gray-100">
+            <h3 class="text-sm font-semibold text-gray-900">Price Log</h3>
+          </div>
+          <table class="w-full text-sm">
+            <thead><tr class="bg-gray-50 text-left"><th class="px-5 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Date</th><th class="px-5 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Price</th><th class="px-5 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Change</th></tr></thead>
+            <tbody class="divide-y divide-gray-50">
+              <template x-for="(price, i) in (HISTORIES[selected?.id]||[]).slice().reverse()" :key="i">
+                <tr>
+                  <td class="px-5 py-2.5 text-gray-600" x-text="DATES.slice().reverse()[i]"></td>
+                  <td class="px-5 py-2.5 text-right mono font-medium" :class="i===0?'text-gray-900':'text-gray-500'" x-text="'$'+price.toFixed(2)"></td>
+                  <td class="px-5 py-2.5 text-right text-xs mono" x-text="i < (HISTORIES[selected?.id]||[]).length-1 ? (price - (HISTORIES[selected?.id]||[]).slice().reverse()[i+1] > 0 ? '+' : '') + '$'+Math.abs(price - (HISTORIES[selected?.id]||[]).slice().reverse()[i+1]).toFixed(2) : '—'" :class="i > 0 && price < (HISTORIES[selected?.id]||[]).slice().reverse()[i-1] ? 'text-green-600' : i > 0 && price > (HISTORIES[selected?.id]||[]).slice().reverse()[i-1] ? 'text-red-600' : 'text-gray-400'"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DATES = ["May '25","Jun '25","Jul '25","Aug '25","Sep '25","Oct '25","Nov '25","Dec '25","Jan '26","Feb '26"]
+    const HISTORIES = {
+      "473220":[149.90,149.90,139.90,139.90,129.90,119.90,109.90,109.90,99.90,99.90],
+      "452891":[24.90,24.90,24.90,19.90,19.90,19.90,14.90,14.90,14.90,14.90],
+      "461203":[59.90,59.90,59.90,54.90,54.90,49.90,49.90,54.90,49.90,49.90],
+      "489102":[69.90,69.90,69.90,69.90,64.90,64.90,59.90,59.90,59.90,59.90],
+      "392847":[59.90,54.90,49.90,44.90,39.90,44.90,39.90,34.90,34.90,34.90],
+      "512394":[19.90,19.90,19.90,19.90,19.90,19.90,19.90,19.90,19.90,19.90],
+      "478234":[99.90,99.90,89.90,89.90,79.90,79.90,79.90,69.90,69.90,69.90],
+      "434892":[49.90,49.90,49.90,44.90,44.90,44.90,44.90,44.90,44.90,44.90],
+      "501293":[59.90,59.90,54.90,49.90,44.90,39.90,39.90,34.90,34.90,34.90],
+      "467812":[49.90,49.90,49.90,49.90,44.90,44.90,39.90,39.90,39.90,39.90],
+      "523817":[199.90,199.90,189.90,179.90,169.90,169.90,159.90,149.90,149.90,149.90],
+      "498234":[49.90,49.90,49.90,49.90,44.90,44.90,39.90,39.90,39.90,39.90],
+    }
+    function sparkPath(prices,w,h,pad=4){if(!prices||prices.length<2)return'';const min=Math.min(...prices),max=Math.max(...prices),rng=max-min||1;return prices.map((v,i)=>{const x=(i/(prices.length-1))*w,y=h-pad-((v-min)/rng)*(h-pad*2);return`${x.toFixed(1)},${y.toFixed(1)}`}).join(' ')}
+    function areaPath(prices,w,h,pad=4){if(!prices||prices.length<2)return'';const pts=sparkPath(prices,w,h,pad).split(' ');return`M 0,${h} L ${pts.join(' L ')} L ${w},${h} Z`}
+    function priceY(price,prices,h,pad=4){if(!prices||!prices.length)return h/2;const min=Math.min(...prices),max=Math.max(...prices),rng=max-min||1;return h-pad-((price-min)/rng)*(h-pad*2)}
+
+    function app() {
+      const PRODUCTS = [
+        {id:"473220",name:"Ultra Warm Down Jacket",        gender:"Men",   price:99.90, regular:149.90,lowest:79.90, category:"Outerwear",atl:false,hue:220},
+        {id:"452891",name:"Heattech Extra Warm Turtleneck",gender:"Men",   price:14.90, regular:24.90, lowest:14.90, category:"Tops",     atl:true, hue:185},
+        {id:"461203",name:"Merino Wool Crew Neck Sweater", gender:"Women", price:49.90, regular:59.90, lowest:39.90, category:"Sweaters", atl:false,hue:30 },
+        {id:"489102",name:"Wide Fit Straight Jeans",       gender:"Men",   price:59.90, regular:69.90, lowest:49.90, category:"Bottoms",  atl:false,hue:210},
+        {id:"392847",name:"Fleece Full-Zip Jacket",        gender:"Women", price:34.90, regular:59.90, lowest:29.90, category:"Outerwear",atl:true, hue:20 },
+        {id:"512394",name:"AIRism Cotton T-Shirt",         gender:"Men",   price:19.90, regular:19.90, lowest:14.90, category:"Tops",     atl:false,hue:0  },
+        {id:"478234",name:"Cashmere V-Neck Sweater",       gender:"Women", price:69.90, regular:99.90, lowest:59.90, category:"Sweaters", atl:false,hue:340},
+        {id:"434892",name:"Pile-Lined Fleece Hoodie",      gender:"Unisex",price:44.90, regular:49.90, lowest:39.90, category:"Outerwear",atl:false,hue:280},
+        {id:"501293",name:"Smart Ankle Pants",             gender:"Women", price:34.90, regular:59.90, lowest:34.90, category:"Bottoms",  atl:true, hue:150},
+        {id:"467812",name:"Oxford Shirt",                  gender:"Men",   price:39.90, regular:49.90, lowest:29.90, category:"Tops",     atl:false,hue:200},
+        {id:"523817",name:"Blocktech Parka",               gender:"Men",   price:149.90,regular:199.90,lowest:119.90,category:"Outerwear",atl:false,hue:0  },
+        {id:"498234",name:"Ribbed Turtleneck Sweater",     gender:"Women", price:39.90, regular:49.90, lowest:39.90, category:"Sweaters", atl:true, hue:35 },
+      ].map(p=>({...p,onSale:p.price<p.regular}))
+
+      return {
+        products:PRODUCTS, HISTORIES, DATES, sparkPath, areaPath, priceY,
+        view:'dashboard', selected:null, search:'', sort:'discount', category:'All',
+
+        get avgDiscount(){const s=this.products.filter(p=>p.onSale);return s.length?Math.round(s.reduce((a,p)=>a+(1-p.price/p.regular)*100,0)/s.length):0},
+        get categories(){return['Outerwear','Tops','Sweaters','Bottoms'].map(name=>{const ps=this.products.filter(p=>p.category===name);const os=ps.filter(p=>p.onSale);return{name,count:ps.length,onSale:os.length,avgDiscount:os.length?Math.round(os.reduce((a,p)=>a+(1-p.price/p.regular)*100,0)/os.length):0}})},
+        get topDeals(){return this.products.filter(p=>p.onSale).sort((a,b)=>(1-b.price/b.regular)-(1-a.price/a.regular)).slice(0,5)},
+        get filtered(){
+          let l=this.products
+          if(this.search.trim()){const q=this.search.toLowerCase();l=l.filter(p=>p.name.toLowerCase().includes(q)||p.category.toLowerCase().includes(q))}
+          if(this.category!=='All') l=l.filter(p=>p.category===this.category)
+          return [...l].sort((a,b)=>{
+            if(this.sort==='price_asc') return a.price-b.price
+            if(this.sort==='price_desc') return b.price-a.price
+            return(b.onSale?(1-b.price/b.regular):0)-(a.onSale?(1-a.price/a.regular):0)
+          })
+        },
+        selectProduct(p){this.selected=p;this.view='detail';window.scrollTo(0,0)}
+      }
+    }
+  </script>
+</body>
+</html>

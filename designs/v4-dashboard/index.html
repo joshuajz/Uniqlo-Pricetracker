@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Uniqlo Tracker — Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #f1f3f5; }
+    [x-cloak] { display: none !important; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .sidebar { width: 200px; flex-shrink: 0; }
+    .table-row { transition: background 0.1s; }
+    .table-row:hover { background: #f8f9fa; }
+    .table-row.selected { background: #fff5f5; }
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { color: #dc2626; }
+    .stat-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; }
+    .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 500; }
+    .chip-red { background: #fef2f2; color: #dc2626; }
+    .chip-green { background: #f0fdf4; color: #16a34a; }
+    .chip-gray { background: #f3f4f6; color: #6b7280; }
+    .bar { height: 3px; border-radius: 2px; background: #e5e7eb; overflow: hidden; }
+    .bar-fill { height: 100%; background: #dc2626; border-radius: 2px; transition: width 0.4s ease; }
+    input, select { border: 1px solid #d1d5db; background: #fff; border-radius: 6px; outline: none; }
+    input:focus, select:focus { border-color: #dc2626; box-shadow: 0 0 0 2px rgba(220,38,38,0.1); }
+    .checkbox-filter input[type="checkbox"] { accent-color: #dc2626; }
+    .sidebar-section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 8px; }
+  </style>
+</head>
+<body x-data="app()" x-cloak>
+
+  <!-- Top Bar -->
+  <div class="bg-white border-b border-gray-200 sticky top-0 z-20">
+    <div class="px-6 h-12 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <span class="text-sm font-bold tracking-widest text-red-600">UNIQLO</span>
+        <span class="text-gray-300 text-sm">|</span>
+        <span class="text-sm text-gray-500 font-medium">Price Dashboard</span>
+        <span class="text-gray-200 text-sm hidden md:block">|</span>
+        <span class="text-xs text-gray-400 hidden md:block">Updated Feb 17, 2026 · 6:00 AM EST</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          <input type="text" x-model="search" placeholder="Search…" class="pl-8 pr-3 py-1.5 text-sm w-48" />
+        </div>
+        <a href="../index.html" class="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5 bg-gray-100 rounded-md">← All designs</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="stat-card p-4">
+      <div class="text-xs text-gray-400 font-medium mb-1">Total Products</div>
+      <div class="text-2xl font-bold mono" x-text="products.length"></div>
+      <div class="bar mt-2"><div class="bar-fill" style="width: 100%"></div></div>
+    </div>
+    <div class="stat-card p-4">
+      <div class="text-xs text-gray-400 font-medium mb-1">On Sale</div>
+      <div class="text-2xl font-bold mono text-red-600" x-text="products.filter(p=>p.onSale).length"></div>
+      <div class="bar mt-2"><div class="bar-fill" :style="'width: ' + Math.round(products.filter(p=>p.onSale).length / products.length * 100) + '%'"></div></div>
+    </div>
+    <div class="stat-card p-4">
+      <div class="text-xs text-gray-400 font-medium mb-1">Avg. Discount</div>
+      <div class="text-2xl font-bold mono" x-text="avgDiscount + '%'"></div>
+      <div class="bar mt-2"><div class="bar-fill" :style="'width: ' + avgDiscount + '%'"></div></div>
+    </div>
+    <div class="stat-card p-4">
+      <div class="text-xs text-gray-400 font-medium mb-1">All-Time Lows</div>
+      <div class="text-2xl font-bold mono text-green-600" x-text="products.filter(p=>p.atl).length"></div>
+      <div class="bar mt-2" style="background:#dcfce7"><div class="bar-fill" style="background:#16a34a;" :style="'width: ' + Math.round(products.filter(p=>p.atl).length / products.length * 100) + '%'"></div></div>
+    </div>
+  </div>
+
+  <!-- Main layout: sidebar + table -->
+  <div class="px-6 pb-8 flex gap-4">
+
+    <!-- Sidebar -->
+    <aside class="sidebar bg-white border border-gray-200 rounded-lg p-4 self-start sticky top-14">
+
+      <!-- Category filter -->
+      <div class="sidebar-section-title">Category</div>
+      <div class="space-y-1.5 mb-5 checkbox-filter">
+        <template x-for="cat in ['All', 'Outerwear', 'Tops', 'Sweaters', 'Bottoms']" :key="cat">
+          <label class="flex items-center gap-2 cursor-pointer group">
+            <input
+              type="radio"
+              name="category"
+              :value="cat"
+              x-model="category"
+              class="w-3.5 h-3.5"
+            />
+            <span
+              class="text-sm text-gray-600 group-hover:text-gray-900"
+              :class="category === cat ? 'font-medium text-gray-900' : ''"
+              x-text="cat"
+            ></span>
+            <span
+              class="ml-auto text-xs text-gray-400 mono"
+              x-text="cat === 'All' ? products.length : products.filter(p => p.category === cat).length"
+            ></span>
+          </label>
+        </template>
+      </div>
+
+      <!-- Gender filter -->
+      <div class="sidebar-section-title">Gender</div>
+      <div class="space-y-1.5 mb-5 checkbox-filter">
+        <template x-for="g in ['All', 'Men', 'Women', 'Unisex']" :key="g">
+          <label class="flex items-center gap-2 cursor-pointer group">
+            <input type="radio" name="gender" :value="g" x-model="gender" class="w-3.5 h-3.5" />
+            <span class="text-sm text-gray-600 group-hover:text-gray-900" :class="gender === g ? 'font-medium text-gray-900' : ''" x-text="g"></span>
+            <span class="ml-auto text-xs text-gray-400 mono" x-text="g === 'All' ? products.length : products.filter(p => p.gender === g).length"></span>
+          </label>
+        </template>
+      </div>
+
+      <!-- Quick filters -->
+      <div class="sidebar-section-title">Quick Filters</div>
+      <div class="space-y-1.5 checkbox-filter">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" x-model="showSaleOnly" class="w-3.5 h-3.5" />
+          <span class="text-sm text-gray-600">On sale only</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" x-model="showAtlOnly" class="w-3.5 h-3.5" />
+          <span class="text-sm text-gray-600">All-time lows</span>
+        </label>
+      </div>
+
+      <!-- Discount range -->
+      <div class="mt-5">
+        <div class="sidebar-section-title">Min. Discount</div>
+        <div class="flex items-center gap-2">
+          <input
+            type="range"
+            min="0"
+            max="50"
+            step="5"
+            x-model="minDiscount"
+            class="flex-1 accent-red-600"
+          />
+          <span class="text-xs font-mono font-medium w-8 text-right" x-text="minDiscount + '%'"></span>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Table -->
+    <div class="flex-1 min-w-0">
+      <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+
+        <!-- Table header row above table -->
+        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+          <span class="text-sm font-medium text-gray-700" x-text="filtered.length + ' products'"></span>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-400">Show</span>
+            <select x-model="perPage" class="text-xs px-2 py-1">
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+            <span class="text-xs text-gray-400">per page</span>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-200 bg-gray-50 text-left">
+                <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-8">#</th>
+                <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider sortable" @click="toggleSort('name')">
+                  <div class="flex items-center gap-1">
+                    Product
+                    <span x-text="sortCol === 'name' ? (sortDir === 'asc' ? '↑' : '↓') : '↕'" class="text-gray-300"></span>
+                  </div>
+                </th>
+                <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th>
+                <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider sortable text-right" @click="toggleSort('regular')">
+                  <div class="flex items-center justify-end gap-1">
+                    Regular
+                    <span x-text="sortCol === 'regular' ? (sortDir === 'asc' ? '↑' : '↓') : '↕'" class="text-gray-300"></span>
+                  </div>
+                </th>
+                <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider sortable text-right" @click="toggleSort('price')">
+                  <div class="flex items-center justify-end gap-1">
+                    Sale Price
+                    <span x-text="sortCol === 'price' ? (sortDir === 'asc' ? '↑' : '↓') : '↕'" class="text-gray-300"></span>
+                  </div>
+                </th>
+                <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider sortable text-right" @click="toggleSort('discount')">
+                  <div class="flex items-center justify-end gap-1">
+                    Disc.
+                    <span x-text="sortCol === 'discount' ? (sortDir === 'asc' ? '↑' : '↓') : '↕'" class="text-gray-300"></span>
+                  </div>
+                </th>
+                <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Lowest</th>
+                <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+              <template x-for="(p, i) in paged" :key="p.id">
+                <tr class="table-row">
+                  <td class="px-4 py-3 text-xs text-gray-400 mono" x-text="(page - 1) * parseInt(perPage) + i + 1"></td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="w-7 h-9 rounded flex-shrink-0"
+                        :style="`background: hsl(${p.hue}, ${p.hue === 0 ? '5' : '30'}%, 45%)`"
+                      ></div>
+                      <div>
+                        <div class="font-medium text-gray-900 text-sm leading-snug line-clamp-1" x-text="p.name"></div>
+                        <div class="text-xs text-gray-400 mt-0.5" x-text="p.gender"></div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-xs text-gray-500" x-text="p.category"></td>
+                  <td class="px-4 py-3 text-right mono text-sm" :class="p.onSale ? 'text-gray-400 line-through' : 'text-gray-700'" x-text="'$' + p.regular.toFixed(2)"></td>
+                  <td class="px-4 py-3 text-right mono text-sm font-semibold" :class="p.atl ? 'text-green-600' : p.onSale ? 'text-gray-900' : 'text-gray-500'" x-text="'$' + p.price.toFixed(2)"></td>
+                  <td class="px-4 py-3 text-right">
+                    <span x-show="p.onSale">
+                      <div class="inline-flex items-center gap-1">
+                        <div class="w-12 bg-gray-100 rounded-full overflow-hidden" style="height: 4px">
+                          <div class="bg-red-500 rounded-full h-full" :style="'width: ' + Math.round((1 - p.price/p.regular)*100) + '%'"></div>
+                        </div>
+                        <span class="text-xs font-semibold mono text-red-600" x-text="Math.round((1 - p.price/p.regular)*100) + '%'"></span>
+                      </div>
+                    </span>
+                    <span x-show="!p.onSale" class="text-xs text-gray-300">—</span>
+                  </td>
+                  <td class="px-4 py-3 text-right mono text-xs text-gray-400" x-text="'$' + p.lowest.toFixed(2)"></td>
+                  <td class="px-4 py-3">
+                    <div class="flex flex-wrap gap-1">
+                      <span x-show="p.atl" class="chip chip-green">↓ ATL</span>
+                      <span x-show="p.onSale && !p.atl" class="chip chip-red">Sale</span>
+                      <span x-show="!p.onSale" class="chip chip-gray">Regular</span>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+
+              <!-- Empty state -->
+              <tr x-show="filtered.length === 0">
+                <td colspan="8" class="px-4 py-12 text-center text-sm text-gray-400">No products match your filters</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="px-4 py-3 border-t border-gray-100 flex items-center justify-between" x-show="totalPages > 1">
+          <div class="text-xs text-gray-400">
+            Showing <span x-text="(page-1)*parseInt(perPage)+1"></span>–<span x-text="Math.min(page*parseInt(perPage), filtered.length)"></span> of <span x-text="filtered.length"></span>
+          </div>
+          <div class="flex items-center gap-1">
+            <button
+              @click="page = Math.max(1, page - 1)"
+              :disabled="page === 1"
+              class="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >← Prev</button>
+            <template x-for="pg in pageNumbers" :key="pg">
+              <button
+                @click="page = pg"
+                class="w-8 h-8 text-xs font-medium rounded transition-colors"
+                :class="page === pg ? 'bg-red-600 text-white' : 'border border-gray-200 hover:bg-gray-50'"
+                x-text="pg"
+              ></button>
+            </template>
+            <button
+              @click="page = Math.min(totalPages, page + 1)"
+              :disabled="page === totalPages"
+              class="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >Next →</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function app() {
+      const PRODUCTS = [
+        { id: "473220", name: "Ultra Warm Down Jacket",         gender: "Men",    price: 99.90,  regular: 149.90, lowest: 79.90,  category: "Outerwear", atl: false, hue: 220 },
+        { id: "452891", name: "Heattech Extra Warm Turtleneck", gender: "Men",    price: 14.90,  regular: 24.90,  lowest: 14.90,  category: "Tops",      atl: true,  hue: 185 },
+        { id: "461203", name: "Merino Wool Crew Neck Sweater",  gender: "Women",  price: 49.90,  regular: 59.90,  lowest: 39.90,  category: "Sweaters",  atl: false, hue: 30  },
+        { id: "489102", name: "Wide Fit Straight Jeans",        gender: "Men",    price: 59.90,  regular: 69.90,  lowest: 49.90,  category: "Bottoms",   atl: false, hue: 210 },
+        { id: "392847", name: "Fleece Full-Zip Jacket",         gender: "Women",  price: 34.90,  regular: 59.90,  lowest: 29.90,  category: "Outerwear", atl: true,  hue: 20  },
+        { id: "512394", name: "AIRism Cotton T-Shirt",          gender: "Men",    price: 19.90,  regular: 19.90,  lowest: 14.90,  category: "Tops",      atl: false, hue: 0   },
+        { id: "478234", name: "Cashmere V-Neck Sweater",        gender: "Women",  price: 69.90,  regular: 99.90,  lowest: 59.90,  category: "Sweaters",  atl: false, hue: 340 },
+        { id: "434892", name: "Pile-Lined Fleece Hoodie",       gender: "Unisex", price: 44.90,  regular: 49.90,  lowest: 39.90,  category: "Outerwear", atl: false, hue: 280 },
+        { id: "501293", name: "Smart Ankle Pants",              gender: "Women",  price: 34.90,  regular: 59.90,  lowest: 34.90,  category: "Bottoms",   atl: true,  hue: 150 },
+        { id: "467812", name: "Oxford Shirt",                   gender: "Men",    price: 39.90,  regular: 49.90,  lowest: 29.90,  category: "Tops",      atl: false, hue: 200 },
+        { id: "523817", name: "Blocktech Parka",                gender: "Men",    price: 149.90, regular: 199.90, lowest: 119.90, category: "Outerwear", atl: false, hue: 0   },
+        { id: "498234", name: "Ribbed Turtleneck Sweater",      gender: "Women",  price: 39.90,  regular: 49.90,  lowest: 39.90,  category: "Sweaters",  atl: true,  hue: 35  },
+      ].map(p => ({ ...p, onSale: p.price < p.regular }))
+
+      return {
+        products: PRODUCTS,
+        search: '',
+        category: 'All',
+        gender: 'All',
+        showSaleOnly: false,
+        showAtlOnly: false,
+        minDiscount: 0,
+        sortCol: 'discount',
+        sortDir: 'desc',
+        page: 1,
+        perPage: '10',
+
+        toggleSort(col) {
+          if (this.sortCol === col) {
+            this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc'
+          } else {
+            this.sortCol = col
+            this.sortDir = col === 'name' ? 'asc' : 'desc'
+          }
+          this.page = 1
+        },
+
+        get avgDiscount() {
+          const onSale = this.products.filter(p => p.onSale)
+          if (!onSale.length) return 0
+          return Math.round(onSale.reduce((a, p) => a + (1 - p.price / p.regular) * 100, 0) / onSale.length)
+        },
+
+        get filtered() {
+          let list = this.products
+          if (this.search.trim()) {
+            const q = this.search.toLowerCase()
+            list = list.filter(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || p.gender.toLowerCase().includes(q))
+          }
+          if (this.category !== 'All') list = list.filter(p => p.category === this.category)
+          if (this.gender !== 'All') list = list.filter(p => p.gender === this.gender)
+          if (this.showSaleOnly) list = list.filter(p => p.onSale)
+          if (this.showAtlOnly) list = list.filter(p => p.atl)
+          if (this.minDiscount > 0) {
+            list = list.filter(p => p.onSale && Math.round((1 - p.price / p.regular) * 100) >= this.minDiscount)
+          }
+          return [...list].sort((a, b) => {
+            let va, vb
+            switch (this.sortCol) {
+              case 'name':    va = a.name;    vb = b.name;    break
+              case 'price':   va = a.price;   vb = b.price;   break
+              case 'regular': va = a.regular; vb = b.regular; break
+              case 'discount':
+                va = a.onSale ? (1 - a.price / a.regular) : 0
+                vb = b.onSale ? (1 - b.price / b.regular) : 0
+                break
+              default: va = 0; vb = 0
+            }
+            if (va < vb) return this.sortDir === 'asc' ? -1 : 1
+            if (va > vb) return this.sortDir === 'asc' ? 1 : -1
+            return 0
+          })
+        },
+
+        get totalPages() {
+          return Math.max(1, Math.ceil(this.filtered.length / parseInt(this.perPage)))
+        },
+
+        get paged() {
+          const n = parseInt(this.perPage)
+          return this.filtered.slice((this.page - 1) * n, this.page * n)
+        },
+
+        get pageNumbers() {
+          return Array.from({ length: this.totalPages }, (_, i) => i + 1)
+            .filter(p => Math.abs(p - this.page) <= 2 || p === 1 || p === this.totalPages)
+        }
+      }
+    }
+  </script>
+</body>
+</html>

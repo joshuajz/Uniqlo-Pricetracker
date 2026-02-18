@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Uniqlo Tracker — Brutalist</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Space Grotesk', sans-serif; background: #f5f5f0; }
+    [x-cloak] { display: none !important; }
+
+    .brutal-box {
+      border: 2px solid #000;
+      box-shadow: 4px 4px 0 #000;
+    }
+    .brutal-box-red {
+      border: 2px solid #dc2626;
+      box-shadow: 4px 4px 0 #dc2626;
+    }
+    .brutal-btn {
+      border: 2px solid #000;
+      box-shadow: 3px 3px 0 #000;
+      transition: all 0.1s;
+      cursor: pointer;
+    }
+    .brutal-btn:hover {
+      box-shadow: 1px 1px 0 #000;
+      transform: translate(2px, 2px);
+    }
+    .brutal-btn:active {
+      box-shadow: 0 0 0 #000;
+      transform: translate(3px, 3px);
+    }
+    .brutal-btn.active {
+      background: #000;
+      color: #fff;
+    }
+    .brutal-btn-red {
+      border: 2px solid #dc2626;
+      box-shadow: 3px 3px 0 #dc2626;
+      transition: all 0.1s;
+      cursor: pointer;
+    }
+    .brutal-btn-red:hover {
+      box-shadow: 1px 1px 0 #dc2626;
+      transform: translate(2px, 2px);
+    }
+    .brutal-btn-red.active {
+      background: #dc2626;
+      color: #fff;
+    }
+
+    .product-card {
+      border: 2px solid #000;
+      box-shadow: 5px 5px 0 #000;
+      background: #fff;
+      transition: all 0.1s;
+    }
+    .product-card:hover {
+      box-shadow: 2px 2px 0 #000;
+      transform: translate(3px, 3px);
+    }
+
+    input[type="text"] {
+      border: 2px solid #000;
+      box-shadow: 3px 3px 0 #000;
+      background: #fff;
+      outline: none;
+    }
+    input[type="text"]:focus {
+      box-shadow: 1px 1px 0 #000;
+      transform: translate(2px, 2px);
+    }
+  </style>
+</head>
+<body x-data="app()" x-cloak>
+
+  <!-- Header -->
+  <header class="border-b-4 border-black bg-white sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-4">
+      <div>
+        <div class="text-2xl font-black tracking-tight uppercase leading-none">UNIQLO TRACKER</div>
+        <div class="text-xs font-medium uppercase tracking-widest text-gray-500 mt-0.5">Price Intelligence</div>
+      </div>
+      <div class="flex items-center gap-3">
+        <input
+          type="text"
+          x-model="search"
+          placeholder="SEARCH PRODUCTS"
+          class="px-3 py-2 text-sm font-medium uppercase tracking-wide w-52 placeholder-gray-400"
+        />
+        <a href="../index.html" class="brutal-btn bg-white px-3 py-2 text-xs font-bold uppercase">← BACK</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-6xl mx-auto px-6 py-8">
+
+    <!-- Stats Bar -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="brutal-box bg-white p-4">
+        <div class="text-4xl font-black leading-none" x-text="products.length"></div>
+        <div class="text-xs font-bold uppercase tracking-widest text-gray-500 mt-2">PRODUCTS TRACKED</div>
+      </div>
+      <div class="bg-red-600 p-4" style="border: 2px solid #000; box-shadow: 4px 4px 0 #000;">
+        <div class="text-4xl font-black text-white leading-none" x-text="products.filter(p=>p.onSale).length"></div>
+        <div class="text-xs font-bold uppercase tracking-widest text-red-100 mt-2">ON SALE NOW</div>
+      </div>
+      <div class="brutal-box bg-white p-4">
+        <div class="text-4xl font-black leading-none" x-text="avgDiscount + '%'"></div>
+        <div class="text-xs font-bold uppercase tracking-widest text-gray-500 mt-2">AVG DISCOUNT</div>
+      </div>
+      <div class="bg-black p-4" style="border: 2px solid #000; box-shadow: 4px 4px 0 #333;">
+        <div class="text-4xl font-black text-white leading-none" x-text="products.filter(p=>p.atl).length"></div>
+        <div class="text-xs font-bold uppercase tracking-widest text-gray-400 mt-2">ALL-TIME LOWS</div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="flex flex-wrap items-center gap-3 mb-8 pb-6 border-b-2 border-black">
+      <span class="text-xs font-bold uppercase tracking-widest text-gray-500">SORT:</span>
+      <button
+        @click="sort = 'discount'"
+        class="brutal-btn px-4 py-1.5 text-xs font-bold uppercase"
+        :class="sort === 'discount' ? 'active' : 'bg-white'"
+      >DISCOUNT</button>
+      <button
+        @click="sort = 'price_asc'"
+        class="brutal-btn px-4 py-1.5 text-xs font-bold uppercase"
+        :class="sort === 'price_asc' ? 'active' : 'bg-white'"
+      >PRICE ↑</button>
+      <button
+        @click="sort = 'price_desc'"
+        class="brutal-btn px-4 py-1.5 text-xs font-bold uppercase"
+        :class="sort === 'price_desc' ? 'active' : 'bg-white'"
+      >PRICE ↓</button>
+
+      <div class="flex-1 hidden md:block"></div>
+
+      <template x-for="cat in ['All', 'Outerwear', 'Tops', 'Sweaters', 'Bottoms']" :key="cat">
+        <button
+          @click="category = cat"
+          class="brutal-btn-red px-3 py-1.5 text-xs font-bold uppercase"
+          :class="category === cat ? 'active' : 'bg-white text-black'"
+          x-text="cat"
+        ></button>
+      </template>
+
+      <button
+        @click="showAtlOnly = !showAtlOnly"
+        class="brutal-btn bg-white px-4 py-1.5 text-xs font-bold uppercase"
+        :class="showAtlOnly ? 'bg-black text-white' : 'bg-white text-black'"
+      >↓ ATL ONLY</button>
+    </div>
+
+    <!-- Results count -->
+    <div class="mb-4 flex items-center gap-3">
+      <div class="h-0.5 flex-1 bg-black"></div>
+      <span class="text-xs font-black uppercase tracking-widest" x-text="filtered.length + ' PRODUCTS'"></span>
+      <div class="h-0.5 flex-1 bg-black"></div>
+    </div>
+
+    <!-- Product Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <template x-for="p in filtered" :key="p.id">
+        <div class="product-card cursor-pointer">
+
+          <!-- Image area with big color block -->
+          <div
+            class="relative border-b-2 border-black"
+            style="aspect-ratio: 3/4"
+            :style="`background: hsl(${p.hue}, ${p.hue === 0 ? '5' : '40'}%, 35%)`"
+          >
+            <!-- Hatch pattern overlay -->
+            <div class="absolute inset-0 opacity-20" style="background-image: repeating-linear-gradient(-45deg, #000 0, #000 1px, transparent 0, transparent 8px);"></div>
+
+            <!-- Category stamp -->
+            <div class="absolute top-3 left-3">
+              <div class="bg-white border-2 border-black px-2 py-0.5" style="box-shadow: 2px 2px 0 #000">
+                <span class="text-[10px] font-black uppercase tracking-widest" x-text="p.category"></span>
+              </div>
+            </div>
+
+            <!-- Discount badge -->
+            <div x-show="p.onSale" class="absolute top-3 right-3">
+              <div class="bg-red-600 border-2 border-black px-2 py-0.5" style="box-shadow: 2px 2px 0 #000">
+                <span
+                  class="text-xs font-black text-white"
+                  x-text="'-' + Math.round((1 - p.price / p.regular) * 100) + '%'"
+                ></span>
+              </div>
+            </div>
+
+            <!-- ATL stamp -->
+            <div x-show="p.atl" class="absolute bottom-3 right-3">
+              <div class="bg-black px-2 py-0.5 border-2 border-black" style="box-shadow: 2px 2px 0 #666">
+                <span class="text-[10px] font-black text-white uppercase tracking-wider">↓ LOWEST EVER</span>
+              </div>
+            </div>
+
+            <!-- Gender badge -->
+            <div class="absolute bottom-3 left-3">
+              <span class="text-[10px] font-bold uppercase tracking-widest text-white/70" x-text="p.gender"></span>
+            </div>
+          </div>
+
+          <!-- Content -->
+          <div class="p-4">
+            <h3 class="text-sm font-black uppercase leading-tight mb-3 line-clamp-2" x-text="p.name"></h3>
+            <div class="flex items-end justify-between">
+              <div>
+                <div class="flex items-baseline gap-2">
+                  <span class="text-2xl font-black leading-none" x-text="'$' + p.price.toFixed(2)"></span>
+                  <span
+                    x-show="p.onSale"
+                    class="text-sm font-medium text-gray-400 line-through"
+                    x-text="'$' + p.regular.toFixed(2)"
+                  ></span>
+                </div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mt-1" x-text="'LOWEST: $' + p.lowest.toFixed(2)"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Empty state -->
+    <div x-show="filtered.length === 0" class="py-16 text-center brutal-box bg-white p-12 mt-4">
+      <div class="text-2xl font-black uppercase mb-2">NO RESULTS</div>
+      <div class="text-sm font-medium text-gray-500 uppercase tracking-wider">Adjust your search or filters</div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-12 pt-6 border-t-2 border-black text-center">
+      <p class="text-xs font-bold uppercase tracking-widest text-gray-500">PRICES UPDATED DAILY · UNIQLO CANADA</p>
+    </div>
+  </div>
+
+  <script>
+    function app() {
+      const PRODUCTS = [
+        { id: "473220", name: "Ultra Warm Down Jacket",         gender: "Men",    price: 99.90,  regular: 149.90, lowest: 79.90,  category: "Outerwear", atl: false, hue: 220 },
+        { id: "452891", name: "Heattech Extra Warm Turtleneck", gender: "Men",    price: 14.90,  regular: 24.90,  lowest: 14.90,  category: "Tops",      atl: true,  hue: 185 },
+        { id: "461203", name: "Merino Wool Crew Neck Sweater",  gender: "Women",  price: 49.90,  regular: 59.90,  lowest: 39.90,  category: "Sweaters",  atl: false, hue: 30  },
+        { id: "489102", name: "Wide Fit Straight Jeans",        gender: "Men",    price: 59.90,  regular: 69.90,  lowest: 49.90,  category: "Bottoms",   atl: false, hue: 210 },
+        { id: "392847", name: "Fleece Full-Zip Jacket",         gender: "Women",  price: 34.90,  regular: 59.90,  lowest: 29.90,  category: "Outerwear", atl: true,  hue: 20  },
+        { id: "512394", name: "AIRism Cotton T-Shirt",          gender: "Men",    price: 19.90,  regular: 19.90,  lowest: 14.90,  category: "Tops",      atl: false, hue: 0   },
+        { id: "478234", name: "Cashmere V-Neck Sweater",        gender: "Women",  price: 69.90,  regular: 99.90,  lowest: 59.90,  category: "Sweaters",  atl: false, hue: 340 },
+        { id: "434892", name: "Pile-Lined Fleece Hoodie",       gender: "Unisex", price: 44.90,  regular: 49.90,  lowest: 39.90,  category: "Outerwear", atl: false, hue: 280 },
+        { id: "501293", name: "Smart Ankle Pants",              gender: "Women",  price: 34.90,  regular: 59.90,  lowest: 34.90,  category: "Bottoms",   atl: true,  hue: 150 },
+        { id: "467812", name: "Oxford Shirt",                   gender: "Men",    price: 39.90,  regular: 49.90,  lowest: 29.90,  category: "Tops",      atl: false, hue: 200 },
+        { id: "523817", name: "Blocktech Parka",                gender: "Men",    price: 149.90, regular: 199.90, lowest: 119.90, category: "Outerwear", atl: false, hue: 0   },
+        { id: "498234", name: "Ribbed Turtleneck Sweater",      gender: "Women",  price: 39.90,  regular: 49.90,  lowest: 39.90,  category: "Sweaters",  atl: true,  hue: 35  },
+      ].map(p => ({ ...p, onSale: p.price < p.regular }))
+
+      return {
+        products: PRODUCTS,
+        search: '',
+        sort: 'discount',
+        category: 'All',
+        showAtlOnly: false,
+
+        get avgDiscount() {
+          const onSale = this.products.filter(p => p.onSale)
+          if (!onSale.length) return 0
+          return Math.round(onSale.reduce((a, p) => a + (1 - p.price / p.regular) * 100, 0) / onSale.length)
+        },
+
+        get filtered() {
+          let list = this.products
+          if (this.search.trim()) {
+            const q = this.search.toLowerCase()
+            list = list.filter(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q))
+          }
+          if (this.category !== 'All') list = list.filter(p => p.category === this.category)
+          if (this.showAtlOnly) list = list.filter(p => p.atl)
+          return [...list].sort((a, b) => {
+            if (this.sort === 'price_asc')  return a.price - b.price
+            if (this.sort === 'price_desc') return b.price - a.price
+            const da = a.onSale ? (1 - a.price / a.regular) : 0
+            const db = b.onSale ? (1 - b.price / b.regular) : 0
+            return db - da
+          })
+        }
+      }
+    }
+  </script>
+</body>
+</html>

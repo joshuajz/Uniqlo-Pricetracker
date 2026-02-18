@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Uniqlo Tracker — Swiss</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family:'Inter',sans-serif; background:#fff; color:#0a0a0a; }
+    [x-cloak] { display:none !important; }
+    .red { color:#dc2626; }
+    .view-enter { animation:fade .2s ease; }
+    @keyframes fade { from{opacity:0} to{opacity:1} }
+    .product-link { display:block; padding:16px 0; border-bottom:1px solid #e5e7eb; cursor:pointer; transition:background .1s; }
+    .product-link:hover { background:#fafafa; margin:0 -24px; padding:16px 24px; }
+    .cat-header { border-top:3px solid #0a0a0a; padding-top:10px; margin-top:32px; margin-bottom:0; }
+    .cat-header-red { border-top:3px solid #dc2626; }
+    input { border:none; border-bottom:2px solid #0a0a0a; background:transparent; outline:none; padding:4px 0; transition:border-color .2s; }
+    input:focus { border-color:#dc2626; }
+    .back-link { font-size:11px; color:#9ca3af; cursor:pointer; text-transform:uppercase; letter-spacing:.08em; transition:color .15s; }
+    .back-link:hover { color:#0a0a0a; }
+    .detail-section-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#9ca3af; margin-bottom:6px; }
+    .chart-line { fill:none; stroke:#dc2626; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  </style>
+</head>
+<body x-data="app()" x-cloak>
+
+  <!-- Header: Swiss masthead -->
+  <header style="border-bottom:3px solid #0a0a0a">
+    <div class="max-w-5xl mx-auto px-6">
+      <!-- Top line -->
+      <div class="flex items-center justify-between py-2 text-[10px] uppercase tracking-widest text-gray-400" style="border-bottom:1px solid #e5e7eb">
+        <span>Uniqlo Canada · Price Tracker</span>
+        <div class="flex items-center gap-4">
+          <span>Feb 17, 2026</span>
+          <button x-show="view==='detail'" @click="view='list';selected=null" class="back-link">← Index</button>
+          <a href="../index.html" class="back-link">All designs</a>
+        </div>
+      </div>
+
+      <!-- Title row -->
+      <div class="py-5 grid grid-cols-12 gap-4 items-end">
+        <div class="col-span-8">
+          <div x-show="view==='list'">
+            <h1 class="text-5xl font-black leading-none tracking-tighter" @click="view='list'; selected=null" style="cursor:pointer">
+              Price<br /><span class="red">Index</span>
+            </h1>
+          </div>
+          <div x-show="view==='detail'" class="view-enter">
+            <div class="text-[10px] uppercase tracking-widest text-gray-400 mb-1" x-text="selected?.category"></div>
+            <h1 class="text-3xl font-black leading-tight tracking-tight" x-text="selected?.name"></h1>
+          </div>
+        </div>
+        <div class="col-span-4 text-right" x-show="view==='list'">
+          <input type="text" x-model="search" placeholder="Search" class="text-lg font-light w-full text-right" />
+          <div class="flex justify-end items-center gap-6 mt-3 text-xs">
+            <span class="text-gray-400"><span class="font-black text-3xl text-black" x-text="products.length"></span><br/>tracked</span>
+            <span class="text-gray-400"><span class="font-black text-3xl red" x-text="products.filter(p=>p.onSale).length"></span><br/>on sale</span>
+            <span class="text-gray-400"><span class="font-black text-3xl" x-text="avgDiscount+'%'"></span><br/>avg off</span>
+          </div>
+        </div>
+        <div class="col-span-4 text-right" x-show="view==='detail'">
+          <div class="text-5xl font-black" :class="selected?.atl?'text-green-600':selected?.onSale?'red':''" x-text="'$'+(selected?.price||0).toFixed(2)"></div>
+          <div x-show="selected?.onSale" class="text-lg text-gray-300 line-through mt-1" x-text="'$'+(selected?.regular||0).toFixed(2)"></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- LIST VIEW -->
+  <div x-show="view==='list'" class="view-enter max-w-5xl mx-auto px-6 pb-16">
+
+    <!-- Sort + filter controls -->
+    <div class="py-4 flex items-center gap-6 text-xs uppercase tracking-wider" style="border-bottom:1px solid #e5e7eb">
+      <span class="text-gray-400">Sort:</span>
+      <template x-for="opt in [{v:'discount',l:'Discount'},{v:'price_asc',l:'Price ↑'},{v:'price_desc',l:'Price ↓'}]" :key="opt.v">
+        <button @click="sort=opt.v" class="font-semibold transition-colors" :class="sort===opt.v?'red':'text-gray-400 hover:text-black'" x-text="opt.l"></button>
+      </template>
+      <div class="flex-1 flex justify-end gap-4">
+        <template x-for="cat in ['All','Outerwear','Tops','Sweaters','Bottoms']" :key="cat">
+          <button @click="category=cat" class="font-semibold transition-colors" :class="category===cat?'text-black underline':'text-gray-400 hover:text-black'" x-text="cat"></button>
+        </template>
+      </div>
+    </div>
+
+    <!-- Products by category -->
+    <template x-if="category==='All'">
+      <div>
+        <template x-for="cat in ['Outerwear','Tops','Sweaters','Bottoms']" :key="cat">
+          <div x-show="productsByCategory(cat).length > 0">
+            <!-- Category header -->
+            <div class="cat-header" :class="cat==='Outerwear'?'cat-header-red':''">
+              <div class="flex items-end justify-between pb-1">
+                <h2 class="text-xs font-bold uppercase tracking-widest" x-text="cat"></h2>
+                <span class="text-xs text-gray-400 font-normal" x-text="productsByCategory(cat).length + ' items'"></span>
+              </div>
+            </div>
+            <!-- Products -->
+            <template x-for="p in productsByCategory(cat)" :key="p.id">
+              <div class="product-link" @click="selectProduct(p)">
+                <div class="grid grid-cols-12 gap-4 items-center">
+                  <div class="col-span-1">
+                    <div class="w-8 h-10 rounded-sm" :style="`background:hsl(${p.hue},${p.hue===0?'5':'25'}%,42%)`"></div>
+                  </div>
+                  <div class="col-span-5">
+                    <span class="text-sm font-medium" x-text="p.name"></span>
+                    <div class="flex items-center gap-3 mt-0.5">
+                      <span class="text-xs text-gray-400" x-text="p.gender"></span>
+                      <span x-show="p.atl" class="text-[10px] font-bold uppercase tracking-wider text-green-600">↓ ATL</span>
+                    </div>
+                  </div>
+                  <div class="col-span-3 text-right">
+                    <span class="text-sm" :class="p.onSale?'text-gray-300 line-through':'text-gray-700'" x-text="'$'+p.regular.toFixed(2)"></span>
+                  </div>
+                  <div class="col-span-2 text-right">
+                    <span class="text-sm font-bold" :class="p.atl?'text-green-600':p.onSale?'red':''" x-text="'$'+p.price.toFixed(2)"></span>
+                  </div>
+                  <div class="col-span-1 text-right">
+                    <span x-show="p.onSale" class="text-xs font-bold red" x-text="'-'+Math.round((1-p.price/p.regular)*100)+'%'"></span>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <template x-if="category!=='All'">
+      <div>
+        <div class="cat-header cat-header-red">
+          <div class="flex items-end justify-between pb-1">
+            <h2 class="text-xs font-bold uppercase tracking-widest" x-text="category"></h2>
+            <span class="text-xs text-gray-400" x-text="filtered.length + ' items'"></span>
+          </div>
+        </div>
+        <template x-for="p in filtered" :key="p.id">
+          <div class="product-link" @click="selectProduct(p)">
+            <div class="grid grid-cols-12 gap-4 items-center">
+              <div class="col-span-1"><div class="w-8 h-10 rounded-sm" :style="`background:hsl(${p.hue},${p.hue===0?'5':'25'}%,42%)`"></div></div>
+              <div class="col-span-5"><span class="text-sm font-medium" x-text="p.name"></span><div class="flex items-center gap-3 mt-0.5"><span class="text-xs text-gray-400" x-text="p.gender"></span><span x-show="p.atl" class="text-[10px] font-bold uppercase tracking-wider text-green-600">↓ ATL</span></div></div>
+              <div class="col-span-3 text-right"><span class="text-sm" :class="p.onSale?'text-gray-300 line-through':'text-gray-700'" x-text="'$'+p.regular.toFixed(2)"></span></div>
+              <div class="col-span-2 text-right"><span class="text-sm font-bold" :class="p.atl?'text-green-600':p.onSale?'red':''" x-text="'$'+p.price.toFixed(2)"></span></div>
+              <div class="col-span-1 text-right"><span x-show="p.onSale" class="text-xs font-bold red" x-text="'-'+Math.round((1-p.price/p.regular)*100)+'%'"></span></div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+  </div>
+
+  <!-- DETAIL VIEW -->
+  <div x-show="view==='detail' && selected" class="view-enter max-w-5xl mx-auto px-6 pb-16">
+    <template x-if="selected">
+    <div class="pt-6 grid grid-cols-12 gap-8">
+      <!-- Left: details -->
+      <div class="col-span-5">
+        <!-- Image -->
+        <div class="aspect-square rounded-sm mb-6" :style="`background:hsl(${selected.hue},${selected.hue===0?'5':'28'}%,38%)`"></div>
+
+        <div style="border-top:1px solid #e5e7eb;padding-top:16px">
+          <div class="detail-section-label">Pricing</div>
+          <div class="space-y-2 text-sm mb-6">
+            <div class="flex justify-between"><span class="text-gray-400">Current</span><span class="font-black text-xl" :class="selected.atl?'text-green-600':selected.onSale?'red':''" x-text="'$'+selected.price.toFixed(2)"></span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Regular</span><span :class="selected.onSale?'text-gray-400 line-through':'font-medium'" x-text="'$'+selected.regular.toFixed(2)"></span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Lowest ever</span><span class="font-medium text-green-600" x-text="'$'+selected.lowest.toFixed(2)"></span></div>
+            <div x-show="selected.onSale" class="flex justify-between pt-2" style="border-top:1px solid #e5e7eb"><span class="text-gray-400">Discount</span><span class="font-black red" x-text="'-'+Math.round((1-selected.price/selected.regular)*100)+'%'"></span></div>
+          </div>
+          <div class="detail-section-label">Product</div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">Category</span><span class="font-medium" x-text="selected.category"></span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Gender</span><span x-text="selected.gender"></span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Status</span><span :class="selected.atl?'text-green-600 font-bold':selected.onSale?'red font-bold':'text-gray-400'" x-text="selected.atl?'All-Time Low':selected.onSale?'On Sale':'Regular'"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: chart -->
+      <div class="col-span-7">
+        <div class="detail-section-label mt-1">Price history — 10 months</div>
+        <svg width="100%" viewBox="0 0 500 200" preserveAspectRatio="none" style="display:block;height:220px;border:1px solid #e5e7eb">
+          <rect width="500" height="200" fill="#fafafa"/>
+          <!-- Grid lines -->
+          <line x1="0" y1="50" x2="500" y2="50" stroke="#e5e7eb" stroke-width="1"/>
+          <line x1="0" y1="100" x2="500" y2="100" stroke="#e5e7eb" stroke-width="1"/>
+          <line x1="0" y1="150" x2="500" y2="150" stroke="#e5e7eb" stroke-width="1"/>
+          <path :d="areaPath(HISTORIES[selected.id]||[],500,190,10)" fill="rgba(220,38,38,0.05)"/>
+          <polyline :points="sparkPath(HISTORIES[selected.id]||[],500,190,10)" class="chart-line" style="stroke-width:2.5"/>
+          <line x1="0" :y1="priceY(selected.lowest,HISTORIES[selected.id]||[],190,10)" x2="500" :y2="priceY(selected.lowest,HISTORIES[selected.id]||[],190,10)" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.6"/>
+          <!-- Dots at data points -->
+          <template x-for="(price, i) in (HISTORIES[selected.id]||[])" :key="i">
+            <circle :cx="((i/(( HISTORIES[selected.id]||[]).length-1))*500).toFixed(1)" :cy="priceY(price,HISTORIES[selected.id]||[],190,10).toFixed(1)" r="3" fill="#dc2626" />
+          </template>
+        </svg>
+        <div class="flex justify-between mt-1 text-[9px] text-gray-400">
+          <template x-for="d in DATES" :key="d"><span x-text="d"></span></template>
+        </div>
+
+        <!-- Price log table -->
+        <div class="mt-8">
+          <div class="detail-section-label">Price log</div>
+          <div style="border-top:2px solid #0a0a0a">
+            <template x-for="(price, i) in (HISTORIES[selected.id]||[]).slice().reverse()" :key="i">
+              <div class="flex items-center justify-between py-2" style="border-bottom:1px solid #f0f0f0">
+                <span class="text-xs text-gray-500" x-text="DATES.slice().reverse()[i]"></span>
+                <div class="flex items-center gap-4">
+                  <span class="text-xs font-medium" x-text="i>0?(price<(HISTORIES[selected.id]||[]).slice().reverse()[i-1]?'↓ saved $'+(((HISTORIES[selected.id]||[]).slice().reverse()[i-1])-price).toFixed(2):i>0&&price>(HISTORIES[selected.id]||[]).slice().reverse()[i-1]?'↑':''):''" :class="i>0&&price<(HISTORIES[selected.id]||[]).slice().reverse()[i-1]?'text-green-600':'text-gray-400'"></span>
+                  <span class="text-sm font-semibold" :class="i===0?'font-black':'text-gray-400'" x-text="'$'+price.toFixed(2)"></span>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
+    </template>
+  </div>
+
+  <script>
+    const DATES=["May '25","Jun '25","Jul '25","Aug '25","Sep '25","Oct '25","Nov '25","Dec '25","Jan '26","Feb '26"]
+    const HISTORIES={"473220":[149.90,149.90,139.90,139.90,129.90,119.90,109.90,109.90,99.90,99.90],"452891":[24.90,24.90,24.90,19.90,19.90,19.90,14.90,14.90,14.90,14.90],"461203":[59.90,59.90,59.90,54.90,54.90,49.90,49.90,54.90,49.90,49.90],"489102":[69.90,69.90,69.90,69.90,64.90,64.90,59.90,59.90,59.90,59.90],"392847":[59.90,54.90,49.90,44.90,39.90,44.90,39.90,34.90,34.90,34.90],"512394":[19.90,19.90,19.90,19.90,19.90,19.90,19.90,19.90,19.90,19.90],"478234":[99.90,99.90,89.90,89.90,79.90,79.90,79.90,69.90,69.90,69.90],"434892":[49.90,49.90,49.90,44.90,44.90,44.90,44.90,44.90,44.90,44.90],"501293":[59.90,59.90,54.90,49.90,44.90,39.90,39.90,34.90,34.90,34.90],"467812":[49.90,49.90,49.90,49.90,44.90,44.90,39.90,39.90,39.90,39.90],"523817":[199.90,199.90,189.90,179.90,169.90,169.90,159.90,149.90,149.90,149.90],"498234":[49.90,49.90,49.90,49.90,44.90,44.90,39.90,39.90,39.90,39.90]}
+    function sparkPath(prices,w,h,pad=4){if(!prices||prices.length<2)return'';const min=Math.min(...prices),max=Math.max(...prices),rng=max-min||1;return prices.map((v,i)=>`${((i/(prices.length-1))*w).toFixed(1)},${(h-pad-((v-min)/rng)*(h-pad*2)).toFixed(1)}`).join(' ')}
+    function areaPath(prices,w,h,pad=4){if(!prices||prices.length<2)return'';return`M 0,${h} L ${sparkPath(prices,w,h,pad).split(' ').join(' L ')} L ${w},${h} Z`}
+    function priceY(price,prices,h,pad=4){if(!prices||!prices.length)return h/2;const min=Math.min(...prices),max=Math.max(...prices),rng=max-min||1;return h-pad-((price-min)/rng)*(h-pad*2)}
+    function app(){
+      const P=[{id:"473220",name:"Ultra Warm Down Jacket",gender:"Men",price:99.90,regular:149.90,lowest:79.90,category:"Outerwear",atl:false,hue:220},{id:"452891",name:"Heattech Extra Warm Turtleneck",gender:"Men",price:14.90,regular:24.90,lowest:14.90,category:"Tops",atl:true,hue:185},{id:"461203",name:"Merino Wool Crew Neck Sweater",gender:"Women",price:49.90,regular:59.90,lowest:39.90,category:"Sweaters",atl:false,hue:30},{id:"489102",name:"Wide Fit Straight Jeans",gender:"Men",price:59.90,regular:69.90,lowest:49.90,category:"Bottoms",atl:false,hue:210},{id:"392847",name:"Fleece Full-Zip Jacket",gender:"Women",price:34.90,regular:59.90,lowest:29.90,category:"Outerwear",atl:true,hue:20},{id:"512394",name:"AIRism Cotton T-Shirt",gender:"Men",price:19.90,regular:19.90,lowest:14.90,category:"Tops",atl:false,hue:0},{id:"478234",name:"Cashmere V-Neck Sweater",gender:"Women",price:69.90,regular:99.90,lowest:59.90,category:"Sweaters",atl:false,hue:340},{id:"434892",name:"Pile-Lined Fleece Hoodie",gender:"Unisex",price:44.90,regular:49.90,lowest:39.90,category:"Outerwear",atl:false,hue:280},{id:"501293",name:"Smart Ankle Pants",gender:"Women",price:34.90,regular:59.90,lowest:34.90,category:"Bottoms",atl:true,hue:150},{id:"467812",name:"Oxford Shirt",gender:"Men",price:39.90,regular:49.90,lowest:29.90,category:"Tops",atl:false,hue:200},{id:"523817",name:"Blocktech Parka",gender:"Men",price:149.90,regular:199.90,lowest:119.90,category:"Outerwear",atl:false,hue:0},{id:"498234",name:"Ribbed Turtleneck Sweater",gender:"Women",price:39.90,regular:49.90,lowest:39.90,category:"Sweaters",atl:true,hue:35}].map(p=>({...p,onSale:p.price<p.regular}))
+      return{
+        products:P,HISTORIES,DATES,sparkPath,areaPath,priceY,
+        search:'',sort:'discount',category:'All',view:'list',selected:null,
+        get avgDiscount(){const s=this.products.filter(p=>p.onSale);return s.length?Math.round(s.reduce((a,p)=>a+(1-p.price/p.regular)*100,0)/s.length):0},
+        productsByCategory(cat){let l=this.products.filter(p=>p.category===cat);if(this.search.trim()){const q=this.search.toLowerCase();l=l.filter(p=>p.name.toLowerCase().includes(q))}return l.sort((a,b)=>(b.onSale?(1-b.price/b.regular):0)-(a.onSale?(1-a.price/a.regular):0))},
+        get filtered(){let l=this.products;if(this.search.trim()){const q=this.search.toLowerCase();l=l.filter(p=>p.name.toLowerCase().includes(q)||p.category.toLowerCase().includes(q))}if(this.category!=='All')l=l.filter(p=>p.category===this.category);return[...l].sort((a,b)=>{if(this.sort==='price_asc')return a.price-b.price;if(this.sort==='price_desc')return b.price-a.price;return(b.onSale?(1-b.price/b.regular):0)-(a.onSale?(1-a.price/a.regular):0)})},
+        selectProduct(p){this.selected=p;this.view='detail';window.scrollTo(0,0)}
+      }
+    }
+  </script>
+</body>
+</html>

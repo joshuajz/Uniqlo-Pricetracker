@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Uniqlo Tracker — Enhanced List</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family:'Inter',sans-serif; background:#f9fafb; }
+    [x-cloak] { display:none !important; }
+    .mono { font-family:'JetBrains Mono',monospace; }
+    .row-wrap { border-bottom:1px solid #f0f0f0; }
+    .row-header { padding:12px 16px; cursor:pointer; display:grid; align-items:center; transition:background .1s; }
+    .row-header:hover { background:#f5f5f7; }
+    .row-header.expanded { background:#fff8f8; }
+    .expand-panel { background:#fff; border-top:1px solid #fee2e2; overflow:hidden; }
+    .chart-line { fill:none;stroke:#dc2626;stroke-width:2;stroke-linecap:round;stroke-linejoin:round; }
+    .badge-atl { display:inline-block;background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;font-size:10px;font-weight:600;padding:1px 7px;border-radius:4px; }
+    .badge-sale { display:inline-block;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;font-size:10px;font-weight:600;padding:1px 7px;border-radius:4px; }
+    input, select { background:#fff;border:1px solid #e5e7eb;border-radius:8px;outline:none; }
+    input:focus, select:focus { border-color:#dc2626;box-shadow:0 0 0 2px rgba(220,38,38,0.08); }
+    .tab { font-size:12px;font-weight:500;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all .15s; }
+    .tab.active { background:#dc2626;color:#fff; }
+    .tab:not(.active) { color:#6b7280; }
+    .tab:not(.active):hover { background:#f3f4f6;color:#374151; }
+    .progress { height:3px;border-radius:2px;background:#f0f0f0;overflow:hidden; }
+    .progress-fill { height:100%;border-radius:2px;background:#dc2626; }
+  </style>
+</head>
+<body x-data="app()" x-cloak>
+
+  <!-- Toolbar -->
+  <div class="bg-white border-b border-gray-200 sticky top-0 z-20">
+    <div class="max-w-5xl mx-auto px-4 py-2.5 flex items-center gap-3 flex-wrap">
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-bold tracking-widest text-red-600">UNIQLO</span>
+        <span class="text-gray-200">|</span>
+        <span class="text-xs text-gray-400 font-light">Price Tracker</span>
+      </div>
+      <div class="flex items-center gap-1 ml-2">
+        <template x-for="t in [{v:'all',l:'All'},{v:'sale',l:'On Sale'},{v:'atl',l:'↓ ATL'}]" :key="t.v">
+          <button @click="tab=t.v" class="tab" :class="tab===t.v?'active':''" x-text="t.l"></button>
+        </template>
+      </div>
+      <div class="flex-1 flex items-center gap-2 justify-end">
+        <div class="relative">
+          <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input type="text" x-model="search" placeholder="Search…" class="pl-8 pr-3 py-1.5 text-xs w-40" />
+        </div>
+        <select x-model="category" class="text-xs px-2 py-1.5">
+          <option value="All">All</option>
+          <template x-for="c in ['Outerwear','Tops','Sweaters','Bottoms']" :key="c"><option :value="c" x-text="c"></option></template>
+        </select>
+        <select x-model="sort" class="text-xs px-2 py-1.5">
+          <option value="discount">Discount ↓</option>
+          <option value="price_asc">Price ↑</option>
+          <option value="price_desc">Price ↓</option>
+          <option value="name">Name</option>
+        </select>
+        <a href="../index.html" class="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 bg-gray-100 rounded-lg">← Back</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-5xl mx-auto px-4">
+
+    <!-- Stats bar -->
+    <div class="flex items-center gap-8 py-4 px-2 text-xs text-gray-400 border-b border-gray-200">
+      <span><span class="font-semibold text-gray-700 mono" x-text="products.length"></span> total</span>
+      <span><span class="font-semibold text-red-600 mono" x-text="products.filter(p=>p.onSale).length"></span> on sale</span>
+      <span><span class="font-semibold text-gray-700 mono" x-text="avgDiscount+'%'"></span> avg discount</span>
+      <span><span class="font-semibold text-green-600 mono" x-text="products.filter(p=>p.atl).length"></span> all-time lows</span>
+      <span class="ml-auto"><span class="font-medium text-gray-600" x-text="filtered.length"></span> showing</span>
+    </div>
+
+    <!-- Column headers -->
+    <div class="grid text-[10px] font-semibold uppercase tracking-wider text-gray-400 px-4 py-2 border-b border-gray-200" style="grid-template-columns:2fr 1fr 80px 80px 56px 70px 40px">
+      <span>Product</span>
+      <span>Category</span>
+      <span class="text-right">Regular</span>
+      <span class="text-right">Price</span>
+      <span class="text-right">Off</span>
+      <span class="text-center">10-Month Trend</span>
+      <span></span>
+    </div>
+
+    <!-- Product rows -->
+    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden mt-2">
+      <template x-for="(p, i) in filtered" :key="p.id">
+        <div class="row-wrap">
+          <!-- Main row -->
+          <div
+            class="row-header"
+            :class="expanded===p.id?'expanded':''"
+            style="grid-template-columns:2fr 1fr 80px 80px 56px 70px 40px"
+            @click="expanded = expanded===p.id ? null : p.id"
+          >
+            <!-- Product name + badges -->
+            <div class="flex items-center gap-3">
+              <div class="w-7 h-9 rounded flex-shrink-0" :style="`background:hsl(${p.hue},${p.hue===0?'5':'25'}%,42%)`"></div>
+              <div>
+                <div class="text-sm font-medium text-gray-800 leading-snug" x-text="p.name"></div>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                  <span x-show="p.atl" class="badge-atl">ATL</span>
+                  <span x-show="p.onSale&&!p.atl" class="badge-sale">Sale</span>
+                  <span class="text-[10px] text-gray-400" x-text="p.gender"></span>
+                </div>
+              </div>
+            </div>
+            <!-- Category -->
+            <div class="text-xs text-gray-500" x-text="p.category"></div>
+            <!-- Regular -->
+            <div class="text-right text-xs mono" :class="p.onSale?'text-gray-300 line-through':'text-gray-600'" x-text="'$'+p.regular.toFixed(2)"></div>
+            <!-- Price -->
+            <div class="text-right text-sm font-semibold mono" :class="p.atl?'text-green-600':p.onSale?'text-red-600':'text-gray-700'" x-text="'$'+p.price.toFixed(2)"></div>
+            <!-- Discount % -->
+            <div class="text-right">
+              <span x-show="p.onSale" class="text-xs font-bold mono text-red-600" x-text="'-'+Math.round((1-p.price/p.regular)*100)+'%'"></span>
+              <span x-show="!p.onSale" class="text-xs text-gray-200 mono">—</span>
+            </div>
+            <!-- Sparkline -->
+            <div class="flex justify-center items-center">
+              <svg width="64" height="28">
+                <path :d="areaPath(HISTORIES[p.id]||[],64,25,3)" fill="rgba(220,38,38,0.08)"/>
+                <polyline :points="sparkPath(HISTORIES[p.id]||[],64,25,3)" class="chart-line" :stroke="p.atl?'#16a34a':p.onSale?'#dc2626':'#9ca3af'" style="stroke-width:1.5"/>
+              </svg>
+            </div>
+            <!-- Expand toggle -->
+            <div class="flex justify-center">
+              <span class="text-gray-400 text-sm transition-transform" :style="expanded===p.id?'transform:rotate(180deg)':''" >⌄</span>
+            </div>
+          </div>
+
+          <!-- Expanded panel -->
+          <div class="expand-panel" x-show="expanded===p.id" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="px-6 py-5 grid md:grid-cols-2 gap-6">
+              <!-- Left: full chart -->
+              <div>
+                <div class="text-xs text-gray-400 font-medium uppercase tracking-wider mb-3">Price history — 10 months</div>
+                <svg width="100%" viewBox="0 0 400 100" preserveAspectRatio="none" style="display:block;height:100px;background:#fafafa;border-radius:8px">
+                  <path :d="areaPath(HISTORIES[p.id]||[],400,95,6)" fill="rgba(220,38,38,0.07)"/>
+                  <polyline :points="sparkPath(HISTORIES[p.id]||[],400,95,6)" fill="none" :stroke="p.atl?'#16a34a':'#dc2626'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <line x1="0" :y1="priceY(p.lowest,HISTORIES[p.id]||[],95,6)" x2="400" :y2="priceY(p.lowest,HISTORIES[p.id]||[],95,6)" stroke="#16a34a" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>
+                  <!-- Points -->
+                  <template x-for="(v,i) in HISTORIES[p.id]||[]" :key="i">
+                    <circle :cx="((i/((HISTORIES[p.id]||[]).length-1))*400).toFixed(1)" :cy="priceY(v,HISTORIES[p.id]||[],95,6).toFixed(1)" r="3" :fill="p.atl?'#16a34a':'#dc2626'" opacity="0.7"/>
+                  </template>
+                </svg>
+                <div class="flex justify-between text-[9px] text-gray-400 mt-1 px-1">
+                  <template x-for="d in DATES.filter((_,i)=>i%3===0)" :key="d"><span x-text="d"></span></template>
+                </div>
+              </div>
+
+              <!-- Right: details -->
+              <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Current</div>
+                    <div class="text-xl font-bold mono" :class="p.atl?'text-green-600':p.onSale?'text-red-600':'text-gray-800'" x-text="'$'+p.price.toFixed(2)"></div>
+                  </div>
+                  <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Savings</div>
+                    <div x-show="p.onSale" class="text-xl font-bold mono text-red-600" x-text="'$'+(p.regular-p.price).toFixed(2)"></div>
+                    <div x-show="!p.onSale" class="text-sm text-gray-400">Not on sale</div>
+                  </div>
+                  <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Lowest ever</div>
+                    <div class="text-lg font-semibold mono text-green-600" x-text="'$'+p.lowest.toFixed(2)"></div>
+                  </div>
+                  <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Discount</div>
+                    <div x-show="p.onSale" class="text-lg font-bold mono text-red-600" x-text="'-'+Math.round((1-p.price/p.regular)*100)+'%'"></div>
+                    <div x-show="!p.onSale" class="text-sm text-gray-400">—</div>
+                  </div>
+                </div>
+
+                <!-- Discount bar -->
+                <div x-show="p.onSale">
+                  <div class="flex justify-between text-[10px] text-gray-400 mb-1">
+                    <span>Discount level</span>
+                    <span class="font-medium text-red-600" x-text="Math.round((1-p.price/p.regular)*100)+'% off'"></span>
+                  </div>
+                  <div class="progress">
+                    <div class="progress-fill" :style="'width:'+Math.round((1-p.price/p.regular)*100)+'%'"></div>
+                  </div>
+                </div>
+
+                <!-- Recent prices -->
+                <div>
+                  <div class="text-[10px] text-gray-400 uppercase tracking-wider mb-2">Recent prices</div>
+                  <div class="space-y-1.5">
+                    <template x-for="(price,i) in (HISTORIES[p.id]||[]).slice().reverse().slice(0,4)" :key="i">
+                      <div class="flex items-center justify-between text-xs">
+                        <span class="text-gray-400" x-text="DATES.slice().reverse()[i]"></span>
+                        <div class="flex items-center gap-2">
+                          <div class="progress" style="width:60px">
+                            <div class="progress-fill" :style="'width:'+Math.round((price/Math.max(...(HISTORIES[p.id]||[])))*100)+'%;background:'+(i===0?'#dc2626':'#e5e7eb')"></div>
+                          </div>
+                          <span class="mono font-medium" :class="i===0?'text-gray-800':'text-gray-400'" x-text="'$'+price.toFixed(2)"></span>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <div x-show="filtered.length===0" class="py-12 text-center text-sm text-gray-400">No products match your filters</div>
+    </div>
+
+    <div class="py-6 text-center text-xs text-gray-300">Prices updated daily · Uniqlo Canada</div>
+  </div>
+
+  <script>
+    const DATES=["May '25","Jun '25","Jul '25","Aug '25","Sep '25","Oct '25","Nov '25","Dec '25","Jan '26","Feb '26"]
+    const HISTORIES={"473220":[149.90,149.90,139.90,139.90,129.90,119.90,109.90,109.90,99.90,99.90],"452891":[24.90,24.90,24.90,19.90,19.90,19.90,14.90,14.90,14.90,14.90],"461203":[59.90,59.90,59.90,54.90,54.90,49.90,49.90,54.90,49.90,49.90],"489102":[69.90,69.90,69.90,69.90,64.90,64.90,59.90,59.90,59.90,59.90],"392847":[59.90,54.90,49.90,44.90,39.90,44.90,39.90,34.90,34.90,34.90],"512394":[19.90,19.90,19.90,19.90,19.90,19.90,19.90,19.90,19.90,19.90],"478234":[99.90,99.90,89.90,89.90,79.90,79.90,79.90,69.90,69.90,69.90],"434892":[49.90,49.90,49.90,44.90,44.90,44.90,44.90,44.90,44.90,44.90],"501293":[59.90,59.90,54.90,49.90,44.90,39.90,39.90,34.90,34.90,34.90],"467812":[49.90,49.90,49.90,49.90,44.90,44.90,39.90,39.90,39.90,39.90],"523817":[199.90,199.90,189.90,179.90,169.90,169.90,159.90,149.90,149.90,149.90],"498234":[49.90,49.90,49.90,49.90,44.90,44.90,39.90,39.90,39.90,39.90]}
+    function sparkPath(prices,w,h,pad=4){if(!prices||prices.length<2)return'';const min=Math.min(...prices),max=Math.max(...prices),rng=max-min||1;return prices.map((v,i)=>`${((i/(prices.length-1))*w).toFixed(1)},${(h-pad-((v-min)/rng)*(h-pad*2)).toFixed(1)}`).join(' ')}
+    function areaPath(prices,w,h,pad=4){if(!prices||prices.length<2)return'';return`M 0,${h} L ${sparkPath(prices,w,h,pad).split(' ').join(' L ')} L ${w},${h} Z`}
+    function priceY(price,prices,h,pad=4){if(!prices||!prices.length)return h/2;const min=Math.min(...prices),max=Math.max(...prices),rng=max-min||1;return h-pad-((price-min)/rng)*(h-pad*2)}
+    function app(){
+      const P=[{id:"473220",name:"Ultra Warm Down Jacket",gender:"Men",price:99.90,regular:149.90,lowest:79.90,category:"Outerwear",atl:false,hue:220},{id:"452891",name:"Heattech Extra Warm Turtleneck",gender:"Men",price:14.90,regular:24.90,lowest:14.90,category:"Tops",atl:true,hue:185},{id:"461203",name:"Merino Wool Crew Neck Sweater",gender:"Women",price:49.90,regular:59.90,lowest:39.90,category:"Sweaters",atl:false,hue:30},{id:"489102",name:"Wide Fit Straight Jeans",gender:"Men",price:59.90,regular:69.90,lowest:49.90,category:"Bottoms",atl:false,hue:210},{id:"392847",name:"Fleece Full-Zip Jacket",gender:"Women",price:34.90,regular:59.90,lowest:29.90,category:"Outerwear",atl:true,hue:20},{id:"512394",name:"AIRism Cotton T-Shirt",gender:"Men",price:19.90,regular:19.90,lowest:14.90,category:"Tops",atl:false,hue:0},{id:"478234",name:"Cashmere V-Neck Sweater",gender:"Women",price:69.90,regular:99.90,lowest:59.90,category:"Sweaters",atl:false,hue:340},{id:"434892",name:"Pile-Lined Fleece Hoodie",gender:"Unisex",price:44.90,regular:49.90,lowest:39.90,category:"Outerwear",atl:false,hue:280},{id:"501293",name:"Smart Ankle Pants",gender:"Women",price:34.90,regular:59.90,lowest:34.90,category:"Bottoms",atl:true,hue:150},{id:"467812",name:"Oxford Shirt",gender:"Men",price:39.90,regular:49.90,lowest:29.90,category:"Tops",atl:false,hue:200},{id:"523817",name:"Blocktech Parka",gender:"Men",price:149.90,regular:199.90,lowest:119.90,category:"Outerwear",atl:false,hue:0},{id:"498234",name:"Ribbed Turtleneck Sweater",gender:"Women",price:39.90,regular:49.90,lowest:39.90,category:"Sweaters",atl:true,hue:35}].map(p=>({...p,onSale:p.price<p.regular}))
+      return{
+        products:P,HISTORIES,DATES,sparkPath,areaPath,priceY,
+        search:'',sort:'discount',category:'All',tab:'all',expanded:null,
+        get avgDiscount(){const s=this.products.filter(p=>p.onSale);return s.length?Math.round(s.reduce((a,p)=>a+(1-p.price/p.regular)*100,0)/s.length):0},
+        get filtered(){let l=this.products;if(this.search.trim()){const q=this.search.toLowerCase();l=l.filter(p=>p.name.toLowerCase().includes(q)||p.category.toLowerCase().includes(q))}if(this.category!=='All')l=l.filter(p=>p.category===this.category);if(this.tab==='sale')l=l.filter(p=>p.onSale);if(this.tab==='atl')l=l.filter(p=>p.atl);return[...l].sort((a,b)=>{if(this.sort==='price_asc')return a.price-b.price;if(this.sort==='price_desc')return b.price-a.price;if(this.sort==='name')return a.name.localeCompare(b.name);return(b.onSale?(1-b.price/b.regular):0)-(a.onSale?(1-a.price/a.regular):0)})}
+      }
+    }
+  </script>
+</body>
+</html>
