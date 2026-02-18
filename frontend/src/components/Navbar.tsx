@@ -13,8 +13,8 @@ export default function Navbar() {
       position: 'sticky',
       top: 0,
       zIndex: 100,
-      background: '#fff',
-      borderBottom: '1px solid #e8e8e8',
+      background: '#FCFAF9',
+      borderBottom: '1px solid #E8E4DF',
       height: 52,
       display: 'flex',
       alignItems: 'center',
@@ -22,15 +22,26 @@ export default function Navbar() {
       gap: 32,
     }}>
       {/* Logo */}
-      <NavLink to="/" style={{ flexShrink: 0 }}>
+      <NavLink to="/" style={{ flexShrink: 0, textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: 2 }}>
         <span style={{
-          fontSize: 13,
-          fontWeight: 800,
-          letterSpacing: '0.12em',
+          fontSize: 14,
+          fontWeight: 900,
+          letterSpacing: '0.1em',
           color: '#111',
           textTransform: 'uppercase',
+          lineHeight: 1,
         }}>
-          Uniqlo <span style={{ color: '#dc2626' }}>Tracker</span>
+          UNIQLO
+        </span>
+        <span style={{
+          fontSize: 8,
+          fontWeight: 700,
+          letterSpacing: '0.2em',
+          color: '#B3001B',
+          textTransform: 'uppercase',
+          lineHeight: 1,
+        }}>
+          PRICE TRACKER
         </span>
       </NavLink>
 
@@ -44,7 +55,7 @@ export default function Navbar() {
             style={({ isActive }) => ({
               fontSize: 13,
               fontWeight: isActive ? 600 : 400,
-              color: isActive ? '#dc2626' : '#666',
+              color: isActive ? '#B3001B' : '#666',
               letterSpacing: '0.01em',
               transition: 'color 0.1s',
             })}
@@ -60,7 +71,7 @@ export default function Navbar() {
           width: 28,
           height: 28,
           borderRadius: '50%',
-          background: '#111',
+          background: '#26547C',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
