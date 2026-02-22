@@ -147,6 +147,9 @@ func initDB() error {
 			image BYTEA NOT NULL,
 			last_updated DATE DEFAULT NOW()
 		)`,
+		`CREATE TABLE IF NOT EXISTS categories (
+			category TEXT NOT NULL UNIQUE
+		)`,
 	}
 
 	for _, q := range queries {
@@ -396,6 +399,17 @@ func injestProducts(c *gin.Context) {
 	)
 	if err != nil {
 		fmt.Printf("WARNING: failed to insert scraper stats: %v\n", err)
+	}
+
+	// Upsert each category into the categories table
+	for _, category := range scraperOutput.Metadata.Categories {
+		_, err := db.Exec(
+			"INSERT INTO categories (category) VALUES ($1) ON CONFLICT DO NOTHING",
+			category,
+		)
+		if err != nil {
+			fmt.Printf("WARNING: failed to insert category %q: %v\n", category, err)
+		}
 	}
 
 	// Invalidate caches after ingesting new data

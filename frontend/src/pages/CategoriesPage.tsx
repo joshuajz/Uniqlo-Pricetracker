@@ -35,7 +35,7 @@ function MosaicTile({ product: p, onSelect }: { product: Product; onSelect: (p: 
           <span className="text-sm font-bold">${p.price.toFixed(2)}</span>
           {sale && (
             <>
-              <span className="text-[11px] text-gray-300 line-through">${p.regular.toFixed(2)}</span>
+              <span className="text-[11px] text-gray-300 line-through">${p.regular_price.toFixed(2)}</span>
               <span className="text-[11px] font-bold text-red-600">−{pct}%</span>
             </>
           )}
@@ -51,7 +51,7 @@ function ProductModal({ product: p, onClose }: { product: Product; onClose: () =
   const sale = isOnSale(p)
   const atl  = isAtl(p)
   const pct  = discountPct(p)
-  const savings = p.regular - p.price
+  const savings = p.regular_price - p.price
 
   return (
     <div
@@ -92,7 +92,7 @@ function ProductModal({ product: p, onClose }: { product: Product; onClose: () =
           <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-5">
             {[
               { label: 'Current Price', value: `$${p.price.toFixed(2)}`, highlight: true },
-              { label: 'Regular Price', value: `$${p.regular.toFixed(2)}` },
+              { label: 'Regular Price', value: `$${p.regular_price.toFixed(2)}` },
               { label: 'All-Time Low',  value: `$${p.lowest.toFixed(2)}` },
             ].map(item => (
               <div key={item.label} className={`border-t-2 pt-[10px] ${item.highlight ? 'border-red-600' : 'border-gray-200'}`}>

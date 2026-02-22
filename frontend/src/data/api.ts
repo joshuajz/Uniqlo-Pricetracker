@@ -9,3 +9,11 @@ export const getProducts = () => {
     staleTime: 1000 * 60 * 5, // 5 mins
   })
 }
+
+export const getCategories = () => {
+  return useQuery({
+    queryKey: ['categories'],
+    queryFn: () => fetch(`${API_URL}/categories`).then(res => res.json()),
+    staleTime: 1000 * 60 * 5, // 5 mins
+  })
+}

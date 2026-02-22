@@ -5,7 +5,7 @@ import {
   PRODUCTS, CATEGORIES, discountPct, isAtl, isOnSale, genderLabel,
 } from '../data/mockData'
 import type { Product, SortKey } from '../types'
-import { getProducts } from '../data/api'
+import { getCategories, getProducts } from '../data/api'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ function ProductRow({ product }: { product: Product }) {
       {/* Price (+ discount on mobile) */}
       <div className="text-right">
         <div className="text-sm sm:text-base font-semibold">${product.price.toFixed(2)}</div>
-        <div className="text-xs text-gray-400 line-through font-light">${product.regular.toFixed(2)}</div>
+        <div className="text-xs text-gray-400 line-through font-light">${product.regular_price.toFixed(2)}</div>
         <div className="sm:hidden text-xs font-bold text-emerald-600">−{pct}%</div>
       </div>
 
@@ -141,15 +141,18 @@ export default function HomePage() {
   const [catFilter, setCatFilter] = useState('all')
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
-  const { data, isLoading: productsLoading } = getProducts()
+  const { data: productsAPI = [], isLoading: productsLoading } = getProducts()
+  // const { data: categories = [], isLoading: categoriesLoading } = getCategories()
 
-  const stats = useMemo(() => {
-    const onSale = PRODUCTS.filter(isOnSale)
-    const avgDiscount = onSale.length
-      ? Math.round(onSale.reduce((s, p) => s + discountPct(p), 0) / onSale.length)
-      : 0
-    return { total: PRODUCTS.length, onSale: onSale.length, categories: CATEGORIES.length, avgDiscount }
-  }, [])
+  const products = productsAPI?.products
+  const categories = CATEGORIES
+
+
+  const onSale = products.filter((p: Product) => p.price < p.regular_price)
+  const avgDiscount = 10
+  // const avgDiscount = onSale.length ? Math.round(
+    // onSale.reduce((accumulator: number, currentValue: Product) =>
+      // accumulator + ((1 - (currentValue.price / currentValue.regular_price)) * 100)) / onSale.length) : 0
 
   const grouped = useMemo<GroupedCat[]>(() => {
     const q = search.trim().toLowerCase()
@@ -212,10 +215,10 @@ export default function HomePage() {
       {/* ── Stat cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 border-t-[3px] border-t-zinc-700 border-l border-l-zinc-700 border-r border-r-zinc-700 mb-8 sm:mb-11">
         {[
-          { value: stats.total, label: 'Products Tracked' },
-          { value: stats.onSale, label: 'On Sale Now' },
-          { value: stats.categories, label: 'Categories' },
-          { value: `${stats.avgDiscount}%`, label: 'Avg. Discount' },
+          { value: products.length, label: 'Products Tracked' },
+          { value: onSale.length, label: 'On Sale Now' },
+          { value: categories.length, label: 'Categories' },
+          { value: `${avgDiscount}%`, label: 'Avg. Discount' },
         ].map((s, i) => (
           <div
             key={i}

@@ -4,7 +4,7 @@ export interface Product {
   gender: 'M' | 'W' | 'U'
   category: string
   price: number
-  regular: number
+  regular_price: number
   lowest: number
   hue: number
 }

@@ -112,7 +112,7 @@ function PriceChart({ product }: { product: Product }) {
           <div className="mt-4 grid grid-cols-2 gap-3">
             {[
               { label: 'Current', value: `$${product.price.toFixed(2)}` },
-              { label: 'Regular', value: `$${product.regular.toFixed(2)}` },
+              { label: 'Regular', value: `$${product.regular_price.toFixed(2)}` },
               { label: 'All-Time Low', value: `$${product.lowest.toFixed(2)}` },
               { label: '30d Change', value: change <= 0 ? `−$${Math.abs(change).toFixed(2)}` : `+$${change.toFixed(2)}`, red: change < 0 },
             ].map(s => (
@@ -143,7 +143,7 @@ function DashRow({ product: p, isExpanded, onToggle }: {
   const pct = discountPct(p)
   const atl = isAtl(p)
   const sale = isOnSale(p)
-  const savings = p.regular - p.price
+  const savings = p.regular_price - p.price
 
   const change = history.length >= 2
     ? history[history.length - 1] - history[history.length - 2]
@@ -208,7 +208,7 @@ function DashRow({ product: p, isExpanded, onToggle }: {
         {/* Current price */}
         <div className="text-right">
           <div className="text-[15px] font-bold">${p.price.toFixed(2)}</div>
-          <div className="text-[11px] text-gray-300 line-through mt-[1px]">${p.regular.toFixed(2)}</div>
+          <div className="text-[11px] text-gray-300 line-through mt-[1px]">${p.regular_price.toFixed(2)}</div>
         </div>
 
         {/* Change */}
@@ -272,7 +272,7 @@ export default function DashboardPage() {
   const dashStats = useMemo(() => {
     const onSale = watched.filter(isOnSale)
     const atls   = watched.filter(isAtl)
-    const totalSaved = onSale.reduce((s, p) => s + (p.regular - p.price), 0)
+    const totalSaved = onSale.reduce((s, p) => s + (p.regular_price - p.price), 0)
     return { total: watched.length, onSale: onSale.length, atl: atls.length, saved: totalSaved }
   }, [watched])
 
