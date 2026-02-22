@@ -1,17 +1,19 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
 }
 
 @layer base {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     box-sizing: border-box;
   }
 
   body {
-    font-family: 'Inter', system-ui, sans-serif;
-    background: #FCFAF9;
+    font-family: "Inter", system-ui, sans-serif;
+    background: #fcfaf9;
     color: #111;
     -webkit-font-smoothing: antialiased;
     margin: 0;
@@ -23,139 +25,18 @@
   }
 }
 
-/* Swiss Grid utilities */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 2px 6px;
-  line-height: 1.4;
-}
-
-.badge-sale {
-  background: #B3001B;
-  color: #fff;
-}
-
-.badge-atl {
-  background: #26547C;
-  color: #fff;
-}
-
-.badge-cat {
-  background: #f1f1ef;
-  color: #555;
-}
-
-/* Stat card border trick */
-.stat-card { border-top: 3px solid #111; }
-.stat-card-accent { border-top: 3px solid #B3001B; }
-
-/* Product row hover */
-.product-row {
-  display: grid;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 8px;
-  border-bottom: 1px solid #E8E4DF;
-  cursor: pointer;
-  margin: 0 -8px;
-  transition: background 0.1s;
-  grid-template-columns: 60px 1fr auto auto 96px 52px;
-}
-
-.product-row:hover {
-  background: #F4F0EE;
-}
-
-/* Thumbnail image in product row */
-.thumb {
-  width: 60px;
-  height: 60px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.thumb-img {
-  width: 100%;
-  height: 100%;
-  transition: transform 0.3s;
-}
-
-.product-row:hover .thumb-img {
-  transform: scale(1.08);
-}
-
-/* Category section header */
-.cat-header {
-  border-top: 3px solid #111;
-  padding-top: 12px;
-  margin-bottom: 2px;
-}
-
-.cat-header-accent {
-  border-top-color: #B3001B;
-}
-
-/* Sort option */
-.sort-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  cursor: pointer;
-  color: #555;
-  padding: 4px 0;
-  transition: color 0.1s;
-  user-select: none;
-}
-
-.sort-option:hover { color: #111; }
-.sort-option.active { color: #111; font-weight: 600; }
-
-/* Mosaic tile */
-.mosaic-tile {
-  background: #fff;
-  border: 1px solid #e8e8e8;
-  overflow: hidden;
-  cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-.mosaic-tile:hover {
-  border-color: #ccc;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-}
-
-/* FAQ accordion */
-.faq-item {
-  border-top: 1px solid #e8e8e8;
-}
-
-.faq-item:last-child {
-  border-bottom: 1px solid #e8e8e8;
-}
-
-/* Dashboard product row */
-.dash-row {
-  border-bottom: 1px solid #ebebeb;
-  transition: background 0.1s;
-}
-
-.dash-row:hover > .dash-row-header {
-  background: #F4F0EE;
-}
-
-/* Masthead search placeholder */
-.masthead-search::placeholder {
-  color: #999;
-  font-style: italic;
-}
-
 /* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #bbb; }
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #bbb;
+}

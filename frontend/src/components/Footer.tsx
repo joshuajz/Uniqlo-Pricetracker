@@ -1,20 +1,11 @@
 export default function Footer() {
   return (
-    <footer style={{
-      borderTop: '1px solid #E8E4DF',
-      padding: '20px 24px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      color: '#aaa',
-      fontSize: 12,
-      background: '#FCFAF9',
-    }}>
+    <footer className="border-t border-stone-200 px-6 py-5 flex justify-between items-center bg-stone-50 text-xs text-gray-400">
       <span>
-        <strong style={{ color: '#555', fontWeight: 600 }}>Uniqlo Price Tracker</strong>
+        <strong className="text-gray-600 font-semibold">Uniqlo Price Tracker</strong>
         {' '}— Updated daily. Not affiliated with Uniqlo Co., Ltd.
       </span>
-      <span style={{ color: '#ccc' }}>© 2026</span>
+      <span className="text-gray-300">© 2026</span>
     </footer>
   )
 }

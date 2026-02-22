@@ -40,29 +40,19 @@ function FAQItem({ q, a, index }: { q: string; a: string; index: number }) {
   const [open, setOpen] = useState(false)
 
   return (
-    <div
-      className="faq-item"
-      style={{ borderTopColor: index === 0 ? '#dc2626' : '#e8e8e8', borderTopWidth: index === 0 ? 3 : 1 }}
-    >
+    <div className={`last:border-b last:border-gray-200 ${index === 0 ? 'border-t-[3px] border-red-600' : 'border-t border-gray-200'}`}>
       <button
         onClick={() => setOpen(o => !o)}
-        style={{
-          width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '18px 0', background: 'none', border: 'none', cursor: 'pointer',
-          fontFamily: 'inherit', textAlign: 'left', gap: 16,
-        }}
+        className="w-full flex justify-between items-center py-[18px] bg-transparent border-none cursor-pointer font-sans text-left gap-4"
       >
-        <span style={{ fontSize: 15, fontWeight: 600, color: '#111', lineHeight: 1.3 }}>{q}</span>
-        <span style={{ color: '#bbb', flexShrink: 0 }}>
+        <span className="text-[15px] font-semibold text-gray-900 leading-[1.3]">{q}</span>
+        <span className="text-gray-300 shrink-0">
           {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </span>
       </button>
 
       {open && (
-        <div style={{
-          fontSize: 14, color: '#555', lineHeight: 1.7,
-          paddingBottom: 20, paddingRight: 40,
-        }}>
+        <div className="text-sm text-gray-600 leading-[1.7] pb-5 pr-10">
           {a}
         </div>
       )}
@@ -72,14 +62,14 @@ function FAQItem({ q, a, index }: { q: string; a: string; index: number }) {
 
 export default function FAQPage() {
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 24px 80px' }}>
+    <div className="max-w-[720px] mx-auto px-6 pt-10 pb-20">
 
       {/* ── Header ── */}
-      <div style={{ marginBottom: 48 }}>
-        <h1 style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', marginBottom: 8 }}>
-          Frequently Asked <span style={{ color: '#dc2626' }}>Questions</span>
+      <div className="mb-12">
+        <h1 className="text-[36px] font-black tracking-[-0.03em] mb-2">
+          Frequently Asked <span className="text-red-600">Questions</span>
         </h1>
-        <p style={{ fontSize: 14, color: '#888' }}>
+        <p className="text-sm text-gray-400">
           Everything you need to know about Uniqlo Tracker.
         </p>
       </div>
@@ -92,32 +82,14 @@ export default function FAQPage() {
       </div>
 
       {/* ── Contact CTA ── */}
-      <div style={{
-        marginTop: 56,
-        borderTop: '3px solid #111',
-        paddingTop: 24,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-      }}>
+      <div className="mt-14 border-t-[3px] border-gray-900 pt-6 flex justify-between items-center">
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Still have questions?</div>
-          <div style={{ fontSize: 13, color: '#888' }}>We're happy to help.</div>
+          <div className="text-sm font-semibold mb-1">Still have questions?</div>
+          <div className="text-[13px] text-gray-400">We're happy to help.</div>
         </div>
         <a
           href="mailto:hello@uniqlotracker.com"
-          style={{
-            padding: '10px 20px',
-            background: '#111',
-            color: '#fff',
-            fontSize: 13,
-            fontWeight: 600,
-            letterSpacing: '0.04em',
-            transition: 'background 0.15s',
-            display: 'inline-block',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = '#dc2626')}
-          onMouseLeave={e => (e.currentTarget.style.background = '#111')}
+          className="px-5 py-[10px] bg-gray-900 text-white text-[13px] font-semibold tracking-[0.04em] transition-[background] duration-150 hover:bg-red-600 inline-block"
         >
           Contact Us →
         </a>

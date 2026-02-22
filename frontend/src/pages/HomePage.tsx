@@ -12,51 +12,51 @@ import { getProducts } from '../data/api'
 function sortProducts(products: Product[], key: SortKey): Product[] {
   return [...products].sort((a, b) => {
     switch (key) {
-      case 'price':    return a.price - b.price
-      case 'name':     return a.name.localeCompare(b.name)
-      case 'atl':      return (isAtl(a) ? 0 : 1) - (isAtl(b) ? 0 : 1)
-      default:         return discountPct(b) - discountPct(a)
+      case 'price': return a.price - b.price
+      case 'name': return a.name.localeCompare(b.name)
+      case 'atl': return (isAtl(a) ? 0 : 1) - (isAtl(b) ? 0 : 1)
+      default: return discountPct(b) - discountPct(a)
     }
   })
 }
 
 // ─── Product Row ─────────────────────────────────────────────────────────────
 
-function ProductRow({ product: p }: { product: Product }) {
-  const pct = discountPct(p)
-  const atl = isAtl(p)
+function ProductRow({ product }: { product: Product }) {
+  const pct = discountPct(product)
+  const atl = isAtl(product)
 
   return (
-    <div className="product-row">
-      <div className="thumb">
+    <div className="grid grid-cols-[60px_1fr_auto_auto_96px_52px] items-center gap-3 px-2 py-2 border-b border-stone-200 cursor-pointer -mx-2 transition-[background] duration-100 hover:bg-stone-100 group">
+      <div className="w-[60px] h-[60px] overflow-hidden shrink-0">
         <div
-          className="thumb-img"
-          style={{ background: `linear-gradient(160deg, hsl(${p.hue}, 28%, 36%), hsl(${p.hue + 20}, 22%, 54%))` }}
+          className="w-full h-full transition-transform duration-300 group-hover:scale-[1.08]"
+          style={{ background: `linear-gradient(160deg, hsl(${product.hue}, 28%, 36%), hsl(${product.hue + 20}, 22%, 54%))` }}
         />
       </div>
 
       <div>
-        <div style={{ fontSize: 14, fontWeight: 500, color: '#111', lineHeight: 1.2 }}>{p.name}</div>
-        <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>{genderLabel(p.gender)}</div>
+        <div className="text-sm font-medium text-gray-900">{product.name}</div>
+        <div className="text-stone-600 text-xs mt-0.5">{genderLabel(product.gender)}</div>
       </div>
 
-      <div style={{ width: 34 }}>
-        {atl && <span className="badge badge-atl">ATL</span>}
+      <div>
+        {atl && <span className="inline-flex items-center bg-sky-600 px-1.5 py-0.5 text-xs font-medium text-sky-100">ATL</span>}
       </div>
 
-      <div style={{ width: 34 }}>
-        <span className="badge badge-sale">SALE</span>
+      <div>
+        <span className="inline-flex items-center bg-red-700 px-1.5 py-0.5 text-xs font-medium text-red-100">SALE</span>
       </div>
 
-      <div style={{ textAlign: 'right' }}>
-        <div style={{ fontSize: 15, fontWeight: 700 }}>${p.price.toFixed(2)}</div>
-        <div style={{ fontSize: 11, color: '#bbb', textDecoration: 'line-through', marginTop: 1 }}>
-          ${p.regular.toFixed(2)}
+      <div className="text-right">
+        <div className="text-base font-semibold">${product.price.toFixed(2)}</div>
+        <div className="text-xs text-gray-400 line-through font-light">
+          ${product.regular.toFixed(2)}
         </div>
       </div>
 
-      <div style={{ textAlign: 'right' }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#307351' }}>
+      <div className="text-right">
+        <span className="text-sm font-bold text-emerald-600">
           −{pct}%
         </span>
       </div>
@@ -69,8 +69,8 @@ function ProductRow({ product: p }: { product: Product }) {
 interface GroupedCat {
   name: string
   products: Product[]
-  onSale: number   // total on sale in category (stable, for header)
-  shown: number    // count matching current filters (for expand button)
+  onSale: number
+  shown: number
   hasMore: boolean
 }
 
@@ -83,20 +83,17 @@ function CategorySection({
   onToggleExpand: () => void
 }) {
   return (
-    <div style={{ marginBottom: 40 }}>
-      <div
-        className={`cat-header ${index === 0 ? 'cat-header-accent' : ''}`}
-        style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}
-      >
+    <div className="mb-8">
+      <div className="border-t-2 border-gray-900 pt-3 flex justify-between">
         {/* Left: name · count · view link */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+        <div className="flex items-baseline gap-[10px]">
+          <span className="text-[11px] font-[800] tracking-[0.14em] uppercase">
             {group.name}
           </span>
-          <span style={{ fontSize: 11, color: '#aaa' }}>
+          <span className="text-[11px] text-gray-400">
             {group.onSale} on sale
           </span>
-          <Link to="/categories" style={{ fontSize: 11, fontWeight: 600, color: '#B3001B' }}>
+          <Link to="/categories" className="text-[11px] font-semibold text-red-700">
             View category →
           </Link>
         </div>
@@ -106,24 +103,14 @@ function CategorySection({
           {group.hasMore ? (
             <button
               onClick={onToggleExpand}
-              style={{
-                fontSize: 12, fontWeight: 600, color: '#B3001B',
-                background: 'none', border: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: 4, padding: 0,
-                fontFamily: 'inherit',
-              }}
+              className="text-xs font-semibold text-red-700 bg-transparent border-none cursor-pointer flex items-center gap-1 p-0 font-sans"
             >
-              Show all on sale <ChevronDown size={12} />
+              Show more <ChevronDown size={12} />
             </button>
           ) : group.shown > 3 && expanded ? (
             <button
               onClick={onToggleExpand}
-              style={{
-                fontSize: 12, fontWeight: 600, color: '#666',
-                background: 'none', border: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: 4, padding: 0,
-                fontFamily: 'inherit',
-              }}
+              className="text-xs font-semibold text-gray-500 bg-transparent border-none cursor-pointer flex items-center gap-1 p-0 font-sans"
             >
               Show less <ChevronUp size={12} />
             </button>
@@ -131,7 +118,7 @@ function CategorySection({
         </div>
       </div>
 
-      <div style={{ marginTop: 4 }}>
+      <div className="mt-1">
         {group.products.map(p => (
           <ProductRow key={p.id} product={p} />
         ))}
@@ -168,7 +155,6 @@ export default function HomePage() {
         ? allSale.filter(p => p.name.toLowerCase().includes(q))
         : allSale
       const sorted = sortProducts(filtered, sort)
-      // Expand when user clicked, or when a search term is active
       const isOpen = expanded[cat] || q !== ''
       return {
         name: cat,
@@ -186,99 +172,54 @@ export default function HomePage() {
 
   const sortOptions: { key: SortKey; label: string }[] = [
     { key: 'discount', label: 'Most Discounted' },
-    { key: 'price',    label: 'Price: Low → High' },
-    { key: 'name',     label: 'Name: A → Z' },
-    { key: 'atl',      label: 'At All-Time Low' },
+    { key: 'price', label: 'Price: Low → High' },
+    { key: 'name', label: 'Name: A → Z' },
+    { key: 'atl', label: 'At All-Time Low' },
   ]
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 60px' }}>
+    <div className="max-w-[1100px] mx-auto px-6 pb-[60px]">
 
       {/* ── Swiss Masthead ── */}
-      <div style={{ paddingTop: 24 }}>
+      <div className="pt-6">
         {/* Supertitle row */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: 10,
-          fontWeight: 600,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-          color: '#aaa',
-          borderBottom: '1px solid #E8E4DF',
-          paddingBottom: 10,
-        }}>
+        <div className="flex justify-between items-center text-[10px] font-semibold tracking-[0.1em] uppercase text-gray-400 border-b border-stone-200 pb-[10px]">
           <span>Uniqlo Canada · Price Tracker</span>
           <span>Updated daily</span>
         </div>
 
         {/* Title + search row */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr auto',
-          gap: 48,
-          alignItems: 'end',
-          padding: '20px 0 22px',
-        }}>
-          <h1 style={{ fontSize: 52, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, margin: 0, whiteSpace: 'nowrap' }}>
-            Uniqlo <span style={{ color: '#B3001B' }}>Tracker</span>
+        <div className="grid grid-cols-[1fr_auto] gap-[48px] items-end py-5">
+          <h1 className="text-[52px] font-black tracking-[-0.03em] leading-none m-0 whitespace-nowrap">
+            Uniqlo <span className="text-red-700">Tracker</span>
           </h1>
 
           <input
             type="text"
             placeholder="Search products"
-            className="masthead-search"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{
-              border: 'none',
-              borderBottom: '2px solid #ccc',
-              background: 'transparent',
-              outline: 'none',
-              padding: '4px 0',
-              fontSize: 16,
-              fontWeight: 400,
-              width: 260,
-              textAlign: 'right',
-              fontFamily: 'inherit',
-              color: '#111',
-              transition: 'border-color 0.15s',
-              marginBottom: 4,
-            }}
-            onFocus={e => (e.target.style.borderBottomColor = '#26547C')}
-            onBlur={e => (e.target.style.borderBottomColor = '#ccc')}
+            className="bg-transparent border-0 border-b-2 border-gray-300 focus:border-sky-700 outline-none px-0 py-1 text-base w-[260px] text-right font-normal text-gray-900 transition-[border-color] duration-150 placeholder:italic placeholder:text-gray-400 mb-1 font-sans"
           />
         </div>
       </div>
 
       {/* ── Stat cards ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
-        borderTop: '3px solid #26547C',
-        borderLeft: '1px solid #E8E4DF',
-        borderRight: '1px solid #E8E4DF',
-        marginBottom: 44,
-      }}>
+      <div className="grid grid-cols-4 border-t-[3px] border-sky-700 border-l border-r border-stone-200 mb-11">
         {[
-          { value: stats.total,             label: 'Products Tracked' },
-          { value: stats.onSale,            label: 'On Sale Now' },
-          { value: stats.categories,        label: 'Categories' },
+          { value: stats.total, label: 'Products Tracked' },
+          { value: stats.onSale, label: 'On Sale Now' },
+          { value: stats.categories, label: 'Categories' },
           { value: `${stats.avgDiscount}%`, label: 'Avg. Discount' },
         ].map((s, i) => (
           <div
             key={i}
-            style={{
-              padding: '14px 16px',
-              borderRight: i < 3 ? '1px solid #E8E4DF' : undefined,
-              borderBottom: '1px solid #E8E4DF',
-            }}
+            className={`px-4 py-[14px] border-b border-stone-200 ${i < 3 ? 'border-r border-stone-200' : ''}`}
           >
-            <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, color: '#26547C' }}>
+            <div className="text-[30px] font-black tracking-[-0.03em] leading-none text-sky-700">
               {s.value}
             </div>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#aaa', marginTop: 4 }}>
+            <div className="text-[10px] font-semibold tracking-[0.12em] uppercase text-gray-400 mt-1">
               {s.label}
             </div>
           </div>
@@ -286,53 +227,37 @@ export default function HomePage() {
       </div>
 
       {/* ── Main layout ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 40 }}>
+      <div className="grid grid-cols-[180px_1fr] gap-[40px]">
 
         {/* ── Sidebar ── */}
         <div>
-          <div style={{
-            fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', color: '#aaa',
-            textTransform: 'uppercase', borderBottom: '1px solid #E8E4DF',
-            paddingBottom: 8, marginBottom: 12,
-          }}>
+          <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 uppercase border-b border-stone-200 pb-2 mb-3">
             Sort by
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div className="flex flex-col gap-0.5">
             {sortOptions.map(opt => (
               <button
                 key={opt.key}
                 onClick={() => setSort(opt.key)}
-                className={`sort-option ${sort === opt.key ? 'active' : ''}`}
+                className={`flex items-center gap-2 text-[13px] cursor-pointer py-1 transition-colors select-none bg-transparent border-none font-sans text-left ${sort === opt.key ? 'text-gray-900 font-semibold' : 'text-gray-600 hover:text-gray-900'}`}
               >
-                <span style={{
-                  width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                  background: sort === opt.key ? '#B3001B' : '#ddd',
-                  transition: 'background 0.15s',
-                }} />
+                <span className={`w-2 h-2 rounded-full shrink-0 transition-[background] duration-150 ${sort === opt.key ? 'bg-red-700' : 'bg-gray-300'}`} />
                 {opt.label}
               </button>
             ))}
           </div>
 
-          <div style={{
-            fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', color: '#aaa',
-            textTransform: 'uppercase', borderBottom: '1px solid #E8E4DF',
-            paddingBottom: 8, marginBottom: 12, marginTop: 28,
-          }}>
+          <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 uppercase border-b border-stone-200 pb-2 mb-3 mt-7">
             Category
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div className="flex flex-col gap-0.5">
             {['all', ...CATEGORIES].map(cat => (
               <button
                 key={cat}
                 onClick={() => setCatFilter(cat)}
-                className={`sort-option ${catFilter === cat ? 'active' : ''}`}
+                className={`flex items-center gap-2 text-[13px] cursor-pointer py-1 transition-colors select-none bg-transparent border-none font-sans text-left ${catFilter === cat ? 'text-gray-900 font-semibold' : 'text-gray-600 hover:text-gray-900'}`}
               >
-                <span style={{
-                  width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                  background: catFilter === cat ? '#B3001B' : '#ddd',
-                  transition: 'background 0.15s',
-                }} />
+                <span className={`w-2 h-2 rounded-full shrink-0 transition-[background] duration-150 ${catFilter === cat ? 'bg-red-700' : 'bg-gray-300'}`} />
                 {cat === 'all' ? 'All' : cat}
               </button>
             ))}
@@ -342,9 +267,9 @@ export default function HomePage() {
         {/* ── Products ── */}
         <div>
           {grouped.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 0', color: '#aaa' }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>∅</div>
-              <div style={{ fontSize: 14 }}>No products match your search.</div>
+            <div className="text-center py-[60px] text-gray-400">
+              <div className="text-[32px] mb-3">∅</div>
+              <div className="text-sm">No products match your search.</div>
             </div>
           ) : (
             grouped.map((group, i) => (

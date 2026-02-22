@@ -14,12 +14,9 @@ import PriceSparkline from '../components/PriceSparkline'
 
 function DashStat({ value, label, accent }: { value: string | number; label: string; accent?: boolean }) {
   return (
-    <div style={{
-      borderTop: `3px solid ${accent ? '#dc2626' : '#111'}`,
-      paddingTop: 12,
-    }}>
-      <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-0.03em' }}>{value}</div>
-      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', color: '#888', textTransform: 'uppercase', marginTop: 3 }}>
+    <div className={`border-t-[3px] pt-3 ${accent ? 'border-red-600' : 'border-gray-900'}`}>
+      <div className="text-[28px] font-black tracking-[-0.03em]">{value}</div>
+      <div className="text-[11px] font-semibold tracking-[0.1em] text-gray-400 uppercase mt-[3px]">
         {label}
       </div>
     </div>
@@ -34,11 +31,11 @@ function PriceChart({ product }: { product: Product }) {
   const change = history.length >= 2 ? history[history.length - 1] - history[history.length - 2] : 0
 
   return (
-    <div style={{ padding: '20px 16px 20px 0', borderTop: '1px solid #f0f0f0' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 24 }}>
+    <div className="pr-4 pt-5 pb-5 border-t border-gray-100">
+      <div className="grid grid-cols-[1fr_280px] gap-6">
         {/* Chart */}
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: '#888', textTransform: 'uppercase', marginBottom: 12 }}>
+          <div className="text-[11px] font-bold tracking-[0.1em] text-gray-400 uppercase mb-3">
             Price History (10 months)
           </div>
           <ResponsiveContainer width="100%" height={180}>
@@ -89,29 +86,21 @@ function PriceChart({ product }: { product: Product }) {
 
         {/* Stats + history table */}
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: '#888', textTransform: 'uppercase', marginBottom: 12 }}>
+          <div className="text-[11px] font-bold tracking-[0.1em] text-gray-400 uppercase mb-3">
             Price Log
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          <div className="flex flex-col">
             {[...chartData].reverse().map((row, i) => {
               const isLatest = i === 0
               return (
                 <div
                   key={row.date}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '5px 0',
-                    borderBottom: '1px solid #f5f5f5',
-                    fontSize: 12,
-                    background: isLatest ? '#fef2f2' : 'transparent',
-                    paddingLeft: isLatest ? 6 : 0,
-                    paddingRight: isLatest ? 6 : 0,
-                  }}
+                  className={`flex justify-between items-center py-[5px] border-b border-neutral-100 text-xs ${isLatest ? 'bg-red-50 px-1.5' : ''}`}
                 >
-                  <span style={{ color: isLatest ? '#111' : '#888', fontWeight: isLatest ? 600 : 400 }}>{row.date}</span>
-                  <span style={{ fontWeight: isLatest ? 700 : 400, color: isLatest ? '#dc2626' : '#111' }}>
+                  <span className={isLatest ? 'text-gray-900 font-semibold' : 'text-gray-400'}>
+                    {row.date}
+                  </span>
+                  <span className={isLatest ? 'font-bold text-red-600' : 'font-normal text-gray-900'}>
                     ${row.price.toFixed(2)}
                   </span>
                 </div>
@@ -120,7 +109,7 @@ function PriceChart({ product }: { product: Product }) {
           </div>
 
           {/* Quick stats */}
-          <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="mt-4 grid grid-cols-2 gap-3">
             {[
               { label: 'Current', value: `$${product.price.toFixed(2)}` },
               { label: 'Regular', value: `$${product.regular.toFixed(2)}` },
@@ -128,8 +117,12 @@ function PriceChart({ product }: { product: Product }) {
               { label: '30d Change', value: change <= 0 ? `−$${Math.abs(change).toFixed(2)}` : `+$${change.toFixed(2)}`, red: change < 0 },
             ].map(s => (
               <div key={s.label}>
-                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', color: '#bbb', textTransform: 'uppercase' }}>{s.label}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: 'red' in s && s.red ? '#dc2626' : '#111', marginTop: 2 }}>{s.value}</div>
+                <div className="text-[10px] font-semibold tracking-[0.08em] text-gray-300 uppercase">
+                  {s.label}
+                </div>
+                <div className={`text-sm font-bold mt-0.5 ${'red' in s && s.red ? 'text-red-600' : 'text-gray-900'}`}>
+                  {s.value}
+                </div>
               </div>
             ))}
           </div>
@@ -157,79 +150,63 @@ function DashRow({ product: p, isExpanded, onToggle }: {
     : 0
 
   return (
-    <div className="dash-row">
+    <div className="border-b border-gray-100 group">
       {/* Row header */}
       <div
-        className="dash-row-header"
         onClick={onToggle}
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 100px 100px 88px 88px 80px 32px',
-          alignItems: 'center',
-          gap: 12,
-          padding: '12px 8px',
-          cursor: 'pointer',
-          transition: 'background 0.1s',
-          margin: '0 -8px',
-          paddingLeft: 8,
-          paddingRight: 8,
-        }}
+        className="grid grid-cols-[1fr_100px_100px_88px_88px_80px_32px] items-center gap-3 px-2 py-3 cursor-pointer transition-colors group-hover:bg-stone-100 -mx-2"
       >
         {/* Name + category */}
         <div>
-          <div style={{ fontSize: 14, fontWeight: 500 }}>{p.name}</div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 3, alignItems: 'center' }}>
-            <span className="badge badge-cat" style={{ background: '#f1f1ef', color: '#777', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', padding: '1px 5px' }}>
+          <div className="text-sm font-medium">{p.name}</div>
+          <div className="flex gap-1.5 mt-[3px] items-center">
+            <span className="inline-flex items-center bg-stone-100 text-gray-500 text-[10px] font-semibold tracking-[0.08em] px-[5px] py-[1px] leading-[1.4]">
               {p.category.toUpperCase()}
             </span>
-            <span style={{ fontSize: 11, color: '#bbb' }}>{genderLabel(p.gender)}</span>
+            <span className="text-[11px] text-gray-300">{genderLabel(p.gender)}</span>
           </div>
         </div>
 
         {/* Sparkline */}
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <div className="flex justify-center">
           <PriceSparkline prices={history} width={80} height={28} />
         </div>
 
         {/* Current price */}
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>${p.price.toFixed(2)}</div>
-          <div style={{ fontSize: 11, color: '#bbb', textDecoration: 'line-through', marginTop: 1 }}>${p.regular.toFixed(2)}</div>
+        <div className="text-right">
+          <div className="text-[15px] font-bold">${p.price.toFixed(2)}</div>
+          <div className="text-[11px] text-gray-300 line-through mt-[1px]">${p.regular.toFixed(2)}</div>
         </div>
 
         {/* Change */}
-        <div style={{ textAlign: 'right' }}>
+        <div className="text-right">
           {change !== 0 && (
-            <span style={{
-              fontSize: 12, fontWeight: 600,
-              color: change < 0 ? '#16a34a' : '#dc2626',
-              display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3,
-            }}>
+            <span className={`text-xs font-semibold flex items-center justify-end gap-[3px] ${change < 0 ? 'text-green-600' : 'text-red-600'}`}>
               {change < 0 && <TrendingDown size={12} />}
               {change < 0 ? '−' : '+'}${Math.abs(change).toFixed(2)}
             </span>
           )}
-          {change === 0 && <span style={{ fontSize: 12, color: '#ccc' }}>—</span>}
+          {change === 0 && <span className="text-xs text-gray-300">—</span>}
         </div>
 
         {/* Savings */}
-        <div style={{ textAlign: 'right' }}>
+        <div className="text-right">
           {sale && (
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>${savings.toFixed(2)}</div>
-              <div style={{ fontSize: 11, color: '#bbb' }}>−{pct}%</div>
+              <div className="text-[13px] font-bold text-green-600">${savings.toFixed(2)}</div>
+              <div className="text-[11px] text-gray-300">−{pct}%</div>
             </div>
           )}
         </div>
 
         {/* Badges */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
-          {atl  && <span className="badge badge-atl">ATL</span>}
-          {sale && <span className="badge badge-sale">SALE</span>}
+        <div className="flex flex-col gap-[3px] items-end">
+          {atl  && <span className="inline-flex items-center bg-sky-600 text-sky-100 text-[10px] font-bold tracking-[0.06em] px-1.5 py-0.5 leading-[1.4]">ATL</span>}
+          {sale && <span className="inline-flex items-center bg-red-700 text-red-100 text-[10px] font-bold tracking-[0.06em] px-1.5 py-0.5 leading-[1.4]">SALE</span>}
         </div>
 
         {/* Expand toggle */}
-        <div style={{ color: '#bbb', display: 'flex', justifyContent: 'center' }}>
+        <div className="text-gray-300 flex justify-center">
           {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </div>
       </div>
@@ -276,23 +253,23 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px 60px' }}>
+    <div className="max-w-[1100px] mx-auto px-6 pt-10 pb-[60px]">
 
       {/* ── Header ── */}
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, color: '#aaa', marginBottom: 6, letterSpacing: '0.05em' }}>
+      <div className="mb-8">
+        <div className="text-xs text-gray-400 mb-1.5 tracking-[0.05em]">
           Good morning, Josh.
         </div>
-        <h1 style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1 }}>
-          My <span style={{ color: '#dc2626' }}>Watchlist</span>
+        <h1 className="text-[36px] font-black tracking-[-0.03em] leading-none">
+          My <span className="text-red-600">Watchlist</span>
         </h1>
-        <p style={{ fontSize: 13, color: '#888', marginTop: 6 }}>
+        <p className="text-[13px] text-gray-400 mt-1.5">
           Tracking {dashStats.total} products · {dashStats.onSale} on sale · {dashStats.atl} at all-time low
         </p>
       </div>
 
       {/* ── Stats ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24, marginBottom: 36 }}>
+      <div className="grid grid-cols-4 gap-6 mb-9">
         <DashStat value={dashStats.total}                   label="Tracked"      accent />
         <DashStat value={dashStats.onSale}                   label="On Sale" />
         <DashStat value={dashStats.atl}                      label="At ATL" />
@@ -300,21 +277,16 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Tab bar ── */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #ebebeb', marginBottom: 4 }}>
+      <div className="flex border-b-2 border-gray-200 mb-1">
         {tabs.map(t => (
           <button
             key={t.key}
             onClick={() => { setTab(t.key); setExpanded(null) }}
-            style={{
-              fontSize: 13, fontWeight: tab === t.key ? 600 : 400,
-              color: tab === t.key ? '#dc2626' : '#888',
-              padding: '8px 20px',
-              border: 'none', background: 'none', cursor: 'pointer',
-              borderBottom: tab === t.key ? '2px solid #dc2626' : '2px solid transparent',
-              marginBottom: -2,
-              transition: 'all 0.15s',
-              fontFamily: 'inherit',
-            }}
+            className={`text-[13px] px-5 py-2 border-none bg-transparent cursor-pointer font-sans border-b-2 -mb-0.5 transition-all ${
+              tab === t.key
+                ? 'font-semibold text-red-600 border-red-600'
+                : 'font-normal text-gray-400 border-transparent'
+            }`}
           >
             {t.label}
           </button>
@@ -322,15 +294,14 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Table header ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 100px 100px 88px 88px 80px 32px',
-        gap: 12,
-        padding: '8px 8px',
-        borderBottom: '1px solid #e8e8e8',
-      }}>
+      <div className="grid grid-cols-[1fr_100px_100px_88px_88px_80px_32px] gap-3 px-2 py-2 border-b border-gray-200">
         {['Product', 'Trend', 'Price', '30d Change', 'Savings', 'Status', ''].map(h => (
-          <div key={h} style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: '#bbb', textTransform: 'uppercase', textAlign: h === '' || h === 'Trend' ? 'center' : h === 'Product' ? 'left' : 'right' }}>
+          <div
+            key={h}
+            className={`text-[10px] font-bold tracking-[0.1em] text-gray-300 uppercase ${
+              h === '' || h === 'Trend' ? 'text-center' : h === 'Product' ? 'text-left' : 'text-right'
+            }`}
+          >
             {h}
           </div>
         ))}
@@ -339,9 +310,9 @@ export default function DashboardPage() {
       {/* ── Rows ── */}
       <div>
         {displayed.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px 0', color: '#bbb' }}>
-            <div style={{ fontSize: 24, marginBottom: 8 }}>∅</div>
-            <div style={{ fontSize: 13 }}>No items in this filter.</div>
+          <div className="text-center py-12 text-gray-300">
+            <div className="text-2xl mb-2">∅</div>
+            <div className="text-[13px]">No items in this filter.</div>
           </div>
         ) : (
           displayed.map(p => (
