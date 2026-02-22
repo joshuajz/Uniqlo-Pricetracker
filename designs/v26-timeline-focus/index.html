@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Option E — Timeline Focus</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #FCFAF9;
+      color: #111;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    nav {
+      height: 52px;
+      border-bottom: 1px solid #E8E4DF;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 32px;
+      position: sticky;
+      top: 0;
+      background: #FCFAF9;
+      z-index: 100;
+    }
+    .logo-block { display: flex; flex-direction: column; gap: 2px; }
+    .logo-top { font-size: 14px; font-weight: 900; letter-spacing: 0.1em; color: #111; text-transform: uppercase; line-height: 1; }
+    .logo-sub { font-size: 8px; font-weight: 700; letter-spacing: 0.2em; color: #B3001B; text-transform: uppercase; line-height: 1; }
+    .nav-links { display: flex; gap: 20px; flex: 1; }
+    .nav-links a { font-size: 13px; color: #666; }
+    .nav-links a.active { font-weight: 600; color: #B3001B; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; background: #26547C; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
+
+    /* ── Product strip ── */
+    .product-strip {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 20px;
+      align-items: center;
+      padding: 18px 0 16px;
+      border-bottom: 1px solid #E8E4DF;
+      margin-bottom: 0;
+    }
+
+    .strip-thumb {
+      width: 72px;
+      height: 72px;
+      background: linear-gradient(160deg, hsl(220, 28%, 34%), hsl(240, 22%, 56%));
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .strip-thumb::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.02) 2px, rgba(255,255,255,0.02) 4px);
+    }
+
+    .strip-info {}
+    .strip-cat {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 5px;
+    }
+    .strip-name {
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: #111;
+      margin-bottom: 8px;
+      line-height: 1.1;
+    }
+    .strip-badges { display: flex; gap: 6px; align-items: center; }
+    .badge {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 3px 7px;
+      text-transform: uppercase;
+    }
+    .badge-atl { background: #26547C; color: #fff; }
+    .badge-sale { background: #B3001B; color: #fff; }
+    .strip-updated { font-size: 10px; color: #bbb; }
+
+    .strip-price { text-align: right; flex-shrink: 0; }
+    .strip-price-current { font-size: 34px; font-weight: 900; letter-spacing: -0.03em; line-height: 1; }
+    .strip-price-row { display: flex; align-items: baseline; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+    .strip-regular { font-size: 13px; color: #bbb; text-decoration: line-through; }
+    .strip-discount { font-size: 13px; font-weight: 700; color: #307351; }
+    .strip-back {
+      font-size: 11px;
+      font-weight: 600;
+      color: #B3001B;
+      margin-top: 8px;
+      display: block;
+      text-align: right;
+    }
+    .strip-back:hover { opacity: 0.75; }
+
+    /* ── Timeline section ── */
+    .timeline-section {
+      border-top: 3px solid #B3001B;
+      padding-top: 0;
+      margin-bottom: 0;
+    }
+
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 0 14px;
+    }
+    .timeline-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #111;
+    }
+
+    .period-group { display: flex; gap: 0; }
+    .period-btn {
+      font-size: 11px;
+      font-weight: 600;
+      color: #aaa;
+      background: none;
+      border: 1px solid #E8E4DF;
+      border-right: none;
+      cursor: pointer;
+      padding: 5px 12px;
+      font-family: inherit;
+      transition: all 0.1s;
+    }
+    .period-btn:last-child { border-right: 1px solid #E8E4DF; }
+    .period-btn.active { color: #fff; background: #111; border-color: #111; }
+    .period-btn:hover:not(.active) { color: #111; background: #F4F0EE; }
+
+    .chart-wrap {
+      height: 320px;
+      position: relative;
+      margin-bottom: 0;
+    }
+
+    /* Annotation callouts */
+    .chart-annotations {
+      position: relative;
+      height: 0;
+    }
+
+    /* ── Snapshot stats ── */
+    .snapshot {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      border-top: 3px solid #26547C;
+      border-left: 1px solid #E8E4DF;
+      border-right: 1px solid #E8E4DF;
+      margin-bottom: 40px;
+    }
+    .snap-cell {
+      padding: 14px 16px;
+      border-right: 1px solid #E8E4DF;
+      border-bottom: 1px solid #E8E4DF;
+    }
+    .snap-cell:last-child { border-right: none; }
+    .snap-val { font-size: 20px; font-weight: 900; letter-spacing: -0.02em; color: #26547C; line-height: 1; }
+    .snap-val.red { color: #B3001B; }
+    .snap-val.green { color: #307351; }
+    .snap-val.dim { color: #bbb; }
+    .snap-lbl { font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #aaa; margin-top: 4px; }
+    .snap-sub { font-size: 9px; color: #ccc; margin-top: 2px; }
+
+    /* ── Notify section ── */
+    .notify-section {
+      border-top: 3px solid #111;
+      padding-top: 20px;
+      margin-bottom: 40px;
+    }
+
+    .notify-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: start;
+    }
+    .notify-left-label {
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
+    }
+    .notify-left-desc {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.6;
+    }
+
+    .notify-form { display: flex; flex-direction: column; gap: 8px; }
+    .notify-row { display: flex; }
+    .notify-input {
+      flex: 1;
+      border: 1px solid #E8E4DF;
+      border-right: none;
+      background: #fff;
+      padding: 11px 14px;
+      font-size: 13px;
+      font-family: inherit;
+      color: #111;
+      outline: none;
+    }
+    .notify-input:focus { border-color: #26547C; }
+    .notify-input::placeholder { color: #ccc; font-style: italic; }
+    .notify-btn {
+      background: #111;
+      color: #fff;
+      border: none;
+      padding: 11px 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .notify-btn:hover { background: #B3001B; }
+
+    .threshold-row { display: flex; align-items: center; gap: 10px; }
+    .threshold-lbl { font-size: 11px; color: #999; }
+    .threshold-input {
+      border: none;
+      border-bottom: 1px solid #ccc;
+      background: transparent;
+      width: 70px;
+      padding: 2px 4px;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: inherit;
+      color: #111;
+      outline: none;
+    }
+
+    /* ── More products ── */
+    .more-section {
+      border-top: 3px solid #111;
+      padding-top: 12px;
+    }
+    .more-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 4px;
+    }
+    .more-label { font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
+    .more-link { font-size: 11px; font-weight: 600; color: #B3001B; }
+
+    .product-row {
+      display: grid;
+      grid-template-columns: 56px 1fr auto auto 90px 50px;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid #E8E4DF;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .product-row:hover { background: #F4F0EE; margin: 0 -8px; padding-left: 8px; padding-right: 8px; }
+    .row-thumb { width: 56px; height: 56px; }
+    .row-name { font-size: 13px; font-weight: 500; }
+    .row-cat { font-size: 10px; color: #999; margin-top: 2px; }
+    .row-badge { font-size: 9px; font-weight: 700; letter-spacing: 0.05em; padding: 2px 5px; text-transform: uppercase; }
+    .row-price { font-size: 14px; font-weight: 700; text-align: right; }
+    .row-reg { font-size: 10px; color: #bbb; text-decoration: line-through; text-align: right; margin-top: 1px; }
+    .row-pct { font-size: 12px; font-weight: 700; color: #307351; text-align: right; }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="#" class="logo-block">
+      <span class="logo-top">Uniqlo</span>
+      <span class="logo-sub">Price Tracker</span>
+    </a>
+    <div class="nav-links">
+      <a href="#">Home</a>
+      <a href="#">Categories</a>
+      <a href="#" class="active">Products</a>
+      <a href="#">Dashboard</a>
+      <a href="#">FAQ</a>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="avatar">JD</div>
+      <span style="font-size:13px;font-weight:500;color:#444">Josh</span>
+    </div>
+  </nav>
+
+  <div class="container">
+
+    <!-- Product Strip -->
+    <div class="product-strip">
+      <div class="strip-thumb"></div>
+
+      <div class="strip-info">
+        <div class="strip-cat">Women's · Tops · AIRism Cotton</div>
+        <div class="strip-name">AIRism Cotton Full-Zip Hoodie</div>
+        <div class="strip-badges">
+          <span class="badge badge-atl">All-Time Low</span>
+          <span class="badge badge-sale">On Sale</span>
+          <span class="strip-updated">Updated today</span>
+        </div>
+      </div>
+
+      <div class="strip-price">
+        <div class="strip-price-current">$29.90</div>
+        <div class="strip-price-row">
+          <span class="strip-regular">$49.90</span>
+          <span class="strip-discount">−40%</span>
+        </div>
+        <a href="#" class="strip-back">← Back to Tops</a>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="timeline-section">
+      <div class="timeline-header">
+        <span class="timeline-label">Price Timeline</span>
+        <div class="period-group">
+          <button class="period-btn" onclick="setPeriod(30,this)">30 days</button>
+          <button class="period-btn active" onclick="setPeriod(90,this)">90 days</button>
+          <button class="period-btn" onclick="setPeriod(0,this)">All time</button>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <canvas id="priceChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Snapshot -->
+    <div class="snapshot">
+      <div class="snap-cell">
+        <div class="snap-val">$29.90</div>
+        <div class="snap-lbl">Current</div>
+        <div class="snap-sub">As of today</div>
+      </div>
+      <div class="snap-cell">
+        <div class="snap-val red">$29.90</div>
+        <div class="snap-lbl">All-Time Low</div>
+        <div class="snap-sub">Feb 2026 ↓</div>
+      </div>
+      <div class="snap-cell">
+        <div class="snap-val">$41.20</div>
+        <div class="snap-lbl">Average</div>
+        <div class="snap-sub">14 months</div>
+      </div>
+      <div class="snap-cell">
+        <div class="snap-val dim">$49.90</div>
+        <div class="snap-lbl">Regular</div>
+        <div class="snap-sub">Listed price</div>
+      </div>
+      <div class="snap-cell">
+        <div class="snap-val green">$20.00</div>
+        <div class="snap-lbl">Savings Now</div>
+        <div class="snap-sub">vs. regular</div>
+      </div>
+      <div class="snap-cell">
+        <div class="snap-val green">14×</div>
+        <div class="snap-lbl">Times On Sale</div>
+        <div class="snap-sub">Since Jan 2025</div>
+      </div>
+    </div>
+
+    <!-- Notify -->
+    <div class="notify-section">
+      <div class="notify-grid">
+        <div>
+          <div class="notify-left-label">Get Price Alerts</div>
+          <div class="notify-left-desc">
+            This item is currently at its all-time low of $29.90. Set an alert to be notified if the price rises and then drops again — or if it drops even further.
+          </div>
+        </div>
+        <div class="notify-form">
+          <div class="notify-row">
+            <input class="notify-input" type="email" placeholder="your@email.com" />
+            <button class="notify-btn">Set Alert</button>
+          </div>
+          <div class="threshold-row">
+            <span class="threshold-lbl">Alert me when price drops below</span>
+            <input class="threshold-input" type="text" value="$27.00" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- More products -->
+    <div class="more-section">
+      <div class="more-header">
+        <span class="more-label">More in Tops</span>
+        <a href="#" class="more-link">View all Tops →</a>
+      </div>
+
+      <div class="product-row">
+        <div class="row-thumb" style="background:linear-gradient(160deg,hsl(30,28%,36%),hsl(50,22%,54%))"></div>
+        <div>
+          <div class="row-name">Heattech Ultra Warm Crew Neck</div>
+          <div class="row-cat">Men's · Heattech</div>
+        </div>
+        <span class="row-badge badge-sale">Sale</span>
+        <div></div>
+        <div>
+          <div class="row-price">$19.90</div>
+          <div class="row-reg">$34.90</div>
+        </div>
+        <div class="row-pct">−43%</div>
+      </div>
+
+      <div class="product-row">
+        <div class="row-thumb" style="background:linear-gradient(160deg,hsl(10,28%,36%),hsl(30,22%,54%))"></div>
+        <div>
+          <div class="row-name">Relaxed Fit Ribbed Tank Top</div>
+          <div class="row-cat">Women's · Basics</div>
+        </div>
+        <div></div>
+        <span class="row-badge badge-atl">ATL</span>
+        <div>
+          <div class="row-price">$14.90</div>
+          <div class="row-reg">$24.90</div>
+        </div>
+        <div class="row-pct">−40%</div>
+      </div>
+
+      <div class="product-row">
+        <div class="row-thumb" style="background:linear-gradient(160deg,hsl(160,28%,36%),hsl(180,22%,54%))"></div>
+        <div>
+          <div class="row-name">Linen Blend Relaxed Shirt</div>
+          <div class="row-cat">Unisex · Linen</div>
+        </div>
+        <span class="row-badge badge-sale">Sale</span>
+        <div></div>
+        <div>
+          <div class="row-price">$29.90</div>
+          <div class="row-reg">$49.90</div>
+        </div>
+        <div class="row-pct">−40%</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const allLabels = ['Jan 25','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan 26','Feb'];
+    const allPrices = [49.90, 49.90, 44.90, 49.90, 49.90, 39.90, 49.90, 34.90, 49.90, 49.90, 44.90, 49.90, 34.90, 29.90];
+
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    let chart;
+
+    function makeChart(labels, prices) {
+      if (chart) chart.destroy();
+
+      const minPrice = Math.min(...prices);
+      const minIdx = prices.indexOf(minPrice);
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Price',
+              data: prices,
+              borderColor: '#26547C',
+              backgroundColor: (context) => {
+                const gradient = context.chart.ctx.createLinearGradient(0, 0, 0, context.chart.height);
+                gradient.addColorStop(0, 'rgba(38,84,124,0.12)');
+                gradient.addColorStop(1, 'rgba(38,84,124,0.01)');
+                return gradient;
+              },
+              fill: true,
+              tension: 0.32,
+              borderWidth: 2.5,
+              pointRadius: prices.map((p,i) => p === minPrice ? 6 : (i === prices.length-1 ? 5 : 2.5)),
+              pointBackgroundColor: prices.map((p,i) => p === minPrice ? '#B3001B' : (i === prices.length-1 ? '#26547C' : '#fff')),
+              pointBorderColor: prices.map((p,i) => p === minPrice ? '#B3001B' : '#26547C'),
+              pointBorderWidth: prices.map((p,i) => p === minPrice ? 0 : 2),
+            },
+            {
+              label: 'Regular',
+              data: prices.map(() => 49.90),
+              borderColor: '#E8E4DF',
+              borderDash: [6, 4],
+              borderWidth: 1.5,
+              fill: false,
+              pointRadius: 0,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#fff',
+              borderColor: '#E8E4DF',
+              borderWidth: 1,
+              titleColor: '#999',
+              bodyColor: '#111',
+              titleFont: { family: 'Inter', size: 10, weight: '600' },
+              bodyFont: { family: 'Inter', size: 15, weight: '900' },
+              padding: 12,
+              callbacks: {
+                title: items => items[0].label,
+                label: c => {
+                  if (c.dataset.label === 'Regular') return `  Regular: $${c.parsed.y.toFixed(2)}`;
+                  const isAtl = c.parsed.y === Math.min(...prices);
+                  return `  ${isAtl ? '★ ATL  ' : ''}$${c.parsed.y.toFixed(2)}`;
+                },
+                labelTextColor: c => c.dataset.label === 'Regular' ? '#ccc' : (c.parsed.y === Math.min(...prices) ? '#B3001B' : '#111'),
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              border: { display: false },
+              ticks: { font: { family: 'Inter', size: 11 }, color: '#bbb' }
+            },
+            y: {
+              min: 22,
+              max: 58,
+              grid: { color: '#F0EDE9', lineWidth: 1 },
+              border: { display: false },
+              ticks: {
+                font: { family: 'Inter', size: 11 },
+                color: '#bbb',
+                callback: v => `$${v}`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    makeChart(allLabels.slice(-9), allPrices.slice(-9));
+
+    function setPeriod(days, btn) {
+      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (days === 30) makeChart(allLabels.slice(-4), allPrices.slice(-4));
+      else if (days === 90) makeChart(allLabels.slice(-9), allPrices.slice(-9));
+      else makeChart(allLabels, allPrices);
+    }
+  </script>
+</body>
+</html>

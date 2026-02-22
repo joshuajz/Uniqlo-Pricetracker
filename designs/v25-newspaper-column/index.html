@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Option D — Newspaper Column</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #FCFAF9;
+      color: #111;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    nav {
+      height: 52px;
+      border-bottom: 1px solid #E8E4DF;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 32px;
+      position: sticky;
+      top: 0;
+      background: #FCFAF9;
+      z-index: 100;
+    }
+    .logo-block { display: flex; flex-direction: column; gap: 2px; }
+    .logo-top { font-size: 14px; font-weight: 900; letter-spacing: 0.1em; color: #111; text-transform: uppercase; line-height: 1; }
+    .logo-sub { font-size: 8px; font-weight: 700; letter-spacing: 0.2em; color: #B3001B; text-transform: uppercase; line-height: 1; }
+    .nav-links { display: flex; gap: 20px; flex: 1; }
+    .nav-links a { font-size: 13px; color: #666; }
+    .nav-links a.active { font-weight: 600; color: #B3001B; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; background: #26547C; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
+
+    /* ── Supertitle row ── */
+    .supertitle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #aaa;
+      border-bottom: 1px solid #E8E4DF;
+      padding: 18px 0 10px;
+      margin-bottom: 0;
+    }
+    .back-link {
+      font-size: 12px;
+      font-weight: 600;
+      color: #B3001B;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .back-link:hover { opacity: 0.75; }
+
+    /* ── Section banner ── */
+    .banner {
+      border-top: 3px solid #111;
+      padding: 14px 0 14px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+    }
+    .banner-title {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -0.025em;
+      color: #111;
+      flex: 1;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 3px 7px;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .badge-atl { background: #26547C; color: #fff; }
+    .badge-sale { background: #B3001B; color: #fff; }
+
+    /* ── Three-column grid ── */
+    .cols {
+      display: grid;
+      grid-template-columns: 260px 1fr 210px;
+      gap: 0;
+      border: 1px solid #E8E4DF;
+      min-height: 480px;
+    }
+
+    /* ── Left column ── */
+    .col-left {
+      border-right: 1px solid #E8E4DF;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .product-image {
+      width: 100%;
+      aspect-ratio: 3/4;
+      background: linear-gradient(160deg, hsl(220, 28%, 34%), hsl(240, 22%, 56%));
+      position: relative;
+    }
+    .product-image::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        45deg, transparent, transparent 3px,
+        rgba(255,255,255,0.012) 3px, rgba(255,255,255,0.012) 6px
+      );
+    }
+
+    .left-meta {
+      padding: 16px 18px;
+      flex: 1;
+      border-top: 1px solid #E8E4DF;
+    }
+    .left-cat {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 8px;
+    }
+    .left-name {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+      color: #111;
+      margin-bottom: 10px;
+    }
+    .left-gender {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 14px;
+    }
+
+    .detail-rows { display: flex; flex-direction: column; gap: 6px; }
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 11px;
+      padding: 5px 0;
+      border-bottom: 1px solid #F0EDE9;
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-key { color: #aaa; font-weight: 500; }
+    .detail-val { font-weight: 700; color: #111; }
+    .detail-val.green { color: #307351; }
+    .detail-val.red { color: #B3001B; }
+    .detail-val.blue { color: #26547C; }
+
+    /* ── Center column ── */
+    .col-center { padding: 20px 24px; display: flex; flex-direction: column; }
+
+    .center-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 16px;
+    }
+    .center-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #111;
+    }
+    .period-picker { display: flex; gap: 2px; }
+    .period-btn {
+      font-size: 11px;
+      font-weight: 600;
+      color: #aaa;
+      background: none;
+      border: 1px solid transparent;
+      cursor: pointer;
+      padding: 3px 8px;
+      font-family: inherit;
+      transition: all 0.1s;
+    }
+    .period-btn.active { color: #111; border-color: #E8E4DF; background: #FCFAF9; }
+    .period-btn:hover:not(.active) { color: #555; }
+
+    .chart-wrap { height: 220px; flex: 1; }
+
+    /* Stat row below chart */
+    .center-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-top: 3px solid #26547C;
+      margin-top: 20px;
+    }
+    .cstat-cell {
+      padding: 12px 14px;
+      border-right: 1px solid #E8E4DF;
+    }
+    .cstat-cell:last-child { border-right: none; }
+    .cstat-val { font-size: 19px; font-weight: 900; letter-spacing: -0.02em; color: #26547C; }
+    .cstat-val.red { color: #B3001B; }
+    .cstat-val.green { color: #307351; }
+    .cstat-lbl { font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #aaa; margin-top: 3px; }
+
+    /* Legend */
+    .chart-legend {
+      display: flex;
+      gap: 16px;
+      margin-top: 10px;
+    }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 9px; color: #bbb; }
+    .leg-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .leg-dash { width: 16px; border-top: 1.5px dashed #ccc; }
+
+    /* ── Right column ── */
+    .col-right {
+      border-left: 1px solid #E8E4DF;
+      padding: 20px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: sticky;
+      top: 52px;
+      align-self: start;
+    }
+
+    .right-section-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 8px;
+    }
+
+    .right-price {
+      font-size: 38px;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      color: #111;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .right-regular {
+      font-size: 13px;
+      color: #bbb;
+      text-decoration: line-through;
+      margin-bottom: 4px;
+    }
+
+    .right-discount {
+      font-size: 15px;
+      font-weight: 800;
+      color: #307351;
+      margin-bottom: 16px;
+    }
+
+    .right-badges { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+    .right-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      padding: 8px 10px;
+      border: 1px solid #E8E4DF;
+    }
+    .right-badge .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .right-badge-text { font-weight: 600; color: #111; }
+    .right-badge-sub { font-size: 10px; color: #aaa; }
+
+    .right-divider {
+      border-top: 1px solid #E8E4DF;
+      margin: 16px 0;
+    }
+
+    .notify-label-sm {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+
+    .notify-input {
+      width: 100%;
+      border: 1px solid #E8E4DF;
+      background: #fff;
+      padding: 9px 12px;
+      font-size: 12px;
+      font-family: inherit;
+      color: #111;
+      outline: none;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .notify-input:focus { border-color: #26547C; }
+    .notify-input::placeholder { color: #ccc; }
+
+    .notify-btn {
+      width: 100%;
+      background: #111;
+      color: #fff;
+      border: none;
+      padding: 11px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+    .notify-btn:hover { background: #B3001B; }
+
+    .updated-note { font-size: 9px; color: #ccc; margin-top: 12px; text-align: center; }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="#" class="logo-block">
+      <span class="logo-top">Uniqlo</span>
+      <span class="logo-sub">Price Tracker</span>
+    </a>
+    <div class="nav-links">
+      <a href="#">Home</a>
+      <a href="#">Categories</a>
+      <a href="#" class="active">Products</a>
+      <a href="#">Dashboard</a>
+      <a href="#">FAQ</a>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="avatar">JD</div>
+      <span style="font-size:13px;font-weight:500;color:#444">Josh</span>
+    </div>
+  </nav>
+
+  <div class="container">
+
+    <!-- Supertitle -->
+    <div class="supertitle-row">
+      <span>Tops &nbsp;/&nbsp; Women's &nbsp;/&nbsp; AIRism</span>
+      <a href="#" class="back-link">← Back to Tops</a>
+    </div>
+
+    <!-- Banner -->
+    <div class="banner">
+      <div class="banner-title">AIRism Cotton Full-Zip Hoodie</div>
+      <span class="badge badge-atl">All-Time Low</span>
+      <span class="badge badge-sale">On Sale</span>
+    </div>
+
+    <!-- Three columns -->
+    <div class="cols">
+
+      <!-- LEFT: product info -->
+      <div class="col-left">
+        <div class="product-image"></div>
+        <div class="left-meta">
+          <div class="left-cat">Women's · Tops · AIRism</div>
+          <div class="left-name">AIRism Cotton Full-Zip Hoodie</div>
+          <div class="left-gender">Women's</div>
+
+          <div class="detail-rows">
+            <div class="detail-row">
+              <span class="detail-key">Category</span>
+              <span class="detail-val">Tops</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-key">Line</span>
+              <span class="detail-val">AIRism</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-key">Material</span>
+              <span class="detail-val">Cotton Blend</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-key">Tracking since</span>
+              <span class="detail-val">Jan 2025</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-key">Last updated</span>
+              <span class="detail-val">Today</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER: chart -->
+      <div class="col-center">
+        <div class="center-header">
+          <span class="center-label">Price History</span>
+          <div class="period-picker">
+            <button class="period-btn" onclick="setPeriod(30,this)">30d</button>
+            <button class="period-btn active" onclick="setPeriod(90,this)">90d</button>
+            <button class="period-btn" onclick="setPeriod(0,this)">All</button>
+          </div>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="priceChart"></canvas>
+        </div>
+
+        <div class="chart-legend">
+          <div class="legend-item">
+            <div class="leg-dot" style="background:#26547C"></div>
+            Sale price
+          </div>
+          <div class="legend-item">
+            <div class="leg-dash"></div>
+            Regular ($49.90)
+          </div>
+          <div class="legend-item">
+            <div class="leg-dot" style="background:#B3001B"></div>
+            ATL
+          </div>
+        </div>
+
+        <div class="center-stats">
+          <div class="cstat-cell">
+            <div class="cstat-val red">$29.90</div>
+            <div class="cstat-lbl">All-Time Low</div>
+          </div>
+          <div class="cstat-cell">
+            <div class="cstat-val">$41.20</div>
+            <div class="cstat-lbl">Average</div>
+          </div>
+          <div class="cstat-cell">
+            <div class="cstat-val green">14×</div>
+            <div class="cstat-lbl">Sales</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: price + notify -->
+      <div class="col-right">
+        <div class="right-section-label">Current Price</div>
+
+        <div class="right-price">$29.90</div>
+        <div class="right-regular">Regular $49.90</div>
+        <div class="right-discount">↓ −40% (−$20.00)</div>
+
+        <div class="right-badges">
+          <div class="right-badge">
+            <div class="dot" style="background:#B3001B"></div>
+            <div>
+              <div class="right-badge-text">All-Time Low</div>
+              <div class="right-badge-sub">Lowest ever recorded</div>
+            </div>
+          </div>
+          <div class="right-badge">
+            <div class="dot" style="background:#26547C"></div>
+            <div>
+              <div class="right-badge-text">On Sale</div>
+              <div class="right-badge-sub">14× in past year</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="right-divider"></div>
+
+        <div class="right-section-label">Price Alert</div>
+        <div class="notify-label-sm">
+          Get notified when this item drops to your target price.
+        </div>
+        <input class="notify-input" type="email" placeholder="your@email.com" />
+        <input class="notify-input" type="text" placeholder="Target: $27.00" />
+        <button class="notify-btn">Set Alert →</button>
+
+        <div class="updated-note">Updated daily · Feb 18, 2026</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const allLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
+    const allPrices = [49.90, 49.90, 44.90, 49.90, 49.90, 39.90, 49.90, 34.90, 49.90, 49.90, 44.90, 49.90, 34.90, 29.90];
+
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    let chart;
+
+    function makeChart(labels, prices) {
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Price',
+              data: prices,
+              borderColor: '#26547C',
+              backgroundColor: 'rgba(38,84,124,0.07)',
+              fill: true,
+              tension: 0.32,
+              borderWidth: 2,
+              pointRadius: prices.map((p,i) => p === Math.min(...prices) ? 5 : (i === prices.length-1 ? 4 : 2)),
+              pointBackgroundColor: prices.map(p => p === Math.min(...prices) ? '#B3001B' : '#26547C'),
+            },
+            {
+              label: 'Regular',
+              data: prices.map(() => 49.90),
+              borderColor: '#ddd',
+              borderDash: [5, 4],
+              borderWidth: 1.5,
+              fill: false,
+              pointRadius: 0,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#fff',
+              borderColor: '#E8E4DF',
+              borderWidth: 1,
+              titleColor: '#aaa',
+              bodyColor: '#111',
+              titleFont: { family: 'Inter', size: 10 },
+              bodyFont: { family: 'Inter', size: 13, weight: '700' },
+              padding: 10,
+              callbacks: {
+                label: c => c.dataset.label === 'Regular' ? `  Reg. $${c.parsed.y.toFixed(2)}` : `  $${c.parsed.y.toFixed(2)}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              border: { display: false },
+              ticks: { font: { family: 'Inter', size: 10 }, color: '#aaa' }
+            },
+            y: {
+              min: 24,
+              max: 56,
+              grid: { color: '#F4F0EE' },
+              border: { display: false },
+              ticks: { font: { family: 'Inter', size: 10 }, color: '#aaa', callback: v => `$${v}` }
+            }
+          }
+        }
+      });
+    }
+
+    makeChart(allLabels.slice(-9), allPrices.slice(-9));
+
+    function setPeriod(days, btn) {
+      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (days === 30) makeChart(allLabels.slice(-4), allPrices.slice(-4));
+      else if (days === 90) makeChart(allLabels.slice(-9), allPrices.slice(-9));
+      else makeChart(allLabels, allPrices);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Option C — Minimal Card</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #FCFAF9;
+      color: #111;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    nav {
+      height: 52px;
+      border-bottom: 1px solid #E8E4DF;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 32px;
+      position: sticky;
+      top: 0;
+      background: #FCFAF9;
+      z-index: 100;
+    }
+    .logo-block { display: flex; flex-direction: column; gap: 2px; }
+    .logo-top { font-size: 14px; font-weight: 900; letter-spacing: 0.1em; color: #111; text-transform: uppercase; line-height: 1; }
+    .logo-sub { font-size: 8px; font-weight: 700; letter-spacing: 0.2em; color: #B3001B; text-transform: uppercase; line-height: 1; }
+    .nav-links { display: flex; gap: 20px; flex: 1; }
+    .nav-links a { font-size: 13px; color: #666; text-decoration: none; }
+    .nav-links a.active { font-weight: 600; color: #B3001B; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; background: #26547C; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; }
+
+    .page {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    /* Back link */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #B3001B;
+      text-decoration: none;
+      margin: 24px 0 16px;
+    }
+    .back-link:hover { opacity: 0.75; }
+
+    /* Card */
+    .card {
+      border: 1px solid #E8E4DF;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    /* Image */
+    .card-image {
+      width: 100%;
+      aspect-ratio: 4/3;
+      background: linear-gradient(160deg, hsl(220, 28%, 34%), hsl(240, 22%, 56%));
+      position: relative;
+      overflow: hidden;
+    }
+    .card-image::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.2) 0%, transparent 40%);
+    }
+    .image-badges {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      display: flex;
+      gap: 6px;
+      z-index: 2;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 3px 7px;
+      text-transform: uppercase;
+    }
+    .badge-atl { background: #26547C; color: #fff; }
+    .badge-sale { background: #B3001B; color: #fff; }
+
+    /* Content */
+    .card-content { padding: 28px; }
+
+    .cat-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 8px;
+    }
+
+    .product-name {
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: #111;
+      margin-bottom: 16px;
+      line-height: 1.1;
+    }
+
+    /* Price row */
+    .price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+    .price-current { font-size: 32px; font-weight: 900; letter-spacing: -0.03em; }
+    .price-regular { font-size: 15px; color: #bbb; text-decoration: line-through; }
+    .price-badge {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      background: #307351;
+      padding: 2px 7px;
+    }
+    .price-note { font-size: 11px; color: #999; margin-bottom: 24px; }
+
+    /* Section divider */
+    .divider {
+      border-top: 3px solid #111;
+      margin: 24px -28px;
+      padding: 16px 28px 0;
+    }
+    .divider-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #111;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Stats inline */
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      border: 1px solid #E8E4DF;
+      margin-bottom: 16px;
+    }
+    .stat-item {
+      padding: 10px 14px;
+      border-right: 1px solid #E8E4DF;
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-val { font-size: 16px; font-weight: 900; color: #26547C; letter-spacing: -0.02em; }
+    .stat-val.red { color: #B3001B; }
+    .stat-val.green { color: #307351; }
+    .stat-lbl { font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #aaa; margin-top: 2px; }
+
+    /* Sparkline */
+    .spark-wrap { height: 80px; margin-bottom: 10px; }
+    .spark-footer {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #bbb;
+      margin-bottom: 4px;
+    }
+
+    /* Period picker */
+    .period-picker { display: flex; gap: 10px; }
+    .period-btn {
+      font-size: 11px;
+      font-weight: 600;
+      color: #aaa;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      font-family: inherit;
+      transition: color 0.1s;
+    }
+    .period-btn.active { color: #B3001B; }
+    .period-btn:hover { color: #111; }
+
+    /* Notify */
+    .notify-label {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .notify-row { display: flex; }
+    .notify-input {
+      flex: 1;
+      border: 1px solid #E8E4DF;
+      border-right: none;
+      padding: 11px 14px;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      background: #FCFAF9;
+      color: #111;
+    }
+    .notify-input:focus { border-color: #26547C; background: #fff; }
+    .notify-input::placeholder { color: #ccc; }
+    .notify-btn {
+      padding: 11px 18px;
+      background: #111;
+      color: #fff;
+      border: 1px solid #111;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .notify-btn:hover { background: #B3001B; border-color: #B3001B; }
+
+    /* Related products */
+    .related-header {
+      border-top: 3px solid #111;
+      padding-top: 12px;
+      margin-top: 32px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+    .related-label { font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
+    .related-link { font-size: 11px; font-weight: 600; color: #B3001B; }
+
+    /* Product rows */
+    .product-row {
+      display: grid;
+      grid-template-columns: 52px 1fr auto auto 86px 48px;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid #E8E4DF;
+      cursor: pointer;
+      transition: background 0.1s;
+      margin: 0 -4px;
+      padding-left: 4px;
+      padding-right: 4px;
+    }
+    .product-row:hover { background: #F4F0EE; }
+    .row-thumb { width: 52px; height: 52px; flex-shrink: 0; }
+    .row-name { font-size: 13px; font-weight: 500; color: #111; line-height: 1.2; }
+    .row-gender { font-size: 10px; color: #999; margin-top: 2px; }
+    .row-price { font-size: 14px; font-weight: 700; text-align: right; }
+    .row-reg { font-size: 10px; color: #bbb; text-decoration: line-through; text-align: right; }
+    .row-discount { font-size: 12px; font-weight: 700; color: #307351; text-align: right; }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="#" class="logo-block">
+      <span class="logo-top">Uniqlo</span>
+      <span class="logo-sub">Price Tracker</span>
+    </a>
+    <div class="nav-links">
+      <a href="#">Home</a>
+      <a href="#">Categories</a>
+      <a href="#" class="active">Products</a>
+      <a href="#">Dashboard</a>
+      <a href="#">FAQ</a>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="avatar">JD</div>
+      <span style="font-size:13px;font-weight:500;color:#444">Josh</span>
+    </div>
+  </nav>
+
+  <div class="page">
+
+    <a href="#" class="back-link">← Back to Tops</a>
+
+    <!-- Card -->
+    <div class="card">
+
+      <!-- Image -->
+      <div class="card-image">
+        <div class="image-badges">
+          <span class="badge badge-atl">All-Time Low</span>
+          <span class="badge badge-sale">On Sale</span>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="card-content">
+
+        <div class="cat-label">Women's · Tops · AIRism</div>
+        <div class="product-name">AIRism Cotton Full-Zip Hoodie</div>
+
+        <div class="price-row">
+          <span class="price-current">$29.90</span>
+          <span class="price-regular">$49.90</span>
+          <span class="price-badge">−40%</span>
+        </div>
+        <div class="price-note">You save $20.00 · This is the all-time low price</div>
+
+        <!-- Stats -->
+        <div class="stats-strip">
+          <div class="stat-item">
+            <div class="stat-val">$29.90</div>
+            <div class="stat-lbl">Current</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val red">$29.90</div>
+            <div class="stat-lbl">All-Time Low</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val">$41.20</div>
+            <div class="stat-lbl">Avg Price</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val green">14×</div>
+            <div class="stat-lbl">On Sale</div>
+          </div>
+        </div>
+
+        <!-- Price History -->
+        <div class="divider">
+          <div class="divider-label">
+            <span>Price History</span>
+            <div class="period-picker">
+              <button class="period-btn" onclick="setPeriod(30,this)">30d</button>
+              <button class="period-btn active" onclick="setPeriod(90,this)">90d</button>
+              <button class="period-btn" onclick="setPeriod(0,this)">All</button>
+            </div>
+          </div>
+
+          <div class="spark-wrap">
+            <canvas id="priceChart"></canvas>
+          </div>
+
+          <div class="spark-footer">
+            <span>Low $29.90</span>
+            <span>Avg $41.20</span>
+            <span>High $49.90</span>
+          </div>
+        </div>
+
+        <!-- Notify -->
+        <div class="divider">
+          <div class="divider-label">Notify Me</div>
+          <div class="notify-label">
+            Get an email when this item drops below your target price.
+          </div>
+          <div class="notify-row">
+            <input class="notify-input" type="email" placeholder="your@email.com" />
+            <button class="notify-btn">Alert Me</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Related -->
+    <div class="related-header">
+      <span class="related-label">More in Tops</span>
+      <a href="#" class="related-link">View all →</a>
+    </div>
+
+    <!-- Row 1 -->
+    <div class="product-row">
+      <div class="row-thumb" style="background:linear-gradient(160deg,hsl(30,28%,36%),hsl(50,22%,54%))"></div>
+      <div>
+        <div class="row-name">Heattech Ultra Warm Crew Neck</div>
+        <div class="row-gender">Men's</div>
+      </div>
+      <span class="badge badge-sale">Sale</span>
+      <div></div>
+      <div>
+        <div class="row-price">$19.90</div>
+        <div class="row-reg">$34.90</div>
+      </div>
+      <div class="row-discount">−43%</div>
+    </div>
+
+    <!-- Row 2 -->
+    <div class="product-row">
+      <div class="row-thumb" style="background:linear-gradient(160deg,hsl(10,28%,36%),hsl(30,22%,54%))"></div>
+      <div>
+        <div class="row-name">Relaxed Fit Ribbed Tank Top</div>
+        <div class="row-gender">Women's</div>
+      </div>
+      <div></div>
+      <span class="badge badge-atl" style="font-size:9px;padding:2px 5px;">ATL</span>
+      <div>
+        <div class="row-price">$14.90</div>
+        <div class="row-reg">$24.90</div>
+      </div>
+      <div class="row-discount">−40%</div>
+    </div>
+
+    <!-- Row 3 -->
+    <div class="product-row">
+      <div class="row-thumb" style="background:linear-gradient(160deg,hsl(160,28%,36%),hsl(180,22%,54%))"></div>
+      <div>
+        <div class="row-name">Linen Blend Relaxed Shirt</div>
+        <div class="row-gender">Unisex</div>
+      </div>
+      <span class="badge badge-sale">Sale</span>
+      <div></div>
+      <div>
+        <div class="row-price">$29.90</div>
+        <div class="row-reg">$49.90</div>
+      </div>
+      <div class="row-discount">−40%</div>
+    </div>
+
+  </div>
+
+  <script>
+    const allLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
+    const allPrices = [49.90, 49.90, 44.90, 49.90, 49.90, 39.90, 49.90, 34.90, 49.90, 49.90, 44.90, 49.90, 34.90, 29.90];
+
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    let chart;
+
+    function makeChart(labels, prices) {
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              data: prices,
+              borderColor: '#26547C',
+              backgroundColor: 'rgba(38,84,124,0.06)',
+              fill: true,
+              tension: 0.35,
+              borderWidth: 1.5,
+              pointRadius: prices.map((p,i) => p === Math.min(...prices) ? 4 : (i === prices.length-1 ? 3 : 1.5)),
+              pointBackgroundColor: prices.map(p => p === Math.min(...prices) ? '#B3001B' : '#26547C'),
+            },
+            {
+              data: prices.map(() => 49.90),
+              borderColor: '#E8E4DF',
+              borderDash: [4,3],
+              borderWidth: 1,
+              fill: false,
+              pointRadius: 0,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#fff',
+              borderColor: '#E8E4DF',
+              borderWidth: 1,
+              titleColor: '#999',
+              bodyColor: '#111',
+              titleFont: { family: 'Inter', size: 10 },
+              bodyFont: { family: 'Inter', size: 13, weight: '700' },
+              callbacks: { label: c => `$${c.parsed.y.toFixed(2)}` },
+              filter: item => item.datasetIndex === 0,
+            }
+          },
+          scales: {
+            x: { display: false },
+            y: {
+              min: 24,
+              max: 56,
+              display: false,
+            }
+          }
+        }
+      });
+    }
+
+    makeChart(allLabels.slice(-9), allPrices.slice(-9));
+
+    function setPeriod(days, btn) {
+      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (days === 30) makeChart(allLabels.slice(-4), allPrices.slice(-4));
+      else if (days === 90) makeChart(allLabels.slice(-9), allPrices.slice(-9));
+      else makeChart(allLabels, allPrices);
+    }
+  </script>
+</body>
+</html>

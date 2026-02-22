@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Option A — Editorial Split</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #FCFAF9;
+      color: #111;
+      -webkit-font-smoothing: antialiased;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Navbar ── */
+    nav {
+      height: 52px;
+      border-bottom: 1px solid #E8E4DF;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 32px;
+      flex-shrink: 0;
+      background: #FCFAF9;
+      z-index: 10;
+    }
+    .logo-block { display: flex; flex-direction: column; gap: 2px; text-decoration: none; }
+    .logo-top { font-size: 14px; font-weight: 900; letter-spacing: 0.1em; color: #111; text-transform: uppercase; line-height: 1; }
+    .logo-sub { font-size: 8px; font-weight: 700; letter-spacing: 0.2em; color: #B3001B; text-transform: uppercase; line-height: 1; }
+    .nav-links { display: flex; gap: 20px; flex: 1; }
+    .nav-links a { font-size: 13px; font-weight: 400; color: #666; text-decoration: none; }
+    .nav-links a.active { font-weight: 600; color: #B3001B; }
+    .user-pill { display: flex; align-items: center; gap: 8px; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; background: #26547C; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; }
+
+    /* ── Two-column layout ── */
+    .page-body {
+      display: grid;
+      grid-template-columns: 1fr 480px;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Left panel: image ── */
+    .image-panel {
+      position: relative;
+      background: linear-gradient(160deg, hsl(220, 28%, 32%), hsl(240, 22%, 52%));
+      overflow: hidden;
+    }
+    .image-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.28) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.14) 100%);
+    }
+    .back-link {
+      position: absolute;
+      top: 20px;
+      left: 24px;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .back-link:hover { color: #fff; }
+    .image-label {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      right: 24px;
+    }
+    .image-label-cat {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 6px;
+    }
+    .image-label-name {
+      font-size: 22px;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+    /* subtle fabric texture overlay */
+    .image-panel::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 2px,
+        rgba(255,255,255,0.015) 2px,
+        rgba(255,255,255,0.015) 4px
+      );
+      pointer-events: none;
+    }
+
+    /* ── Right panel ── */
+    .meta-panel {
+      overflow-y: auto;
+      border-left: 1px solid #E8E4DF;
+      padding: 36px 36px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .meta-panel::-webkit-scrollbar { width: 4px; }
+    .meta-panel::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+
+    /* Supertitle */
+    .supertitle {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 12px;
+    }
+
+    /* Product name */
+    .product-name {
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      margin-bottom: 16px;
+      color: #111;
+    }
+
+    /* Badges */
+    .badges { display: flex; gap: 6px; margin-bottom: 24px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 3px 7px;
+      text-transform: uppercase;
+    }
+    .badge-atl { background: #26547C; color: #fff; }
+    .badge-sale { background: #B3001B; color: #fff; }
+
+    /* Price block */
+    .price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+    .price-current { font-size: 40px; font-weight: 900; letter-spacing: -0.03em; color: #111; }
+    .price-regular { font-size: 16px; color: #bbb; text-decoration: line-through; font-weight: 400; }
+    .price-discount { font-size: 14px; font-weight: 700; color: #307351; }
+    .price-savings { font-size: 12px; color: #999; margin-bottom: 28px; }
+
+    /* Section header */
+    .section-header {
+      border-top: 3px solid #111;
+      padding-top: 14px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-top: 28px;
+    }
+    .section-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #111;
+    }
+
+    /* Period picker */
+    .period-picker { display: flex; gap: 12px; }
+    .period-btn {
+      font-size: 11px;
+      font-weight: 600;
+      color: #aaa;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      font-family: inherit;
+      transition: color 0.1s;
+    }
+    .period-btn.active { color: #B3001B; }
+    .period-btn:hover { color: #111; }
+
+    /* Chart wrapper */
+    .chart-wrap { height: 180px; margin-bottom: 16px; }
+
+    /* Price stats */
+    .price-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border: 1px solid #E8E4DF;
+      margin-bottom: 4px;
+    }
+    .stat-cell {
+      padding: 10px 14px;
+      border-right: 1px solid #E8E4DF;
+      border-bottom: 1px solid #E8E4DF;
+    }
+    .stat-cell:nth-child(2n) { border-right: none; }
+    .stat-cell:nth-child(3), .stat-cell:nth-child(4) { border-bottom: none; }
+    .stat-val { font-size: 17px; font-weight: 800; color: #26547C; letter-spacing: -0.02em; }
+    .stat-val.atl { color: #B3001B; }
+    .stat-lbl { font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #aaa; margin-top: 2px; }
+
+    /* Notify section */
+    .notify-desc {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+    .notify-row { display: flex; gap: 0; }
+    .notify-input {
+      flex: 1;
+      border: 1px solid #E8E4DF;
+      border-right: none;
+      background: #fff;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-family: inherit;
+      color: #111;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .notify-input:focus { border-color: #26547C; }
+    .notify-input::placeholder { color: #bbb; }
+    .notify-btn {
+      background: #111;
+      color: #fff;
+      border: 1px solid #111;
+      padding: 10px 18px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .notify-btn:hover { background: #B3001B; border-color: #B3001B; }
+
+    /* Price drop target */
+    .threshold-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .threshold-label { font-size: 11px; color: #999; }
+    .threshold-input {
+      border: none;
+      border-bottom: 1px solid #E8E4DF;
+      background: transparent;
+      padding: 2px 4px;
+      width: 70px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      color: #111;
+      outline: none;
+    }
+    .threshold-input:focus { border-bottom-color: #26547C; }
+
+    /* Data label row */
+    .data-note {
+      font-size: 10px;
+      color: #bbb;
+      letter-spacing: 0.04em;
+      margin-top: 6px;
+      display: flex;
+      gap: 16px;
+    }
+    .data-note span { display: flex; align-items: center; gap: 5px; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav>
+    <a href="#" class="logo-block">
+      <span class="logo-top">Uniqlo</span>
+      <span class="logo-sub">Price Tracker</span>
+    </a>
+    <div class="nav-links">
+      <a href="#">Home</a>
+      <a href="#">Categories</a>
+      <a href="#" class="active">Products</a>
+      <a href="#">Dashboard</a>
+      <a href="#">FAQ</a>
+    </div>
+    <div class="user-pill">
+      <div class="avatar">JD</div>
+      <span style="font-size:13px;font-weight:500;color:#444;">Josh</span>
+    </div>
+  </nav>
+
+  <!-- Two-column body -->
+  <div class="page-body">
+
+    <!-- Left: Image -->
+    <div class="image-panel">
+      <div class="image-overlay"></div>
+      <a href="#" class="back-link">← Back to Tops</a>
+      <div class="image-label">
+        <div class="image-label-cat">Women's · Tops · Airism</div>
+        <div class="image-label-name">AIRism Cotton<br>Full-Zip Hoodie</div>
+      </div>
+    </div>
+
+    <!-- Right: Metadata -->
+    <div class="meta-panel">
+
+      <div class="supertitle">Uniqlo Canada · Product Detail</div>
+
+      <div class="product-name">AIRism Cotton Full-Zip Hoodie</div>
+
+      <div class="badges">
+        <span class="badge badge-atl">All-Time Low</span>
+        <span class="badge badge-sale">On Sale</span>
+      </div>
+
+      <div class="price-row">
+        <span class="price-current">$29.90</span>
+        <span class="price-regular">$49.90</span>
+        <span class="price-discount">−40%</span>
+      </div>
+      <div class="price-savings">You save $20.00 · Lowest price ever recorded</div>
+
+      <!-- Price History -->
+      <div class="section-header">
+        <span class="section-label">Price History</span>
+        <div class="period-picker">
+          <button class="period-btn" onclick="setPeriod(30,this)">30d</button>
+          <button class="period-btn active" onclick="setPeriod(90,this)">90d</button>
+          <button class="period-btn" onclick="setPeriod(0,this)">All</button>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <canvas id="priceChart"></canvas>
+      </div>
+
+      <div class="data-note">
+        <span><span class="dot" style="background:#26547C"></span>Sale price</span>
+        <span><span class="dot" style="background:#E8E4DF;border:1px solid #ccc"></span>Regular $49.90</span>
+        <span><span class="dot" style="background:#B3001B"></span>ATL $29.90</span>
+      </div>
+
+      <!-- Stats -->
+      <div class="section-header">
+        <span class="section-label">Price Statistics</span>
+      </div>
+
+      <div class="price-stats">
+        <div class="stat-cell">
+          <div class="stat-val">$29.90</div>
+          <div class="stat-lbl">Current Price</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-val atl">$29.90</div>
+          <div class="stat-lbl">All-Time Low</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-val">$41.20</div>
+          <div class="stat-lbl">Average Price</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-val">14×</div>
+          <div class="stat-lbl">Times On Sale</div>
+        </div>
+      </div>
+
+      <!-- Notify -->
+      <div class="section-header">
+        <span class="section-label">Notify Me</span>
+      </div>
+
+      <div class="notify-desc">Get an email alert when this product drops below your target price.</div>
+
+      <div class="notify-row">
+        <input class="notify-input" type="email" placeholder="your@email.com" />
+        <button class="notify-btn">Set Alert</button>
+      </div>
+      <div class="threshold-row">
+        <span class="threshold-label">Alert when price drops below</span>
+        <input class="threshold-input" type="text" value="$27.00" />
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const allLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
+    const allPrices = [49.90, 49.90, 44.90, 49.90, 49.90, 39.90, 49.90, 34.90, 49.90, 49.90, 44.90, 49.90, 34.90, 29.90];
+
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    let chart = makeChart(allLabels.slice(-9), allPrices.slice(-9));
+
+    function makeChart(labels, prices) {
+      if (chart) chart.destroy();
+      return new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Price',
+              data: prices,
+              borderColor: '#26547C',
+              backgroundColor: 'rgba(38,84,124,0.07)',
+              fill: true,
+              tension: 0.35,
+              pointRadius: prices.map((p,i) => i === prices.length-1 ? 4 : (p === Math.min(...prices) ? 4 : 2)),
+              pointBackgroundColor: prices.map((p,i) => i === prices.length-1 ? '#26547C' : (p === Math.min(...prices) ? '#B3001B' : '#26547C')),
+              borderWidth: 2,
+            },
+            {
+              label: 'Regular',
+              data: prices.map(() => 49.90),
+              borderColor: '#E8E4DF',
+              borderDash: [5, 4],
+              borderWidth: 1.5,
+              fill: false,
+              pointRadius: 0,
+              tension: 0,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#fff',
+              borderColor: '#E8E4DF',
+              borderWidth: 1,
+              titleColor: '#aaa',
+              bodyColor: '#111',
+              titleFont: { family: 'Inter', size: 10, weight: '600' },
+              bodyFont: { family: 'Inter', size: 13, weight: '700' },
+              callbacks: { label: c => c.dataset.label === 'Regular' ? null : `$${c.parsed.y.toFixed(2)}` },
+              filter: item => item.dataset.label !== 'Regular',
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              border: { display: false },
+              ticks: { font: { family: 'Inter', size: 10 }, color: '#aaa' }
+            },
+            y: {
+              min: 24,
+              max: 56,
+              grid: { color: '#F4F0EE', drawBorder: false },
+              border: { display: false },
+              ticks: {
+                font: { family: 'Inter', size: 10 },
+                color: '#aaa',
+                callback: v => `$${v}`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function setPeriod(days, btn) {
+      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (days === 30) {
+        chart = makeChart(allLabels.slice(-4), allPrices.slice(-4));
+      } else if (days === 90) {
+        chart = makeChart(allLabels.slice(-9), allPrices.slice(-9));
+      } else {
+        chart = makeChart(allLabels, allPrices);
+      }
+    }
+  </script>
+</body>
+</html>
