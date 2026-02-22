@@ -124,10 +124,10 @@ func initDB() error {
 			price NUMERIC(10,2) NOT NULL,
 			url TEXT NOT NULL,
 			category JSONB NOT NULL,
-			datetime TIMESTAMPTZ NOT NULL
+			datetime DATE NOT NULL
 		)`,
 		`CREATE TABLE IF NOT EXISTS scraper (
-			datetime TIMESTAMPTZ NOT NULL,
+			datetime DATE NOT NULL,
 			scraper_version TEXT NOT NULL,
 			total_products INTEGER NOT NULL,
 			total_failed INTEGER NOT NULL,
@@ -137,10 +137,15 @@ func initDB() error {
 		`CREATE TABLE IF NOT EXISTS stats (
 			product_id TEXT NOT NULL UNIQUE,
 			lowest_price NUMERIC(10,2) NOT NULL,
-			lowest_price_datetime TIMESTAMPTZ NOT NULL,
+			lowest_price_datetime DATE NOT NULL,
 			highest_price NUMERIC(10,2) NOT NULL,
-			highest_price_datetime TIMESTAMPTZ NOT NULL,
+			highest_price_datetime DATE NOT NULL,
 			regular_price NUMERIC(10,2) NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS images (
+			product_id TEXT NOT NULL UNIQUE,
+			image BYTEA NOT NULL,
+			last_updated DATE DEFAULT NOW()
 		)`,
 	}
 

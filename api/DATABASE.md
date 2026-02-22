@@ -1,4 +1,5 @@
 # Database Schema
+
 **PostgreSQL Database:**
 
 ```sql
@@ -23,9 +24,9 @@ CREATE TABLE scraper (
 CREATE TABLE stats (
     product_id TEXT NOT NULL UNIQUE,
     lowest_price NUMERIC(10,2) NOT NULL,
-    lowest_price_datetime TIMESTAMPTZ NOT NULL,
+    lowest_price_datetime DATE NOT NULL,
     highest_price NUMERIC(10,2) NOT NULL,
-    highest_price_datetime TIMESTAMPTZ NOT NULL,
+    highest_price_datetime DATE NOT NULL,
     regular_price NUMERIC(10,2) NOT NULL
 );
 
