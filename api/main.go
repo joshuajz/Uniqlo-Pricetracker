@@ -684,11 +684,33 @@ func getProduct(c *gin.Context) {
 }
 
 func getCategories(c *gin.Context) {
-	err, response := db.Query("SELECT * FROM categories")
+	rows, err := db.Query("SELECT category FROM categories")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get categories"})
+		return
 	}
-	c.JSON(http.StatusOK, response)
+	defer rows.Close()
+
+	var categories []string
+	for rows.Next() {
+		var category string
+		if err := rows.Scan(&category); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan category"})
+			return
+		}
+		categories = append(categories, category)
+	}
+
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating categories"})
+		return
+	}
+
+	if categories == nil {
+		categories = []string{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"categories": categories})
 }
 
 // getProductsByCategory returns all products from the most recent scrape filtered by category
