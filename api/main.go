@@ -683,6 +683,14 @@ func getProduct(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+func getCategories(c *gin.Context) {
+	err, response := db.Query("SELECT * FROM categories")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get categories"})
+	}
+	c.JSON(http.StatusOK, response)
+}
+
 // getProductsByCategory returns all products from the most recent scrape filtered by category
 func getProductsByCategory(c *gin.Context) {
 	category := c.Param("category")
@@ -809,6 +817,8 @@ func main() {
 
 	// Public endpoint to get product image
 	router.GET("/api/product/:id/image", getProductImage)
+
+	router.GET("/api/categories", getCategories)
 
 	// Protected endpoint to ingest scraped data
 	authUser := os.Getenv("AUTH_USER")
