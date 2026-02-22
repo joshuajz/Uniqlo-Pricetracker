@@ -147,29 +147,30 @@ function CatSection({
       {/* Header */}
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between py-4 bg-transparent border-none cursor-pointer font-sans text-left"
+        className="w-full grid grid-cols-[1fr_100px_88px_72px_auto] items-center gap-4 py-4 bg-transparent border-none cursor-pointer font-sans text-left"
       >
-        <div className="flex items-baseline gap-4">
-          <span className="text-[15px] font-[800] tracking-[0.1em] uppercase text-gray-900">
-            {name}
-          </span>
-          <span className="text-xs text-gray-400">
-            {products.length} products
-          </span>
+        <span className="text-[15px] font-[800] tracking-[0.1em] uppercase text-gray-900">
+          {name}
+        </span>
+        <span className="text-xs text-gray-400">
+          {products.length} products
+        </span>
+        <div>
           {onSaleCount > 0 && (
-            <span className="text-xs">
-              <span className="text-red-600 font-semibold">{onSaleCount}</span>
-              <span className="text-gray-400"> on sale</span>
+            <span className="inline-flex items-center bg-red-700 text-red-100 text-[10px] font-bold tracking-[0.06em] px-1.5 py-0.5 leading-[1.4]">
+              {onSaleCount} SALE
             </span>
           )}
+        </div>
+        <div>
           {atlCount > 0 && (
-            <span className="inline-flex items-center bg-sky-600 text-sky-100 text-[10px] font-bold tracking-[0.06em] px-1.5 py-0.5 leading-[1.4] align-middle">
+            <span className="inline-flex items-center bg-sky-600 text-sky-100 text-[10px] font-bold tracking-[0.06em] px-1.5 py-0.5 leading-[1.4]">
               {atlCount} ATL
             </span>
           )}
         </div>
-        <div className="text-gray-300 flex items-center gap-2">
-          <span className="text-xs text-gray-300">{isOpen ? 'Collapse' : 'Expand'}</span>
+        <div className="text-gray-300 flex items-center gap-2 justify-end">
+          <span className="text-xs">{isOpen ? 'Collapse' : 'Expand'}</span>
           {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         </div>
       </button>

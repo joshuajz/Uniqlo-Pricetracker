@@ -205,7 +205,7 @@ export default function HomePage() {
       </div>
 
       {/* ── Stat cards ── */}
-      <div className="grid grid-cols-4 border-t-[3px] border-sky-700 border-l border-r border-stone-200 mb-11">
+      <div className="grid grid-cols-4 border-t-[3px] border-t-zinc-700 border-l border-l-zinc-700 border-r border-r-zinc-700 mb-11">
         {[
           { value: stats.total, label: 'Products Tracked' },
           { value: stats.onSale, label: 'On Sale Now' },
@@ -214,9 +214,9 @@ export default function HomePage() {
         ].map((s, i) => (
           <div
             key={i}
-            className={`px-4 py-[14px] border-b border-stone-200 ${i < 3 ? 'border-r border-stone-200' : ''}`}
+            className={`px-4 py-[14px] border-b border-b-zinc-700 ${i < 3 ? 'border-r border-r-zinc-700' : ''}`}
           >
-            <div className="text-[30px] font-black tracking-[-0.03em] leading-none text-sky-700">
+            <div className="text-[30px] font-black tracking-[-0.03em] leading-none text-red-700">
               {s.value}
             </div>
             <div className="text-[10px] font-semibold tracking-[0.12em] uppercase text-gray-400 mt-1">

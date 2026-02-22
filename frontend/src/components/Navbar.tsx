@@ -36,13 +36,6 @@ export default function Navbar() {
         ))}
       </div>
 
-      {/* User pill */}
-      <div className="flex items-center gap-2 shrink-0">
-        <div className="w-7 h-7 rounded-full bg-sky-800 flex items-center justify-center text-[10px] font-bold text-white tracking-[0.05em]">
-          JD
-        </div>
-        <span className="text-[13px] font-medium text-gray-700">Josh</span>
-      </div>
     </nav>
   )
 }

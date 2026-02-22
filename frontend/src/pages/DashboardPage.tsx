@@ -201,8 +201,8 @@ function DashRow({ product: p, isExpanded, onToggle }: {
 
         {/* Badges */}
         <div className="flex flex-col gap-[3px] items-end">
-          {atl  && <span className="inline-flex items-center bg-sky-600 text-sky-100 text-[10px] font-bold tracking-[0.06em] px-1.5 py-0.5 leading-[1.4]">ATL</span>}
-          {sale && <span className="inline-flex items-center bg-red-700 text-red-100 text-[10px] font-bold tracking-[0.06em] px-1.5 py-0.5 leading-[1.4]">SALE</span>}
+          <span className={`inline-flex items-center justify-center w-10 bg-sky-600 text-sky-100 text-[10px] font-bold tracking-[0.06em] py-0.5 leading-[1.4] ${atl ? '' : 'invisible'}`}>ATL</span>
+          <span className={`inline-flex items-center justify-center w-10 bg-red-700 text-red-100 text-[10px] font-bold tracking-[0.06em] py-0.5 leading-[1.4] ${sale ? '' : 'invisible'}`}>SALE</span>
         </div>
 
         {/* Expand toggle */}
