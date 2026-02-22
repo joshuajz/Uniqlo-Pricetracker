@@ -15,7 +15,7 @@ import PriceSparkline from '../components/PriceSparkline'
 function DashStat({ value, label, accent }: { value: string | number; label: string; accent?: boolean }) {
   return (
     <div className={`border-t-[3px] pt-3 ${accent ? 'border-red-600' : 'border-gray-900'}`}>
-      <div className="text-[28px] font-black tracking-[-0.03em]">{value}</div>
+      <div className="text-[22px] sm:text-[28px] font-black tracking-[-0.03em]">{value}</div>
       <div className="text-[11px] font-semibold tracking-[0.1em] text-gray-400 uppercase mt-[3px]">
         {label}
       </div>
@@ -31,14 +31,14 @@ function PriceChart({ product }: { product: Product }) {
   const change = history.length >= 2 ? history[history.length - 1] - history[history.length - 2] : 0
 
   return (
-    <div className="pr-4 pt-5 pb-5 border-t border-gray-100">
-      <div className="grid grid-cols-[1fr_280px] gap-6">
+    <div className="px-1 sm:px-0 sm:pr-4 pt-5 pb-5 border-t border-gray-100">
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_280px] gap-4 sm:gap-6">
         {/* Chart */}
         <div>
           <div className="text-[11px] font-bold tracking-[0.1em] text-gray-400 uppercase mb-3">
             Price History (10 months)
           </div>
-          <ResponsiveContainer width="100%" height={180}>
+          <ResponsiveContainer width="100%" height={160}>
             <AreaChart data={chartData} margin={{ top: 5, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id={`grad-${product.id}`} x1="0" y1="0" x2="0" y2="1">
@@ -151,10 +151,43 @@ function DashRow({ product: p, isExpanded, onToggle }: {
 
   return (
     <div className="border-b border-gray-100 group">
-      {/* Row header */}
+
+      {/* ── Mobile layout ── */}
       <div
         onClick={onToggle}
-        className="grid grid-cols-[1fr_100px_100px_88px_88px_80px_32px] items-center gap-3 px-2 py-3 cursor-pointer transition-colors group-hover:bg-stone-100 -mx-2"
+        className="sm:hidden flex items-center gap-3 px-1 py-3 cursor-pointer transition-colors hover:bg-stone-100"
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="text-sm font-medium leading-snug flex-1 min-w-0">{p.name}</div>
+            <div className="text-right shrink-0">
+              <div className="text-sm font-bold">${p.price.toFixed(2)}</div>
+              {sale && <div className="text-xs font-bold text-emerald-600">−{pct}%</div>}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            <span className="inline-flex items-center bg-stone-100 text-gray-500 text-[10px] font-semibold tracking-[0.08em] px-[5px] py-[1px] leading-[1.4]">
+              {p.category.toUpperCase()}
+            </span>
+            <span className="text-[11px] text-gray-300">{genderLabel(p.gender)}</span>
+            {sale && <span className="text-[11px] text-green-600 font-semibold">Save ${savings.toFixed(2)}</span>}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-col gap-[3px]">
+            <span className={`inline-flex items-center justify-center w-10 bg-sky-600 text-sky-100 text-[10px] font-bold tracking-[0.06em] py-0.5 leading-[1.4] ${atl ? '' : 'invisible'}`}>ATL</span>
+            <span className={`inline-flex items-center justify-center w-10 bg-red-700 text-red-100 text-[10px] font-bold tracking-[0.06em] py-0.5 leading-[1.4] ${sale ? '' : 'invisible'}`}>SALE</span>
+          </div>
+          <div className="text-gray-300">
+            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Desktop layout ── */}
+      <div
+        onClick={onToggle}
+        className="hidden sm:grid grid-cols-[1fr_100px_100px_88px_88px_80px_32px] items-center gap-3 px-2 py-3 cursor-pointer transition-colors group-hover:bg-stone-100 -mx-2"
       >
         {/* Name + category */}
         <div>
@@ -253,14 +286,14 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="max-w-[1100px] mx-auto px-6 pt-10 pb-[60px]">
+    <div className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-10 pb-[60px]">
 
       {/* ── Header ── */}
       <div className="mb-8">
         <div className="text-xs text-gray-400 mb-1.5 tracking-[0.05em]">
           Good morning, Josh.
         </div>
-        <h1 className="text-[36px] font-black tracking-[-0.03em] leading-none">
+        <h1 className="text-[30px] sm:text-[36px] font-black tracking-[-0.03em] leading-none">
           My <span className="text-red-600">Watchlist</span>
         </h1>
         <p className="text-[13px] text-gray-400 mt-1.5">
@@ -269,7 +302,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Stats ── */}
-      <div className="grid grid-cols-4 gap-6 mb-9">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-9">
         <DashStat value={dashStats.total}                   label="Tracked"      accent />
         <DashStat value={dashStats.onSale}                   label="On Sale" />
         <DashStat value={dashStats.atl}                      label="At ATL" />
@@ -282,7 +315,7 @@ export default function DashboardPage() {
           <button
             key={t.key}
             onClick={() => { setTab(t.key); setExpanded(null) }}
-            className={`text-[13px] px-5 py-2 border-none bg-transparent cursor-pointer font-sans border-b-2 -mb-0.5 transition-all ${
+            className={`text-[13px] px-4 sm:px-5 py-2 border-none bg-transparent cursor-pointer font-sans border-b-2 -mb-0.5 transition-all ${
               tab === t.key
                 ? 'font-semibold text-red-600 border-red-600'
                 : 'font-normal text-gray-400 border-transparent'
@@ -293,8 +326,8 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* ── Table header ── */}
-      <div className="grid grid-cols-[1fr_100px_100px_88px_88px_80px_32px] gap-3 px-2 py-2 border-b border-gray-200">
+      {/* ── Table header — desktop only ── */}
+      <div className="hidden sm:grid grid-cols-[1fr_100px_100px_88px_88px_80px_32px] gap-3 px-2 py-2 border-b border-gray-200">
         {['Product', 'Trend', 'Price', '30d Change', 'Savings', 'Status', ''].map(h => (
           <div
             key={h}

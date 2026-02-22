@@ -27,38 +27,44 @@ function ProductRow({ product }: { product: Product }) {
   const atl = isAtl(product)
 
   return (
-    <div className="grid grid-cols-[60px_1fr_auto_auto_96px_52px] items-center gap-3 px-2 py-2 border-b border-stone-200 cursor-pointer -mx-2 transition-[background] duration-100 hover:bg-stone-100 group">
-      <div className="w-[60px] h-[60px] overflow-hidden shrink-0">
+    <div className="grid grid-cols-[48px_1fr_auto] sm:grid-cols-[60px_1fr_auto_auto_96px_52px] items-center gap-2 sm:gap-3 px-1 sm:px-2 py-2 border-b border-stone-200 cursor-pointer -mx-1 sm:-mx-2 transition-[background] duration-100 hover:bg-stone-100 group">
+      {/* Thumbnail */}
+      <div className="w-12 h-12 sm:w-[60px] sm:h-[60px] overflow-hidden shrink-0">
         <div
           className="w-full h-full transition-transform duration-300 group-hover:scale-[1.08]"
           style={{ background: `linear-gradient(160deg, hsl(${product.hue}, 28%, 36%), hsl(${product.hue + 20}, 22%, 54%))` }}
         />
       </div>
 
+      {/* Name + info */}
       <div>
         <div className="text-sm font-medium text-gray-900">{product.name}</div>
-        <div className="text-stone-600 text-xs mt-0.5">{genderLabel(product.gender)}</div>
-      </div>
-
-      <div>
-        {atl && <span className="inline-flex items-center bg-sky-600 px-1.5 py-0.5 text-xs font-medium text-sky-100">ATL</span>}
-      </div>
-
-      <div>
-        <span className="inline-flex items-center bg-red-700 px-1.5 py-0.5 text-xs font-medium text-red-100">SALE</span>
-      </div>
-
-      <div className="text-right">
-        <div className="text-base font-semibold">${product.price.toFixed(2)}</div>
-        <div className="text-xs text-gray-400 line-through font-light">
-          ${product.regular.toFixed(2)}
+        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+          <span className="text-stone-600 text-xs">{genderLabel(product.gender)}</span>
+          {atl && <span className="sm:hidden inline-flex items-center bg-sky-600 px-1 py-0.5 text-[9px] font-medium text-sky-100">ATL</span>}
         </div>
       </div>
 
+      {/* ATL badge — desktop only */}
+      <div className="hidden sm:block">
+        {atl && <span className="inline-flex items-center bg-sky-600 px-1.5 py-0.5 text-xs font-medium text-sky-100">ATL</span>}
+      </div>
+
+      {/* SALE badge — desktop only */}
+      <div className="hidden sm:block">
+        <span className="inline-flex items-center bg-red-700 px-1.5 py-0.5 text-xs font-medium text-red-100">SALE</span>
+      </div>
+
+      {/* Price (+ discount on mobile) */}
       <div className="text-right">
-        <span className="text-sm font-bold text-emerald-600">
-          −{pct}%
-        </span>
+        <div className="text-sm sm:text-base font-semibold">${product.price.toFixed(2)}</div>
+        <div className="text-xs text-gray-400 line-through font-light">${product.regular.toFixed(2)}</div>
+        <div className="sm:hidden text-xs font-bold text-emerald-600">−{pct}%</div>
+      </div>
+
+      {/* Discount % — desktop only */}
+      <div className="hidden sm:block text-right">
+        <span className="text-sm font-bold text-emerald-600">−{pct}%</span>
       </div>
     </div>
   )
@@ -84,9 +90,9 @@ function CategorySection({
 }) {
   return (
     <div className="mb-8">
-      <div className="border-t-2 border-gray-900 pt-3 flex justify-between">
+      <div className="border-t-2 border-gray-900 pt-3 flex flex-wrap justify-between gap-y-1">
         {/* Left: name · count · view link */}
-        <div className="flex items-baseline gap-[10px]">
+        <div className="flex items-baseline gap-2 sm:gap-[10px] flex-wrap">
           <span className="text-[11px] font-[800] tracking-[0.14em] uppercase">
             {group.name}
           </span>
@@ -178,34 +184,33 @@ export default function HomePage() {
   ]
 
   return (
-    <div className="max-w-[1100px] mx-auto px-6 pb-[60px]">
+    <div className="max-w-[1100px] mx-auto px-4 sm:px-6 pb-[60px]">
 
       {/* ── Swiss Masthead ── */}
       <div className="pt-6">
         {/* Supertitle row */}
         <div className="flex justify-between items-center text-[10px] font-semibold tracking-[0.1em] uppercase text-gray-400 border-b border-stone-200 pb-[10px]">
           <span>Uniqlo Canada · Price Tracker</span>
-          <span>Updated daily</span>
+          <span className="hidden sm:inline">Updated daily</span>
         </div>
 
         {/* Title + search row */}
-        <div className="grid grid-cols-[1fr_auto] gap-[48px] items-end py-5">
-          <h1 className="text-[52px] font-black tracking-[-0.03em] leading-none m-0 whitespace-nowrap">
+        <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto] gap-3 sm:gap-[48px] sm:items-end py-5">
+          <h1 className="text-[36px] sm:text-[52px] font-black tracking-[-0.03em] leading-none m-0 whitespace-nowrap">
             Uniqlo <span className="text-red-700">Tracker</span>
           </h1>
-
           <input
             type="text"
             placeholder="Search products"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="bg-transparent border-0 border-b-2 border-gray-300 focus:border-sky-700 outline-none px-0 py-1 text-base w-[260px] text-right font-normal text-gray-900 transition-[border-color] duration-150 placeholder:italic placeholder:text-gray-400 mb-1 font-sans"
+            className="bg-transparent border-0 border-b-2 border-gray-300 focus:border-sky-700 outline-none px-0 py-1 text-base w-full sm:w-[260px] text-left sm:text-right font-normal text-gray-900 transition-[border-color] duration-150 placeholder:italic placeholder:text-gray-400 mb-1 font-sans"
           />
         </div>
       </div>
 
       {/* ── Stat cards ── */}
-      <div className="grid grid-cols-4 border-t-[3px] border-t-zinc-700 border-l border-l-zinc-700 border-r border-r-zinc-700 mb-11">
+      <div className="grid grid-cols-2 sm:grid-cols-4 border-t-[3px] border-t-zinc-700 border-l border-l-zinc-700 border-r border-r-zinc-700 mb-8 sm:mb-11">
         {[
           { value: stats.total, label: 'Products Tracked' },
           { value: stats.onSale, label: 'On Sale Now' },
@@ -214,9 +219,11 @@ export default function HomePage() {
         ].map((s, i) => (
           <div
             key={i}
-            className={`px-4 py-[14px] border-b border-b-zinc-700 ${i < 3 ? 'border-r border-r-zinc-700' : ''}`}
+            className={`px-4 py-[14px] border-b border-b-zinc-700 ${
+              i === 0 || i === 2 ? 'border-r border-r-zinc-700' : i === 1 ? 'sm:border-r sm:border-r-zinc-700' : ''
+            }`}
           >
-            <div className="text-[30px] font-black tracking-[-0.03em] leading-none text-red-700">
+            <div className="text-[24px] sm:text-[30px] font-black tracking-[-0.03em] leading-none text-red-700">
               {s.value}
             </div>
             <div className="text-[10px] font-semibold tracking-[0.12em] uppercase text-gray-400 mt-1">
@@ -227,10 +234,10 @@ export default function HomePage() {
       </div>
 
       {/* ── Main layout ── */}
-      <div className="grid grid-cols-[180px_1fr] gap-[40px]">
+      <div className="grid grid-cols-1 sm:grid-cols-[180px_1fr] gap-10">
 
-        {/* ── Sidebar ── */}
-        <div>
+        {/* ── Sidebar — desktop only ── */}
+        <div className="hidden sm:block">
           <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 uppercase border-b border-stone-200 pb-2 mb-3">
             Sort by
           </div>
@@ -266,6 +273,39 @@ export default function HomePage() {
 
         {/* ── Products ── */}
         <div>
+
+          {/* ── Mobile filters ── */}
+          <div className="sm:hidden mb-6 space-y-3">
+            <div>
+              <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 uppercase mb-2">Sort</div>
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
+                {sortOptions.map(opt => (
+                  <button
+                    key={opt.key}
+                    onClick={() => setSort(opt.key)}
+                    className={`shrink-0 text-[11px] font-semibold px-3 py-1.5 border transition-colors font-sans ${sort === opt.key ? 'bg-gray-900 text-white border-gray-900' : 'bg-transparent text-gray-600 border-gray-300'}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 uppercase mb-2">Category</div>
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
+                {['all', ...CATEGORIES].map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setCatFilter(cat)}
+                    className={`shrink-0 text-[11px] font-semibold px-3 py-1.5 border transition-colors font-sans ${catFilter === cat ? 'bg-gray-900 text-white border-gray-900' : 'bg-transparent text-gray-600 border-gray-300'}`}
+                  >
+                    {cat === 'all' ? 'All' : cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {grouped.length === 0 ? (
             <div className="text-center py-[60px] text-gray-400">
               <div className="text-[32px] mb-3">∅</div>

@@ -56,7 +56,7 @@ function ProductModal({ product: p, onClose }: { product: Product; onClose: () =
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 bg-black/45 z-[200] flex items-center justify-center p-6"
+      className="fixed inset-0 bg-black/45 z-[200] flex items-center justify-center p-3 sm:p-6"
     >
       <div
         onClick={e => e.stopPropagation()}
@@ -64,7 +64,7 @@ function ProductModal({ product: p, onClose }: { product: Product; onClose: () =
       >
         {/* Color block header */}
         <div
-          className="h-[180px] flex flex-col justify-between p-4"
+          className="h-[140px] sm:h-[180px] flex flex-col justify-between p-4"
           style={{ background: `hsl(${p.hue}, 22%, 44%)` }}
         >
           <button
@@ -80,16 +80,16 @@ function ProductModal({ product: p, onClose }: { product: Product; onClose: () =
         </div>
 
         {/* Product info */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <div className="text-[11px] font-bold tracking-[0.12em] text-gray-400 uppercase mb-1.5">
             {p.category}
           </div>
-          <h2 className="text-[22px] font-[800] tracking-[-0.02em] mb-4 leading-[1.2]">
+          <h2 className="text-[18px] sm:text-[22px] font-[800] tracking-[-0.02em] mb-4 leading-[1.2]">
             {p.name}
           </h2>
 
           {/* Price grid */}
-          <div className="grid grid-cols-3 gap-4 mb-5">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-5">
             {[
               { label: 'Current Price', value: `$${p.price.toFixed(2)}`, highlight: true },
               { label: 'Regular Price', value: `$${p.regular.toFixed(2)}` },
@@ -99,7 +99,7 @@ function ProductModal({ product: p, onClose }: { product: Product; onClose: () =
                 <div className="text-[10px] font-semibold tracking-[0.08em] text-gray-300 uppercase">
                   {item.label}
                 </div>
-                <div className={`text-xl font-[800] mt-1 ${item.highlight ? 'text-red-600' : 'text-gray-900'}`}>
+                <div className={`text-base sm:text-xl font-[800] mt-1 ${item.highlight ? 'text-red-600' : 'text-gray-900'}`}>
                   {item.value}
                 </div>
               </div>
@@ -111,7 +111,7 @@ function ProductModal({ product: p, onClose }: { product: Product; onClose: () =
               <span className="text-[13px] text-red-600 font-semibold">
                 You save ${savings.toFixed(2)} ({pct}% off)
               </span>
-              {atl && <span className="text-[11px] font-bold text-gray-900">★ All-Time Low</span>}
+              {atl && <span className="text-[11px] font-bold text-gray-900">★ ATL</span>}
             </div>
           )}
 
@@ -147,28 +147,40 @@ function CatSection({
       {/* Header */}
       <button
         onClick={onToggle}
-        className="w-full grid grid-cols-[1fr_100px_88px_72px_auto] items-center gap-4 py-4 bg-transparent border-none cursor-pointer font-sans text-left"
+        className="w-full grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_100px_88px_72px_auto] items-center gap-4 py-4 bg-transparent border-none cursor-pointer font-sans text-left"
       >
-        <span className="text-[15px] font-[800] tracking-[0.1em] uppercase text-gray-900">
-          {name}
-        </span>
-        <span className="text-xs text-gray-400">
+        {/* Name — on mobile shows summary stats inline */}
+        <div>
+          <span className="text-[15px] font-[800] tracking-[0.1em] uppercase text-gray-900">
+            {name}
+          </span>
+          <div className="sm:hidden text-[11px] text-gray-400 mt-0.5">
+            {products.length} products
+            {onSaleCount > 0 && <span className="text-red-600 font-semibold"> · {onSaleCount} sale</span>}
+            {atlCount > 0 && <span className="text-sky-600 font-semibold"> · {atlCount} ATL</span>}
+          </div>
+        </div>
+
+        {/* Desktop-only columns */}
+        <span className="hidden sm:block text-xs text-gray-400">
           {products.length} products
         </span>
-        <div>
+        <div className="hidden sm:block">
           {onSaleCount > 0 && (
             <span className="inline-flex items-center bg-red-700 text-red-100 text-[10px] font-bold tracking-[0.06em] px-1.5 py-0.5 leading-[1.4]">
               {onSaleCount} SALE
             </span>
           )}
         </div>
-        <div>
+        <div className="hidden sm:block">
           {atlCount > 0 && (
             <span className="inline-flex items-center bg-sky-600 text-sky-100 text-[10px] font-bold tracking-[0.06em] px-1.5 py-0.5 leading-[1.4]">
               {atlCount} ATL
             </span>
           )}
         </div>
+
+        {/* Expand/collapse — always visible */}
         <div className="text-gray-300 flex items-center gap-2 justify-end">
           <span className="text-xs">{isOpen ? 'Collapse' : 'Expand'}</span>
           {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -177,7 +189,7 @@ function CatSection({
 
       {/* Mosaic grid */}
       {isOpen && (
-        <div className="grid grid-cols-5 gap-3 pb-7">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 pb-7">
           {products.map(p => (
             <MosaicTile key={p.id} product={p} onSelect={onSelect} />
           ))}
@@ -203,11 +215,11 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div className="max-w-[1100px] mx-auto px-6 pt-10 pb-[60px]">
+    <div className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-10 pb-[60px]">
 
       {/* ── Header ── */}
       <div className="mb-9">
-        <h1 className="text-[36px] font-black tracking-[-0.03em] leading-none">
+        <h1 className="text-[26px] sm:text-[36px] font-black tracking-[-0.03em] leading-none">
           Browse <span className="text-red-600">Categories</span>
         </h1>
         <p className="text-[13px] text-gray-400 mt-1.5">

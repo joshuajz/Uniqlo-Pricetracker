@@ -52,9 +52,10 @@ function FAQItem({ q, a, index }: { q: string; a: string; index: number }) {
       </button>
 
       {open && (
-        <div className="text-sm text-gray-600 leading-[1.7] pb-5 pr-10">
+        <div className="text-sm text-gray-600 leading-[1.7] pb-5 pr-0 sm:pr-10">
           {a}
         </div>
+
       )}
     </div>
   )
@@ -62,11 +63,11 @@ function FAQItem({ q, a, index }: { q: string; a: string; index: number }) {
 
 export default function FAQPage() {
   return (
-    <div className="max-w-[720px] mx-auto px-6 pt-10 pb-20">
+    <div className="max-w-[720px] mx-auto px-4 sm:px-6 pt-10 pb-20">
 
       {/* ── Header ── */}
       <div className="mb-12">
-        <h1 className="text-[36px] font-black tracking-[-0.03em] mb-2">
+        <h1 className="text-[26px] sm:text-[36px] font-black tracking-[-0.03em] mb-2">
           Frequently Asked <span className="text-red-600">Questions</span>
         </h1>
         <p className="text-sm text-gray-400">
@@ -82,7 +83,7 @@ export default function FAQPage() {
       </div>
 
       {/* ── Contact CTA ── */}
-      <div className="mt-14 border-t-[3px] border-gray-900 pt-6 flex justify-between items-center">
+      <div className="mt-14 border-t-[3px] border-gray-900 pt-6 flex flex-col sm:flex-row gap-4 sm:gap-0 sm:justify-between sm:items-center">
         <div>
           <div className="text-sm font-semibold mb-1">Still have questions?</div>
           <div className="text-[13px] text-gray-400">We're happy to help.</div>
