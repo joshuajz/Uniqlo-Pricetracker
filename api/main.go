@@ -492,7 +492,7 @@ func getProducts(c *gin.Context) {
 		if err := json.Unmarshal([]byte(categoryJSON), &p.Categories); err != nil {
 			p.Categories = []string{categoryJSON}
 		}
-		p.IsAllTimeLow = p.Price <= p.LowestPrice
+		p.IsAllTimeLow = p.Price <= p.LowestPrice && p.LowestPrice < p.RegularPrice
 		products = append(products, p)
 	}
 
@@ -657,7 +657,7 @@ func getProduct(c *gin.Context) {
 	// Determine if product is on sale (current price < regular price)
 	currentPrice := datapoints[len(datapoints)-1].Price
 	onSale := currentPrice < regularPrice
-	isAllTimeLow := currentPrice <= lowestPriceInfo.LowestPrice
+	isAllTimeLow := currentPrice <= lowestPriceInfo.LowestPrice && lowestPriceInfo.LowestPrice < regularPrice
 
 	// Build response and cache it
 	response := gin.H{
@@ -773,7 +773,7 @@ func getProductsByCategory(c *gin.Context) {
 		if err := json.Unmarshal([]byte(categoryJSON), &p.Categories); err != nil {
 			p.Categories = []string{categoryJSON}
 		}
-		p.IsAllTimeLow = p.Price <= p.LowestPrice
+		p.IsAllTimeLow = p.Price <= p.LowestPrice && p.LowestPrice < p.RegularPrice
 		products = append(products, p)
 	}
 
