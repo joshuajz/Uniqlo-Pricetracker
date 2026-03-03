@@ -1,7 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ChevronRight, ChevronDown, X } from 'lucide-react'
-import { PRODUCTS, CATEGORIES, discountPct, isAtl, isOnSale } from '../data/mockData'
-import type { Product } from '../types'
+import { PRODUCTS, discountPct, isAtl, isOnSale } from '../data/mockData'
+import type { Product } from '../types/types'
+import { getCategories, getImage, getProducts } from '../data/api'
+
+function productHue(id: string): number {
+  return id.split('').reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) & 0xffff, 0) % 360
+}
+
+function formatCatName(slug: string): string {
+  return slug.split('/').map(s => s.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())).join(' › ')
+}
 
 // ─── Mosaic Tile ──────────────────────────────────────────────────────────────
 
@@ -9,18 +18,43 @@ function MosaicTile({ product: p, onSelect }: { product: Product; onSelect: (p: 
   const sale = isOnSale(p)
   const atl = isAtl(p)
   const pct = discountPct(p)
+  const ref = useRef<HTMLDivElement>(null)
+  const [inView, setInView] = useState(false)
+  const { data: imgSrc } = getImage(p.product_id, { enabled: inView })
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setInView(true)
+        observer.disconnect()
+      }
+    }, { rootMargin: '200px' })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   return (
     <div
+      ref={ref}
       className="bg-white border border-gray-200 overflow-hidden cursor-pointer transition-[border-color,box-shadow] duration-150 hover:border-gray-400 hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)]"
       onClick={() => onSelect(p)}
     >
-      {/* Color block */}
-      <div
-        className="aspect-[4/3] w-full flex items-end p-2"
-        style={{ background: `hsl(${p.hue}, 22%, 44%)` }}
-      >
-        <div className="flex gap-1">
+      {/* Image / placeholder */}
+      <div className="aspect-[4/3] w-full relative flex items-end p-2 overflow-hidden">
+        <div
+          className="absolute inset-0"
+          style={{ background: `linear-gradient(160deg, hsl(${productHue(p.product_id)}, 28%, 36%), hsl(${productHue(p.product_id) + 20}, 22%, 54%))` }}
+        />
+        {imgSrc && (
+          <img
+            src={imgSrc}
+            alt={p.name}
+            className="absolute inset-0 w-full h-full object-cover object-top"
+          />
+        )}
+        <div className="relative flex gap-1">
           {atl  && <span className="inline-flex items-center bg-sky-600 text-sky-100 text-[10px] font-bold tracking-[0.06em] px-1.5 py-0.5 leading-[1.4]">ATL</span>}
           {sale && <span className="inline-flex items-center bg-red-700 text-red-100 text-[10px] font-bold tracking-[0.06em] px-1.5 py-0.5 leading-[1.4]">SALE</span>}
         </div>
@@ -65,7 +99,7 @@ function ProductModal({ product: p, onClose }: { product: Product; onClose: () =
         {/* Color block header */}
         <div
           className="h-[140px] sm:h-[180px] flex flex-col justify-between p-4"
-          style={{ background: `hsl(${p.hue}, 22%, 44%)` }}
+          style={{ background: `linear-gradient(160deg, hsl(${productHue(p.product_id)}, 28%, 36%), hsl(${productHue(p.product_id) + 20}, 22%, 54%))` }}
         >
           <button
             onClick={onClose}
@@ -82,7 +116,7 @@ function ProductModal({ product: p, onClose }: { product: Product; onClose: () =
         {/* Product info */}
         <div className="p-4 sm:p-6">
           <div className="text-[11px] font-bold tracking-[0.12em] text-gray-400 uppercase mb-1.5">
-            {p.category}
+            {p.categories.join(' / ')}
           </div>
           <h2 className="text-[18px] sm:text-[22px] font-[800] tracking-[-0.02em] mb-4 leading-[1.2]">
             {p.name}
@@ -93,7 +127,7 @@ function ProductModal({ product: p, onClose }: { product: Product; onClose: () =
             {[
               { label: 'Current Price', value: `$${p.price.toFixed(2)}`, highlight: true },
               { label: 'Regular Price', value: `$${p.regular_price.toFixed(2)}` },
-              { label: 'All-Time Low',  value: `$${p.lowest.toFixed(2)}` },
+              { label: 'All-Time Low',  value: `$${p.lowest_price.toFixed(2)}` },
             ].map(item => (
               <div key={item.label} className={`border-t-2 pt-[10px] ${item.highlight ? 'border-red-600' : 'border-gray-200'}`}>
                 <div className="text-[10px] font-semibold tracking-[0.08em] text-gray-300 uppercase">
@@ -138,9 +172,17 @@ function CatSection({
   onToggle: () => void
   onSelect: (p: Product) => void
 }) {
-  const products = PRODUCTS.filter(p => p.category === name)
-  const onSaleCount = products.filter(isOnSale).length
-  const atlCount    = products.filter(isAtl).length
+  const { data: productsAPI = [], isLoading: productsLoading } = getProducts()
+  const { data: categoriesAPI = [], isLoading: categoriesLoading } = getCategories()
+
+  const products = productsAPI?.products
+  const allProducts = products?.filter(p => p.categories.includes(name)) || []
+  const saleProducts = allProducts.filter(isOnSale)
+  const otherProducts = allProducts.filter(p => !isOnSale(p))
+  const onSaleCount = saleProducts.length
+  const atlCount    = allProducts.filter(isAtl).length
+
+  if (productsLoading || categoriesLoading) return <>Loading</>
 
   return (
     <div className={`border-t-[3px] ${index === 0 ? 'border-red-600' : 'border-gray-900'}`}>
@@ -152,10 +194,10 @@ function CatSection({
         {/* Name — on mobile shows summary stats inline */}
         <div>
           <span className="text-[15px] font-[800] tracking-[0.1em] uppercase text-gray-900">
-            {name}
+            {formatCatName(name)}
           </span>
           <div className="sm:hidden text-[11px] text-gray-400 mt-0.5">
-            {products.length} products
+            {allProducts.length} products
             {onSaleCount > 0 && <span className="text-red-600 font-semibold"> · {onSaleCount} sale</span>}
             {atlCount > 0 && <span className="text-sky-600 font-semibold"> · {atlCount} ATL</span>}
           </div>
@@ -163,7 +205,7 @@ function CatSection({
 
         {/* Desktop-only columns */}
         <span className="hidden sm:block text-xs text-gray-400">
-          {products.length} products
+          {allProducts.length} products
         </span>
         <div className="hidden sm:block">
           {onSaleCount > 0 && (
@@ -189,10 +231,34 @@ function CatSection({
 
       {/* Mosaic grid */}
       {isOpen && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 pb-7">
-          {products.map(p => (
-            <MosaicTile key={p.id} product={p} onSelect={onSelect} />
-          ))}
+        <div className="pb-7 space-y-5">
+          {/* On-sale items */}
+          {saleProducts.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              {saleProducts.map(p => (
+                <MosaicTile key={p.product_id} product={p} onSelect={onSelect} />
+              ))}
+            </div>
+          )}
+
+          {/* Non-sale items */}
+          {otherProducts.length > 0 && (
+            <div>
+              {saleProducts.length > 0 && (
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-[10px] font-bold tracking-[0.12em] uppercase text-gray-400">
+                    Regular Price
+                  </span>
+                  <div className="flex-1 border-t border-dashed border-gray-200" />
+                </div>
+              )}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                {otherProducts.map(p => (
+                  <MosaicTile key={p.product_id} product={p} onSelect={onSelect} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -201,8 +267,12 @@ function CatSection({
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
+const ALL_CATEGORIES = Array.from(
+  new Set(PRODUCTS.products.flatMap(p => p.categories))
+).sort()
+
 export default function CategoriesPage() {
-  const [open, setOpen] = useState<Set<string>>(new Set([CATEGORIES[0]]))
+  const [open, setOpen] = useState<Set<string>>(new Set())
   const [selected, setSelected] = useState<Product | null>(null)
 
   const toggle = (cat: string) => {
@@ -223,13 +293,13 @@ export default function CategoriesPage() {
           Browse <span className="text-red-600">Categories</span>
         </h1>
         <p className="text-[13px] text-gray-400 mt-1.5">
-          {CATEGORIES.length} categories · {PRODUCTS.length} products tracked
+          {ALL_CATEGORIES.length} categories · {PRODUCTS.products.length} products tracked
         </p>
       </div>
 
       {/* ── Category list ── */}
       <div>
-        {CATEGORIES.map((cat, i) => (
+        {ALL_CATEGORIES.map((cat, i) => (
           <CatSection
             key={cat}
             name={cat}

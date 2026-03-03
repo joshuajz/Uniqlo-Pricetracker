@@ -5,7 +5,7 @@ import {
   PRODUCTS, CATEGORIES, discountPct, isAtl, isOnSale, genderLabel,
 } from '../data/mockData'
 import type { Product, SortKey } from '../types/types'
-import { getCategories, getProducts } from '../data/api'
+import { getCategories, getImage, getProducts } from '../data/api'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -25,15 +25,16 @@ function sortProducts(products: Product[], key: SortKey): Product[] {
 function ProductRow({ product }: { product: Product }) {
   const pct = discountPct(product)
   const atl = isAtl(product)
+  const { data: imgSrc } = getImage(product.product_id)
 
   return (
     <div className="grid grid-cols-[48px_1fr_auto] sm:grid-cols-[60px_1fr_auto_auto_96px_52px] items-center gap-2 sm:gap-3 px-1 sm:px-2 py-2 border-b border-stone-200 cursor-pointer -mx-1 sm:-mx-2 transition-[background] duration-100 hover:bg-stone-100 group">
       {/* Thumbnail */}
       <div className="w-12 h-12 sm:w-[60px] sm:h-[60px] overflow-hidden shrink-0">
-        <div
-          className="w-full h-full transition-transform duration-300 group-hover:scale-[1.08]"
-          style={{ background: `linear-gradient(160deg, hsl(${product.hue}, 28%, 36%), hsl(${product.hue + 20}, 22%, 54%))` }}
-        />
+        {imgSrc
+          ? <img src={imgSrc} alt={product.name} className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.08]" />
+          : <div className="w-full h-full bg-stone-200 animate-pulse" />
+        }
       </div>
 
       {/* Name + info */}
@@ -156,7 +157,6 @@ export default function HomePage() {
       0
     ) / onSale.length) : 0
 
-  console.log('onSale:', onSale)
 
   const onSaleByCategory = useMemo<{[key: string]: Product[]}>(() => {
     const map: {[key: string]: Product[]} = {}
@@ -168,7 +168,6 @@ export default function HomePage() {
     return map
   }, [onSale])
 
-  console.log('onSaleByCategory:', onSaleByCategory)
 
   const filtered = useMemo<GroupedCat[]>(() => {
     const searchTerm = search.trim().toLowerCase()

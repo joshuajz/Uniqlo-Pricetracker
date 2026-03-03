@@ -17,3 +17,12 @@ export const getCategories = () => {
     staleTime: 1000 * 60 * 5, // 5 mins
   })
 }
+
+export const getImage = (product_id: string, { enabled = true }: { enabled?: boolean } = {}) => {
+  return useQuery({
+    queryKey: ['image', product_id],
+    queryFn: () => fetch(`${API_URL}/product/${product_id}/image`).then(res => res.blob()).then(blob => URL.createObjectURL(blob)),
+    staleTime: 1000 * 60 * 60, // 1 hour
+    enabled,
+  })
+}
