@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import {
   PRODUCTS, CATEGORIES, discountPct, isAtl, isOnSale, genderLabel,
 } from '../data/mockData'
-import type { Product, SortKey } from '../types'
+import type { Product, SortKey } from '../types/types'
 import { getCategories, getProducts } from '../data/api'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -76,8 +76,6 @@ interface GroupedCat {
   name: string
   products: Product[]
   onSale: number
-  shown: number
-  hasMore: boolean
 }
 
 function CategorySection({
@@ -88,6 +86,7 @@ function CategorySection({
   expanded: boolean
   onToggleExpand: () => void
 }) {
+  console.log('group:', group)
   return (
     <div className="mb-8">
       <div className="border-t-2 border-gray-900 pt-3 flex flex-wrap justify-between gap-y-1">
@@ -106,14 +105,14 @@ function CategorySection({
 
         {/* Right: expand / collapse */}
         <div>
-          {group.hasMore ? (
+          {group.onSale > 3 && !expanded ? (
             <button
               onClick={onToggleExpand}
               className="text-xs font-semibold text-red-700 bg-transparent border-none cursor-pointer flex items-center gap-1 p-0 font-sans"
             >
               Show more <ChevronDown size={12} />
             </button>
-          ) : group.shown > 3 && expanded ? (
+          ) : group.onSale > 3 && expanded ? (
             <button
               onClick={onToggleExpand}
               className="text-xs font-semibold text-gray-500 bg-transparent border-none cursor-pointer flex items-center gap-1 p-0 font-sans"
@@ -125,8 +124,8 @@ function CategorySection({
       </div>
 
       <div className="mt-1">
-        {group.products.map(p => (
-          <ProductRow key={p.id} product={p} />
+        {(expanded ? group.products : group.products.slice(0, 3)).map(p => (
+          <ProductRow key={p.product_id} product={p} />
         ))}
       </div>
     </div>
@@ -140,40 +139,52 @@ export default function HomePage() {
   const [sort, setSort] = useState<SortKey>('discount')
   const [catFilter, setCatFilter] = useState('all')
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [onSale, setOnSale] = useState<Product[]>([])
 
   const { data: productsAPI = [], isLoading: productsLoading } = getProducts()
-  // const { data: categories = [], isLoading: categoriesLoading } = getCategories()
+  const { data: categoriesAPI = [], isLoading: categoriesLoading } = getCategories()
 
+  // const products = productsAPI?.products
   const products = productsAPI?.products
-  const categories = CATEGORIES
+  const categories = categoriesAPI?.categories
 
+  useEffect(() => setOnSale(products?.filter((p: Product) => p.price < p.regular_price) || []), [products])
 
-  const onSale = products.filter((p: Product) => p.price < p.regular_price)
-  const avgDiscount = 10
-  // const avgDiscount = onSale.length ? Math.round(
-    // onSale.reduce((accumulator: number, currentValue: Product) =>
-      // accumulator + ((1 - (currentValue.price / currentValue.regular_price)) * 100)) / onSale.length) : 0
+  const avgDiscount = onSale.length ?
+    (onSale.reduce(
+      (acc, product: Product) => acc + (1 - product.price / product.regular_price),
+      0
+    ) / onSale.length) : 0
 
-  const grouped = useMemo<GroupedCat[]>(() => {
-    const q = search.trim().toLowerCase()
-    const cats = catFilter !== 'all' ? [catFilter] : [...CATEGORIES]
+  console.log('onSale:', onSale)
 
-    return cats.map(cat => {
-      const allSale = PRODUCTS.filter(p => p.category === cat && isOnSale(p))
-      const filtered = q
-        ? allSale.filter(p => p.name.toLowerCase().includes(q))
-        : allSale
-      const sorted = sortProducts(filtered, sort)
-      const isOpen = expanded[cat] || q !== ''
+  const onSaleByCategory = useMemo<{[key: string]: Product[]}>(() => {
+    const map: {[key: string]: Product[]} = {}
+    onSale.forEach(element => {
+      element.categories.forEach(categoryElement => {
+        map[`${categoryElement}`] = [...(map[categoryElement] || []), element]
+      })
+    })
+    return map
+  }, [onSale])
+
+  console.log('onSaleByCategory:', onSaleByCategory)
+
+  const filtered = useMemo<GroupedCat[]>(() => {
+    const searchTerm = search.trim().toLowerCase()
+    return Object.keys(onSaleByCategory).map(category => {
+      const categoryItems = onSaleByCategory?.[category] || []
+      const filterCategory = categoryItems.filter(p => p.name.toLowerCase().includes(searchTerm) || p.product_id.includes(searchTerm))
+
       return {
-        name: cat,
-        products: isOpen ? sorted : sorted.slice(0, 3),
-        onSale: allSale.length,
-        shown: filtered.length,
-        hasMore: !isOpen && filtered.length > 3,
+        name: category,
+        products: sortProducts(filterCategory, sort),
+        onSale: categoryItems.length,
       }
-    }).filter(g => g.shown > 0)
-  }, [search, sort, catFilter, expanded])
+    }
+    )
+
+  }, [search, onSaleByCategory])
 
   const toggleExpand = (cat: string) => {
     setExpanded(prev => ({ ...prev, [cat]: !prev[cat] }))
@@ -185,6 +196,8 @@ export default function HomePage() {
     { key: 'name', label: 'Name: A → Z' },
     { key: 'atl', label: 'At All-Time Low' },
   ]
+
+  if (productsLoading || categoriesLoading) return <>Loading</>
 
   return (
     <div className="max-w-[1100px] mx-auto px-4 sm:px-6 pb-[60px]">
@@ -218,7 +231,7 @@ export default function HomePage() {
           { value: products.length, label: 'Products Tracked' },
           { value: onSale.length, label: 'On Sale Now' },
           { value: categories.length, label: 'Categories' },
-          { value: `${avgDiscount}%`, label: 'Avg. Discount' },
+          { value: `${(avgDiscount * 100).toFixed(0)}%`, label: 'Avg. Discount' },
         ].map((s, i) => (
           <div
             key={i}
@@ -309,13 +322,13 @@ export default function HomePage() {
             </div>
           </div>
 
-          {grouped.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="text-center py-[60px] text-gray-400">
               <div className="text-[32px] mb-3">∅</div>
               <div className="text-sm">No products match your search.</div>
             </div>
           ) : (
-            grouped.map((group, i) => (
+            filtered.map((group, i) => (
               <CategorySection
                 key={group.name}
                 group={group}
