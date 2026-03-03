@@ -7048,7 +7048,7 @@ export function discountPct(p: Product): number {
 }
 
 export function isAtl(p: Product): boolean {
-  return p.price <= p.lowest
+  return p.price <= p.lowest_price
 }
 
 export function isOnSale(p: Product): boolean {

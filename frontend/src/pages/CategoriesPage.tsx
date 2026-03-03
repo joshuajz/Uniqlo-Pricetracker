@@ -175,10 +175,10 @@ function CatSection({
   const { data: productsAPI = [], isLoading: productsLoading } = getProducts()
   const { data: categoriesAPI = [], isLoading: categoriesLoading } = getCategories()
 
-  const products = productsAPI?.products
-  const allProducts = products?.filter(p => p.categories.includes(name)) || []
+  const products: Product[] = productsAPI?.products ?? []
+  const allProducts = products.filter((p: Product) => p.categories.includes(name))
   const saleProducts = allProducts.filter(isOnSale)
-  const otherProducts = allProducts.filter(p => !isOnSale(p))
+  const otherProducts = allProducts.filter((p: Product) => !isOnSale(p))
   const onSaleCount = saleProducts.length
   const atlCount    = allProducts.filter(isAtl).length
 

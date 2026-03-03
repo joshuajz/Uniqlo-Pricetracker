@@ -41,7 +41,7 @@ function ProductRow({ product }: { product: Product }) {
       <div>
         <div className="text-sm font-medium text-gray-900">{product.name}</div>
         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-          <span className="text-stone-600 text-xs">{genderLabel(product.gender)}</span>
+          {product.gender && <span className="text-stone-600 text-xs">{genderLabel(product.gender)}</span>}
           {atl && <span className="sm:hidden inline-flex items-center bg-sky-600 px-1 py-0.5 text-[9px] font-medium text-sky-100">ATL</span>}
         </div>
       </div>
