@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { ChevronRight, ChevronDown, X } from 'lucide-react'
-import { PRODUCTS, discountPct, isAtl, isOnSale } from '../data/mockData'
+import { PRODUCTS, discountPct, isOnSale } from '../data/mockData'
 import type { Product } from '../types/types'
 import { getCategories, getImage, getProducts } from '../data/api'
 
@@ -16,7 +16,7 @@ function formatCatName(slug: string): string {
 
 function MosaicTile({ product: p, onSelect }: { product: Product; onSelect: (p: Product) => void }) {
   const sale = isOnSale(p)
-  const atl = isAtl(p)
+  const atl = p.is_all_time_low
   const pct = discountPct(p)
   const ref = useRef<HTMLDivElement>(null)
   const [inView, setInView] = useState(false)
@@ -83,7 +83,7 @@ function MosaicTile({ product: p, onSelect }: { product: Product; onSelect: (p: 
 
 function ProductModal({ product: p, onClose }: { product: Product; onClose: () => void }) {
   const sale = isOnSale(p)
-  const atl  = isAtl(p)
+  const atl  = p.is_all_time_low
   const pct  = discountPct(p)
   const savings = p.regular_price - p.price
 
@@ -180,7 +180,7 @@ function CatSection({
   const saleProducts = allProducts.filter(isOnSale)
   const otherProducts = allProducts.filter((p: Product) => !isOnSale(p))
   const onSaleCount = saleProducts.length
-  const atlCount    = allProducts.filter(isAtl).length
+  const atlCount    = allProducts.filter((p: Product) => p.is_all_time_low).length
 
   if (productsLoading || categoriesLoading) return <>Loading</>
 
