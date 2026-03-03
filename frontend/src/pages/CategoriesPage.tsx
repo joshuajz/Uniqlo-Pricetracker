@@ -51,7 +51,7 @@ function MosaicTile({ product: p, onSelect }: { product: Product; onSelect: (p: 
           <img
             src={imgSrc}
             alt={p.name}
-            className="absolute inset-0 w-full h-full object-cover object-top"
+            className="absolute inset-0 w-full h-full object-contain bg-stone-100"
           />
         )}
         <div className="relative flex gap-1">

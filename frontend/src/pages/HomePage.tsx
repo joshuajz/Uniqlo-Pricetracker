@@ -30,9 +30,9 @@ function ProductRow({ product }: { product: Product }) {
   return (
     <div className="grid grid-cols-[48px_1fr_auto] sm:grid-cols-[60px_1fr_auto_auto_96px_52px] items-center gap-2 sm:gap-3 px-1 sm:px-2 py-2 border-b border-stone-200 cursor-pointer -mx-1 sm:-mx-2 transition-[background] duration-100 hover:bg-stone-100 group">
       {/* Thumbnail */}
-      <div className="w-12 h-12 sm:w-[60px] sm:h-[60px] overflow-hidden shrink-0">
+      <div className="w-12 h-12 sm:w-[60px] sm:h-[60px] overflow-hidden shrink-0 bg-stone-100">
         {imgSrc
-          ? <img src={imgSrc} alt={product.name} className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.08]" />
+          ? <img src={imgSrc} alt={product.name} className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.08]" />
           : <div className="w-full h-full bg-stone-200 animate-pulse" />
         }
       </div>
