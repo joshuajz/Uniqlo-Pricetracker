@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, TrendingDown } from 'lucide-react'
 import { discountPct, isAtl, isOnSale, genderLabel } from '../data/mockData'
 import type { Product, TabKey } from '../types/types'
 import { getProducts } from '../data/api'
+import PageLoader from '../components/PageLoader'
 
 // ─── Stat Card ───────────────────────────────────────────────────────────────
 
@@ -129,7 +130,7 @@ export default function DashboardPage() {
     { key: 'atl',  label: `At ATL (${atls.length})` },
   ]
 
-  if (isLoading) return <>Loading</>
+  if (isLoading) return <PageLoader />
 
   return (
     <div className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-10 pb-[60px]">

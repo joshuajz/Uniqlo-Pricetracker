@@ -6,6 +6,7 @@ import {
 } from '../data/mockData'
 import type { Product, SortKey } from '../types/types'
 import { getCategories, getImage, getProducts } from '../data/api'
+import PageLoader from '../components/PageLoader'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -196,7 +197,7 @@ export default function HomePage() {
     { key: 'atl', label: 'At All-Time Low' },
   ]
 
-  if (productsLoading || categoriesLoading) return <>Loading</>
+  if (productsLoading || categoriesLoading) return <PageLoader />
 
   return (
     <div className="max-w-[1100px] mx-auto px-4 sm:px-6 pb-[60px]">

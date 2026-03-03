@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { ChevronRight, ChevronDown, X } from 'lucide-react'
-import { PRODUCTS, discountPct, isOnSale } from '../data/mockData'
+import { discountPct, isOnSale } from '../data/mockData'
 import type { Product } from '../types/types'
-import { getCategories, getImage, getProducts } from '../data/api'
+import { getImage, getProducts } from '../data/api'
+import PageLoader from '../components/PageLoader'
 
 function productHue(id: string): number {
   return id.split('').reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) & 0xffff, 0) % 360
@@ -164,25 +165,19 @@ function ProductModal({ product: p, onClose }: { product: Product; onClose: () =
 // ─── Category Section ─────────────────────────────────────────────────────────
 
 function CatSection({
-  name, index, isOpen, onToggle, onSelect,
+  name, index, isOpen, onToggle, onSelect, allProducts,
 }: {
   name: string
   index: number
   isOpen: boolean
   onToggle: () => void
   onSelect: (p: Product) => void
+  allProducts: Product[]
 }) {
-  const { data: productsAPI = [], isLoading: productsLoading } = getProducts()
-  const { data: categoriesAPI = [], isLoading: categoriesLoading } = getCategories()
-
-  const products: Product[] = productsAPI?.products ?? []
-  const allProducts = products.filter((p: Product) => p.categories.includes(name))
   const saleProducts = allProducts.filter(isOnSale)
   const otherProducts = allProducts.filter((p: Product) => !isOnSale(p))
   const onSaleCount = saleProducts.length
   const atlCount    = allProducts.filter((p: Product) => p.is_all_time_low).length
-
-  if (productsLoading || categoriesLoading) return <>Loading</>
 
   return (
     <div className={`border-t-[3px] ${index === 0 ? 'border-red-600' : 'border-gray-900'}`}>
@@ -267,13 +262,13 @@ function CatSection({
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-const ALL_CATEGORIES = Array.from(
-  new Set(PRODUCTS.products.flatMap(p => p.categories))
-).sort()
-
 export default function CategoriesPage() {
   const [open, setOpen] = useState<Set<string>>(new Set())
   const [selected, setSelected] = useState<Product | null>(null)
+  const { data: productsAPI, isLoading } = getProducts()
+
+  const products: Product[] = productsAPI?.products ?? []
+  const categories = Array.from(new Set(products.flatMap(p => p.categories))).sort()
 
   const toggle = (cat: string) => {
     setOpen(prev => {
@@ -284,6 +279,8 @@ export default function CategoriesPage() {
     })
   }
 
+  if (isLoading) return <PageLoader />
+
   return (
     <div className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-10 pb-[60px]">
 
@@ -293,13 +290,13 @@ export default function CategoriesPage() {
           Browse <span className="text-red-600">Categories</span>
         </h1>
         <p className="text-[13px] text-gray-400 mt-1.5">
-          {ALL_CATEGORIES.length} categories · {PRODUCTS.products.length} products tracked
+          {categories.length} categories · {products.length} products tracked
         </p>
       </div>
 
       {/* ── Category list ── */}
       <div>
-        {ALL_CATEGORIES.map((cat, i) => (
+        {categories.map((cat, i) => (
           <CatSection
             key={cat}
             name={cat}
@@ -307,6 +304,7 @@ export default function CategoriesPage() {
             isOpen={open.has(cat)}
             onToggle={() => toggle(cat)}
             onSelect={setSelected}
+            allProducts={products.filter(p => p.categories.includes(cat))}
           />
         ))}
       </div>
