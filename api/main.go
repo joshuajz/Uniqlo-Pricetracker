@@ -612,13 +612,23 @@ func getProduct(c *gin.Context) {
 	var lowestPriceInfo LowestPriceInfo
 	var highestPriceInfo HighestPriceInfo
 	var regularPrice float64
-	var lowestDatetime, highestDatetime time.Time
+	var lowestDatetime, highestDatetime sql.NullTime
 	err = db.QueryRow(
 		"SELECT lowest_price, lowest_price_datetime, highest_price, highest_price_datetime, regular_price FROM stats WHERE product_id = $1",
 		productID,
 	).Scan(&lowestPriceInfo.LowestPrice, &lowestDatetime, &highestPriceInfo.HighestPrice, &highestDatetime, &regularPrice)
-	if err == sql.ErrNoRows {
-		// If no stats entry, calculate from datapoints
+	if err == nil {
+		if lowestDatetime.Valid {
+			lowestPriceInfo.Datetime = lowestDatetime.Time.Format(time.RFC3339)
+		}
+		if highestDatetime.Valid {
+			highestPriceInfo.Datetime = highestDatetime.Time.Format(time.RFC3339)
+		}
+	} else {
+		// No stats row, or scan failed (e.g. NULL datetime) — fall back to calculating from datapoints
+		if err != sql.ErrNoRows {
+			fmt.Printf("WARNING: stats scan failed for %s: %v, falling back to datapoints\n", productID, err)
+		}
 		minPrice := datapoints[0].Price
 		minDatetime := datapoints[0].Datetime
 		maxPrice := datapoints[0].Price
@@ -646,12 +656,6 @@ func getProduct(c *gin.Context) {
 				regularPrice = price
 			}
 		}
-	} else if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get price stats"})
-		return
-	} else {
-		lowestPriceInfo.Datetime = lowestDatetime.Format(time.RFC3339)
-		highestPriceInfo.Datetime = highestDatetime.Format(time.RFC3339)
 	}
 
 	// Determine if product is on sale (current price < regular price)
