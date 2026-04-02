@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Design 10 — Full-Viewport Sections · Categories</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #fcfaf9; margin: 0; overflow: hidden; height: 100vh; }
+    [x-cloak] { display: none !important; }
+
+    /* scroll container */
+    #scroller {
+      height: 100vh;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      scroll-behavior: smooth;
+    }
+    .snap-section {
+      scroll-snap-align: start;
+      height: 100vh;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Ghost background word */
+    .ghost-word {
+      position: absolute;
+      bottom: -0.12em;
+      left: -0.04em;
+      font-size: clamp(100px, 22vw, 260px);
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      pointer-events: none;
+      user-select: none;
+      white-space: nowrap;
+      text-transform: uppercase;
+    }
+
+    /* Product drawer overlay */
+    #drawer {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 100;
+      background: white;
+      border-top: 3px solid #111;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    #drawer.open { transform: translateY(0); }
+    #drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      z-index: 99;
+      display: none;
+    }
+    #drawer-backdrop.open { display: block; }
+
+    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+    /* Scrollbar hidden on main scroller */
+    #scroller::-webkit-scrollbar { display: none; }
+    #scroller { scrollbar-width: none; }
+  </style>
+</head>
+<body x-data="app()">
+
+  <!-- Sticky navbar always on top -->
+  <header class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur border-b border-gray-200">
+    <div class="max-w-full px-6 h-[48px] flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-semibold tracking-widest text-red-600">UNIQLO</span>
+        <span class="text-gray-200">|</span>
+        <span class="text-xs font-light text-gray-400">Price Tracker</span>
+      </div>
+
+      <!-- Section dots nav -->
+      <div class="flex items-center gap-3">
+        <template x-for="(g, i) in groups" :key="g.main">
+          <button
+            @click="scrollToSection(i)"
+            class="flex items-center gap-2 text-[11px] font-semibold capitalize transition-colors"
+            :class="activeSection === i ? 'text-gray-900' : 'text-gray-300 hover:text-gray-500'"
+          >
+            <span
+              class="w-1.5 h-1.5 rounded-full transition-all"
+              :class="activeSection === i ? 'bg-red-600 scale-125' : 'bg-gray-300'"
+            ></span>
+            <span x-text="g.main"></span>
+          </button>
+        </template>
+      </div>
+
+      <!-- Design label -->
+      <div class="hidden sm:flex items-center gap-2 text-[11px] text-gray-400">
+        <span class="font-black text-gray-900">Design 10</span>
+        <span class="text-gray-300">·</span>
+        <span>Full-Viewport Sections</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Scroll container -->
+  <div id="scroller" @scroll="onScroll">
+    <template x-for="(group, gi) in groups" :key="group.main">
+      <section
+        class="snap-section"
+        :id="'section-' + gi"
+        :style="`background: ${sectionBg(gi)}`"
+      >
+        <!-- Ghost background word -->
+        <div class="ghost-word" :style="`color: ${ghostColor(gi)}`" x-text="group.main"></div>
+
+        <!-- Content layer -->
+        <div class="relative z-10 flex flex-col h-full pt-[48px]">
+
+          <!-- Section header -->
+          <div class="px-8 pt-8 pb-6 flex items-end justify-between">
+            <div>
+              <div class="text-[11px] font-bold tracking-[0.16em] uppercase mb-2" :style="`color: ${labelColor(gi)}`">
+                Browse
+              </div>
+              <h2 class="text-[40px] sm:text-[64px] font-black tracking-[-0.03em] leading-none capitalize" :style="`color: ${headingColor(gi)}`" x-text="group.main"></h2>
+              <div class="flex items-center gap-3 mt-3">
+                <span class="text-[13px] font-medium" :style="`color: ${labelColor(gi)}`" x-text="group.subs.length + ' categories'"></span>
+                <span :style="`color: ${labelColor(gi)}; opacity: 0.4`">·</span>
+                <span class="text-[13px] font-medium" :style="`color: ${labelColor(gi)}`" x-text="group.totalProducts + ' products'"></span>
+                <template x-if="group.totalSale > 0">
+                  <span class="bg-red-600 text-white text-[10px] font-black px-2 py-0.5" x-text="group.totalSale + ' SALE'"></span>
+                </template>
+              </div>
+            </div>
+            <!-- Scroll hint -->
+            <div class="hidden sm:flex flex-col items-center gap-1 pb-2 opacity-30" :style="`color: ${headingColor(gi)}`">
+              <svg class="w-4 h-4 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              <span class="text-[9px] font-bold tracking-widest uppercase">scroll</span>
+            </div>
+          </div>
+
+          <!-- Subcategory chips -->
+          <div class="px-8 flex-1 flex flex-col justify-center">
+            <div class="flex flex-wrap gap-2">
+              <template x-for="sub in group.subs" :key="sub.slug">
+                <button
+                  @click="openDrawer(sub)"
+                  class="group flex items-center gap-2 px-4 py-2.5 border-2 transition-all duration-150"
+                  :class="gi === 0
+                    ? 'border-white/30 text-white hover:bg-white hover:text-gray-900 hover:border-white'
+                    : gi === 1
+                      ? 'border-gray-900/20 text-gray-900 hover:bg-gray-900 hover:text-white hover:border-gray-900'
+                      : 'border-gray-500/30 text-gray-700 hover:bg-gray-900 hover:text-white hover:border-gray-900'"
+                >
+                  <span class="text-[14px] font-bold" x-text="sub.label"></span>
+                  <template x-if="sub.saleCount > 0">
+                    <span class="text-[10px] font-black bg-red-600 text-white px-1.5 py-0.5" x-text="sub.saleCount"></span>
+                  </template>
+                  <template x-if="sub.atlCount > 0">
+                    <span class="text-[10px] font-black bg-sky-600 text-white px-1.5 py-0.5" x-text="'★'+sub.atlCount"></span>
+                  </template>
+                  <span class="text-[11px] opacity-40" x-text="sub.products.length + ' →'"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+
+          <!-- Bottom indicator: total tracked in section -->
+          <div class="px-8 py-6 flex items-center gap-2" :style="`opacity: 0.35; color: ${headingColor(gi)}`">
+            <div class="flex-1 border-t border-current opacity-20"></div>
+            <span class="text-[10px] font-bold tracking-widest uppercase" x-text="'Section ' + (gi+1) + ' of ' + groups.length"></span>
+          </div>
+
+        </div>
+      </section>
+    </template>
+  </div>
+
+  <!-- Drawer backdrop -->
+  <div id="drawer-backdrop" @click="closeDrawer()"></div>
+
+  <!-- Product drawer -->
+  <div id="drawer" x-cloak>
+    <template x-if="drawerSub">
+      <div class="px-5 py-5">
+        <!-- Drawer header -->
+        <div class="flex items-start justify-between mb-5">
+          <div>
+            <div class="text-[10px] font-bold tracking-[0.14em] uppercase text-gray-400 mb-0.5" x-text="drawerSub.slug.split('/')[0].toUpperCase()"></div>
+            <div class="text-[22px] font-black leading-tight" x-text="drawerSub.label"></div>
+            <div class="flex items-center gap-2 mt-1.5">
+              <span class="text-[12px] text-gray-400" x-text="drawerSub.products.length + ' products'"></span>
+              <template x-if="drawerSub.saleCount > 0">
+                <span class="bg-red-600 text-white text-[10px] font-black px-1.5 py-0.5" x-text="drawerSub.saleCount + ' SALE'"></span>
+              </template>
+              <template x-if="drawerSub.atlCount > 0">
+                <span class="bg-sky-600 text-white text-[10px] font-black px-1.5 py-0.5" x-text="drawerSub.atlCount + ' ATL'"></span>
+              </template>
+            </div>
+          </div>
+          <button @click="closeDrawer()" class="text-gray-300 hover:text-gray-900 text-2xl leading-none transition-colors mt-1">×</button>
+        </div>
+
+        <!-- Sale products -->
+        <template x-if="drawerSub.saleProducts.length > 0">
+          <div>
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-[10px] font-bold tracking-[0.14em] uppercase text-red-600">On Sale</span>
+              <div class="flex-1 border-t border-red-100"></div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 mb-5">
+              <template x-for="p in drawerSub.saleProducts" :key="p.id">
+                <div class="bg-white border border-gray-200 overflow-hidden cursor-pointer hover:border-gray-400 hover:shadow-md transition-all">
+                  <div class="aspect-[4/3] flex items-end p-2" :style="`background:linear-gradient(160deg,hsl(${productHue(p.id)},28%,36%),hsl(${(productHue(p.id)+20)%360},22%,54%))`">
+                    <div class="flex gap-1">
+                      <span x-show="p.atl" class="bg-sky-600 text-sky-100 text-[10px] font-bold px-1.5 py-0.5">ATL</span>
+                      <span class="bg-red-700 text-red-100 text-[10px] font-bold px-1.5 py-0.5">SALE</span>
+                    </div>
+                  </div>
+                  <div class="px-2.5 pt-2.5 pb-3">
+                    <div class="text-xs font-semibold text-gray-900 leading-[1.3] mb-1.5 line-clamp-2" x-text="p.name"></div>
+                    <div class="flex items-baseline gap-1.5">
+                      <span class="text-sm font-bold" x-text="'$'+p.price.toFixed(2)"></span>
+                      <span class="text-[11px] text-gray-300 line-through" x-text="'$'+p.reg.toFixed(2)"></span>
+                      <span class="text-[11px] font-bold text-red-600" x-text="'−'+discountPct(p)+'%'"></span>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <!-- Regular products -->
+        <template x-if="drawerSub.regularProducts.length > 0">
+          <div>
+            <template x-if="drawerSub.saleProducts.length > 0">
+              <div class="flex items-center gap-2 mb-3">
+                <span class="text-[10px] font-bold tracking-[0.14em] uppercase text-gray-400">Regular Price</span>
+                <div class="flex-1 border-t border-dashed border-gray-200"></div>
+              </div>
+            </template>
+            <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+              <template x-for="p in drawerSub.regularProducts" :key="p.id">
+                <div class="bg-white border border-gray-200 overflow-hidden cursor-pointer hover:border-gray-400 hover:shadow-md transition-all">
+                  <div class="aspect-[4/3] flex items-end p-2" :style="`background:linear-gradient(160deg,hsl(${productHue(p.id)},28%,36%),hsl(${(productHue(p.id)+20)%360},22%,54%))`">
+                    <span x-show="p.atl" class="bg-sky-600 text-sky-100 text-[10px] font-bold px-1.5 py-0.5">ATL</span>
+                  </div>
+                  <div class="px-2.5 pt-2.5 pb-3">
+                    <div class="text-xs font-semibold text-gray-900 leading-[1.3] mb-1.5 line-clamp-2" x-text="p.name"></div>
+                    <div class="flex items-baseline"><span class="text-sm font-bold" x-text="'$'+p.price.toFixed(2)"></span></div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+  </div>
+
+<script>
+function productHue(id){let h=0;for(const c of id)h=(h*31+c.charCodeAt(0))&0x7fffffff;return h%360;}
+function discountPct(p){return Math.round((1-p.price/p.reg)*100);}
+const PRODUCTS=[
+  {id:'UT001',name:'AIRism Cotton Crew Neck T-Shirt',price:14.90,reg:19.90,cat:'men/tops',sale:true,atl:false},
+  {id:'UT002',name:'Dry Stretch Crew Neck T-Shirt',price:19.90,reg:19.90,cat:'men/tops',sale:false,atl:false},
+  {id:'UT003',name:'Supima Cotton Crew Neck T-Shirt',price:24.90,reg:29.90,cat:'men/tops',sale:true,atl:true},
+  {id:'UT004',name:'U Crew Neck Short Sleeve T-Shirt',price:19.90,reg:19.90,cat:'men/tops',sale:false,atl:false},
+  {id:'UT005',name:'Linen Blend V-Neck T-Shirt',price:22.90,reg:29.90,cat:'men/tops',sale:true,atl:false},
+  {id:'UB001',name:'Ultra Stretch Jeans Slim Fit',price:39.90,reg:49.90,cat:'men/bottoms',sale:true,atl:false},
+  {id:'UB002',name:'Kando Pants Regular Fit',price:44.90,reg:44.90,cat:'men/bottoms',sale:false,atl:false},
+  {id:'UB003',name:'Chino Shorts',price:19.90,reg:29.90,cat:'men/bottoms',sale:true,atl:true},
+  {id:'UB004',name:'Slim Fit Chino Pants',price:39.90,reg:39.90,cat:'men/bottoms',sale:false,atl:false},
+  {id:'UB005',name:'Dry Sweat Wide Fit Pants',price:34.90,reg:39.90,cat:'men/bottoms',sale:true,atl:false},
+  {id:'US001',name:'Extra Fine Cotton Broadcloth Shirt',price:29.90,reg:39.90,cat:'men/shirts-and-polo-shirts',sale:true,atl:false},
+  {id:'US002',name:'Flannel Long Sleeve Shirt',price:34.90,reg:34.90,cat:'men/shirts-and-polo-shirts',sale:false,atl:false},
+  {id:'US003',name:'DRY Piqué Polo Shirt',price:24.90,reg:29.90,cat:'men/shirts-and-polo-shirts',sale:true,atl:true},
+  {id:'US004',name:'Supima Cotton Polo Shirt',price:34.90,reg:34.90,cat:'men/shirts-and-polo-shirts',sale:false,atl:false},
+  {id:'UO001',name:'Hybrid Down Parka',price:89.90,reg:119.90,cat:'men/outerwear',sale:true,atl:false},
+  {id:'UO002',name:'Blocktech Parka',price:99.90,reg:99.90,cat:'men/outerwear',sale:false,atl:false},
+  {id:'UO003',name:'Fleece Full-Zip Jacket',price:34.90,reg:49.90,cat:'men/outerwear',sale:true,atl:true},
+  {id:'UI001',name:'AIRism Mesh T-Shirt 3-Pack',price:24.90,reg:29.90,cat:'men/innerwear-and-socks',sale:true,atl:false},
+  {id:'UI002',name:'HEATTECH Extra Warm Turtleneck',price:22.90,reg:22.90,cat:'men/innerwear-and-socks',sale:false,atl:false},
+  {id:'UI003',name:'Ankle Socks 3-Pack',price:9.90,reg:12.90,cat:'men/innerwear-and-socks',sale:true,atl:false},
+  {id:'WT001',name:'AIRism UV Protection T-Shirt',price:17.90,reg:22.90,cat:'women/tops',sale:true,atl:false},
+  {id:'WT002',name:'Linen Blend Cropped T-Shirt',price:24.90,reg:24.90,cat:'women/tops',sale:false,atl:false},
+  {id:'WT003',name:'Cotton Cashmere Turtleneck Sweater',price:49.90,reg:69.90,cat:'women/tops',sale:true,atl:true},
+  {id:'WT004',name:'Ribbed Knit Cardigan',price:39.90,reg:39.90,cat:'women/tops',sale:false,atl:false},
+  {id:'WT005',name:'Merino Wool Crew Neck Sweater',price:59.90,reg:79.90,cat:'women/tops',sale:true,atl:false},
+  {id:'WT006',name:'Satin Camisole Top',price:19.90,reg:19.90,cat:'women/tops',sale:false,atl:false},
+  {id:'WB001',name:'Ultra Stretch Leggings Pants',price:24.90,reg:34.90,cat:'women/bottoms',sale:true,atl:false},
+  {id:'WB002',name:'Wide Fit Chino Pants',price:39.90,reg:39.90,cat:'women/bottoms',sale:false,atl:false},
+  {id:'WB003',name:'Slim Fit Jeans',price:29.90,reg:39.90,cat:'women/bottoms',sale:true,atl:true},
+  {id:'WB004',name:'Pleated Wide Shorts',price:29.90,reg:29.90,cat:'women/bottoms',sale:false,atl:false},
+  {id:'WD001',name:'Satin Long Skirt',price:34.90,reg:44.90,cat:'women/dresses-and-skirts',sale:true,atl:false},
+  {id:'WD002',name:'Rayon Long Cami Dress',price:39.90,reg:39.90,cat:'women/dresses-and-skirts',sale:false,atl:false},
+  {id:'WD003',name:'Cotton Boat Neck Dress',price:29.90,reg:39.90,cat:'women/dresses-and-skirts',sale:true,atl:true},
+  {id:'WD004',name:'Linen Blend Midi Skirt',price:34.90,reg:34.90,cat:'women/dresses-and-skirts',sale:false,atl:false},
+  {id:'WO001',name:'Fluffy Yarn Fleece Jacket',price:44.90,reg:59.90,cat:'women/outerwear',sale:true,atl:false},
+  {id:'WO002',name:'Compact Oversized Jacket',price:79.90,reg:79.90,cat:'women/outerwear',sale:false,atl:false},
+  {id:'WO003',name:'Down Vest',price:49.90,reg:69.90,cat:'women/outerwear',sale:true,atl:true},
+  {id:'WI001',name:'AIRism Ultra Seamless Shorts',price:14.90,reg:19.90,cat:'women/innerwear-and-socks',sale:true,atl:false},
+  {id:'WI002',name:'HEATTECH Ultra Warm Turtleneck',price:24.90,reg:24.90,cat:'women/innerwear-and-socks',sale:false,atl:false},
+  {id:'KT001',name:'Kids AIRism Crew Neck T-Shirt',price:9.90,reg:12.90,cat:'kids/tops',sale:true,atl:false},
+  {id:'KT002',name:'Kids Fleece Crew Neck Sweatshirt',price:19.90,reg:19.90,cat:'kids/tops',sale:false,atl:false},
+  {id:'KT003',name:'Kids Graphic Short Sleeve T-Shirt',price:12.90,reg:14.90,cat:'kids/tops',sale:true,atl:true},
+  {id:'KB001',name:'Kids Sweatpants',price:14.90,reg:19.90,cat:'kids/bottoms',sale:true,atl:false},
+  {id:'KB002',name:'Kids Ultra Stretch Jeans',price:24.90,reg:24.90,cat:'kids/bottoms',sale:false,atl:false},
+  {id:'KO001',name:'Kids Hooded Down Jacket',price:39.90,reg:59.90,cat:'kids/outerwear',sale:true,atl:true},
+  {id:'KO002',name:'Kids Fleece Full-Zip Jacket',price:24.90,reg:29.90,cat:'kids/outerwear',sale:true,atl:false},
+];
+function buildGroups(products) {
+  const map={};
+  for (const p of products) {
+    const [main,sub] = p.cat.split('/');
+    if (!map[main]) map[main] = { main, subs: {} };
+    if (!map[main].subs[p.cat]) map[main].subs[p.cat] = { slug: p.cat, label: sub.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()), products: [] };
+    map[main].subs[p.cat].products.push(p);
+  }
+  return Object.values(map).map(g => {
+    const subs = Object.values(g.subs).map(s => ({
+      ...s,
+      saleProducts: s.products.filter(p=>p.sale),
+      regularProducts: s.products.filter(p=>!p.sale),
+      saleCount: s.products.filter(p=>p.sale).length,
+      atlCount: s.products.filter(p=>p.atl).length,
+    }));
+    return {
+      ...g,
+      subs,
+      totalProducts: subs.reduce((n,s)=>n+s.products.length,0),
+      totalSale: subs.reduce((n,s)=>n+s.saleCount,0),
+    };
+  });
+}
+// Section colour schemes: [bg, ghostColor, headingColor, labelColor]
+const SCHEMES = [
+  { bg:'#111111', ghost:'rgba(255,255,255,0.04)', heading:'#ffffff', label:'rgba(255,255,255,0.45)' },
+  { bg:'#fcfaf9', ghost:'rgba(0,0,0,0.04)',       heading:'#111111', label:'rgba(0,0,0,0.4)' },
+  { bg:'#f0f0ef', ghost:'rgba(0,0,0,0.04)',       heading:'#111111', label:'rgba(0,0,0,0.4)' },
+];
+function app() {
+  const groups = buildGroups(PRODUCTS);
+  return {
+    groups, drawerSub: null, activeSection: 0,
+    sectionBg(i) { return SCHEMES[i % SCHEMES.length].bg; },
+    ghostColor(i) { return SCHEMES[i % SCHEMES.length].ghost; },
+    headingColor(i) { return SCHEMES[i % SCHEMES.length].heading; },
+    labelColor(i) { return SCHEMES[i % SCHEMES.length].label; },
+    scrollToSection(i) {
+      document.getElementById('section-' + i).scrollIntoView({ behavior:'smooth' });
+      this.activeSection = i;
+    },
+    onScroll(e) {
+      const h = window.innerHeight;
+      this.activeSection = Math.round(e.target.scrollTop / h);
+    },
+    openDrawer(sub) {
+      this.drawerSub = sub;
+      document.getElementById('drawer').classList.add('open');
+      document.getElementById('drawer-backdrop').classList.add('open');
+    },
+    closeDrawer() {
+      document.getElementById('drawer').classList.remove('open');
+      document.getElementById('drawer-backdrop').classList.remove('open');
+      setTimeout(() => { this.drawerSub = null; }, 310);
+    },
+    productHue, discountPct,
+  };
+}
+</script>
+</body>
+</html>

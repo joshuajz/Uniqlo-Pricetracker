@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Category Page Designs · Uniqlo Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; margin: 0; background: #f5f5f4; }
+
+    /* Design switcher tab bar */
+    .tab-bar {
+      display: flex;
+      align-items: stretch;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tab-bar::-webkit-scrollbar { display: none; }
+
+    .tab-btn {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 10px 20px;
+      border: none;
+      border-right: 1px solid #e5e7eb;
+      border-bottom: 3px solid transparent;
+      background: white;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      gap: 2px;
+    }
+    .tab-btn:hover { background: #fafaf9; }
+    .tab-btn.active {
+      border-bottom-color: #dc2626;
+      background: white;
+    }
+    .tab-btn .num {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: #dc2626;
+    }
+    .tab-btn .label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #111;
+      white-space: nowrap;
+    }
+    .tab-btn .desc {
+      font-size: 10px;
+      color: #9ca3af;
+      white-space: nowrap;
+    }
+    .tab-btn:not(.active) .label { color: #6b7280; }
+    .tab-btn:not(.active) .num { color: #9ca3af; }
+
+    /* Info strip */
+    .info-strip {
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .info-strip .design-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #111;
+    }
+    .info-strip .design-note {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+    .info-strip .open-btn {
+      margin-left: auto;
+      font-size: 11px;
+      font-weight: 600;
+      color: #dc2626;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border: 1px solid #fca5a5;
+      transition: background 0.12s;
+    }
+    .info-strip .open-btn:hover { background: #fff5f5; }
+
+    /* Iframe container */
+    .frame-wrap {
+      width: 100%;
+      height: calc(100vh - 88px); /* total bar heights */
+      position: relative;
+    }
+    .frame-wrap iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Top header ── -->
+  <header style="background:white;border-bottom:1px solid #e5e7eb;padding:0 20px;height:36px;display:flex;align-items:center;gap:12px;">
+    <span style="font-size:11px;font-weight:800;letter-spacing:0.12em;color:#dc2626;">UNIQLO</span>
+    <span style="color:#d1d5db;">|</span>
+    <span style="font-size:11px;color:#6b7280;">Design Exploration</span>
+    <span style="color:#d1d5db;">·</span>
+    <span style="font-size:11px;font-weight:600;color:#111;">Categories Page — 5 Designs</span>
+    <a href="../index.html" style="margin-left:auto;font-size:10px;color:#9ca3af;text-decoration:none;hover:color:#374151;">← All designs</a>
+  </header>
+
+  <!-- ── Tab bar ── -->
+  <div class="tab-bar" style="border-bottom:1px solid #e5e7eb;" id="tabBar">
+
+    <button class="tab-btn active" data-design="1" onclick="switchTo(1, this)">
+      <span class="num">01</span>
+      <span class="label">Nested Accordion</span>
+      <span class="desc">Two-level expand/collapse</span>
+    </button>
+
+    <button class="tab-btn" data-design="2" onclick="switchTo(2, this)">
+      <span class="num">02</span>
+      <span class="label">Sticky Tab Rail</span>
+      <span class="desc">Filter by gender tab</span>
+    </button>
+
+    <button class="tab-btn" data-design="3" onclick="switchTo(3, this)">
+      <span class="num">03</span>
+      <span class="label">Sidebar Split</span>
+      <span class="desc">Sidebar + jump-to navigation</span>
+    </button>
+
+    <button class="tab-btn" data-design="4" onclick="switchTo(4, this)">
+      <span class="num">04</span>
+      <span class="label">Card Drill-Down</span>
+      <span class="desc">Gender cards → subcategories</span>
+    </button>
+
+    <button class="tab-btn" data-design="5" onclick="switchTo(5, this)">
+      <span class="num">05</span>
+      <span class="label">Chip Strip</span>
+      <span class="desc">Inline product zone per chip</span>
+    </button>
+
+  </div>
+
+  <!-- ── Info strip ── -->
+  <div class="info-strip" id="infoStrip">
+    <span class="design-name" id="designName">Design 1 — Nested Two-Level Accordion</span>
+    <span class="design-note" id="designNote">Main categories expand to reveal nested subcategory accordions. All existing components reused. Lowest implementation effort.</span>
+    <a id="openLink" href="design-1-nested-accordion.html" target="_blank" class="open-btn">
+      Open full page ↗
+    </a>
+  </div>
+
+  <!-- ── Iframe ── -->
+  <div class="frame-wrap">
+    <iframe id="designFrame" src="design-1-nested-accordion.html" title="Design preview"></iframe>
+  </div>
+
+  <script>
+    const designs = {
+      1: {
+        src: 'design-1-nested-accordion.html',
+        name: 'Design 1 — Nested Two-Level Accordion',
+        note: 'Main categories expand to reveal nested subcategory accordions. All existing components reused. Lowest implementation effort.',
+      },
+      2: {
+        src: 'design-2-sticky-tabs.html',
+        name: 'Design 2 — Sticky Tab Rail',
+        note: 'A sticky Men / Women / Kids / All tab bar filters the category list. ~15 lines of new code on top of the current page. Tabs use the same pattern as DashboardPage.',
+      },
+      3: {
+        src: 'design-3-sidebar-split.html',
+        name: 'Design 3 — Two-Column Sidebar Split',
+        note: 'Fixed left sidebar lists main categories with subcategory links. Clicking a link auto-scrolls to and expands that section in the right content column.',
+      },
+      4: {
+        src: 'design-4-card-drilldown.html',
+        name: 'Design 4 — Card Grid + Drill-Down',
+        note: 'Landing view shows Men, Women, Kids cards with aggregate stats. Clicking a card drills into that gender\'s subcategory accordion with a back button.',
+      },
+      5: {
+        src: 'design-5-chip-strip.html',
+        name: 'Design 5 — Chip Strip + Inline Product Zone',
+        note: 'Chip buttons (×N = sale count) per subcategory. Clicking a chip opens a product mosaic inline. Multiple chips across different genders can be open at once.',
+      },
+    };
+
+    function switchTo(num, btn) {
+      // Update tab active state
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      // Update iframe
+      const d = designs[num];
+      document.getElementById('designFrame').src = d.src;
+      document.getElementById('designName').textContent = d.name;
+      document.getElementById('designNote').textContent = d.note;
+      document.getElementById('openLink').href = d.src;
+    }
+  </script>
+
+</body>
+</html>

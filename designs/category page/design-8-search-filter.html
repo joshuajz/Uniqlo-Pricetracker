@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Design 8 — Search + Live Filter · Categories</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #fcfaf9; }
+    [x-cloak] { display: none !important; }
+    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  </style>
+</head>
+<body x-data="app()" x-cloak>
+
+  <!-- Navbar -->
+  <header class="sticky top-0 z-20 bg-white border-b border-gray-200">
+    <div class="max-w-[1100px] mx-auto px-4 sm:px-6 h-[52px] flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-semibold tracking-widest text-red-600">UNIQLO</span>
+        <span class="text-gray-200">|</span>
+        <span class="text-xs font-light text-gray-400">Price Tracker</span>
+      </div>
+      <nav class="flex items-center gap-5">
+        <span class="text-xs text-gray-400">Home</span>
+        <span class="text-xs font-semibold text-gray-900 border-b-2 border-red-600 pb-0.5">Categories</span>
+        <span class="text-xs text-gray-400">Dashboard</span>
+      </nav>
+    </div>
+  </header>
+
+  <div class="max-w-[1100px] mx-auto px-4 sm:px-6 pt-10 pb-16">
+
+    <!-- Design label -->
+    <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 bg-white border border-gray-200 text-[11px] text-gray-500">
+      <span class="font-black text-gray-900">Design 8</span>
+      <span class="text-gray-300">·</span>
+      <span>Search + Live Filter</span>
+    </div>
+
+    <!-- Header + Search bar -->
+    <div class="mb-8">
+      <h1 class="text-[26px] sm:text-[36px] font-black tracking-[-0.03em] leading-none mb-5">Browse <span class="text-red-600">Categories</span></h1>
+
+      <!-- Search input -->
+      <div class="relative max-w-[600px]">
+        <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input
+          x-model="search"
+          type="text"
+          placeholder="Search categories or products…"
+          class="w-full pl-11 pr-10 py-3.5 border-2 border-gray-200 focus:border-gray-900 outline-none text-[14px] bg-white transition-colors placeholder-gray-300"
+        />
+        <button x-show="search.length > 0" @click="search = ''" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-600 transition-colors text-lg leading-none">×</button>
+      </div>
+
+      <!-- Filter pills (always visible) -->
+      <div class="flex items-center gap-2 mt-4 flex-wrap">
+        <span class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mr-1">Filter</span>
+        <button
+          @click="activeMain = 'all'"
+          class="text-[12px] font-semibold px-3 py-1 border transition-colors"
+          :class="activeMain === 'all' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'"
+        >All</button>
+        <template x-for="main in mainCats" :key="main">
+          <button
+            @click="activeMain = main"
+            class="text-[12px] font-semibold px-3 py-1 border transition-colors capitalize"
+            :class="activeMain === main ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'"
+            x-text="main"
+          ></button>
+        </template>
+        <span class="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-2 mr-1">Show</span>
+        <button
+          @click="saleOnly = !saleOnly"
+          class="text-[12px] font-semibold px-3 py-1 border transition-colors"
+          :class="saleOnly ? 'bg-red-700 text-red-100 border-red-700' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'"
+        >On sale only</button>
+        <button
+          @click="atlOnly = !atlOnly"
+          class="text-[12px] font-semibold px-3 py-1 border transition-colors"
+          :class="atlOnly ? 'bg-sky-600 text-sky-100 border-sky-600' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'"
+        >ATL only</button>
+      </div>
+
+      <!-- Result summary -->
+      <p class="text-[12px] text-gray-400 mt-3">
+        <template x-if="search.length === 0 && activeMain === 'all' && !saleOnly && !atlOnly">
+          <span><span x-text="allSubs.length"></span> categories · <span x-text="products.length"></span> products</span>
+        </template>
+        <template x-if="search.length > 0 || activeMain !== 'all' || saleOnly || atlOnly">
+          <span>
+            <span x-text="filteredCats.length"></span> categories ·
+            <span x-text="filteredProducts.length"></span> products
+            <template x-if="search.length > 0">
+              <span> matching "<span class="font-semibold text-gray-700" x-text="search"></span>"</span>
+            </template>
+          </span>
+        </template>
+      </p>
+    </div>
+
+    <!-- ── SEARCH RESULTS MODE ── -->
+    <template x-if="search.length >= 2">
+      <div class="space-y-8">
+
+        <!-- Matching categories -->
+        <template x-if="filteredCats.length > 0">
+          <div>
+            <div class="flex items-center gap-3 mb-4">
+              <span class="text-[10px] font-bold tracking-[0.14em] uppercase text-gray-400">Matching Categories</span>
+              <div class="flex-1 border-t border-gray-200"></div>
+              <span class="text-[10px] text-gray-300" x-text="filteredCats.length + ' found'"></span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <template x-for="sub in filteredCats" :key="sub.slug">
+                <button
+                  @click="openSub = openSub === sub.slug ? null : sub.slug"
+                  class="text-left border px-4 py-3 transition-all"
+                  :class="openSub === sub.slug ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 hover:border-gray-400'"
+                >
+                  <div class="text-[11px] mb-1" :class="openSub === sub.slug ? 'text-gray-400' : 'text-gray-400'" x-text="sub.slug.split('/')[0].toUpperCase()"></div>
+                  <div class="text-[14px] font-bold" x-text="sub.label"></div>
+                  <div class="flex items-center gap-2 mt-1.5">
+                    <span class="text-[11px]" :class="openSub === sub.slug ? 'text-gray-400' : 'text-gray-400'" x-text="sub.products.length + ' products'"></span>
+                    <template x-if="sub.saleCount > 0">
+                      <span class="text-[10px] font-bold" :class="openSub === sub.slug ? 'text-red-400' : 'text-red-600'" x-text="sub.saleCount + ' sale'"></span>
+                    </template>
+                  </div>
+                </button>
+              </template>
+            </div>
+            <!-- Expanded category products -->
+            <template x-if="openSub">
+              <div x-data="{ sub: null }" x-effect="sub = filteredCats.find(s => s.slug === openSub)" class="mt-4 pt-4 border-t border-dashed border-gray-200">
+                <template x-if="sub">
+                  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                    <template x-for="p in sub.products" :key="p.id">
+                      <div class="bg-white border border-gray-200 overflow-hidden cursor-pointer hover:border-gray-400 hover:shadow-md transition-all">
+                        <div class="aspect-[4/3] flex items-end p-2" :style="`background:linear-gradient(160deg,hsl(${productHue(p.id)},28%,36%),hsl(${(productHue(p.id)+20)%360},22%,54%))`">
+                          <div class="flex gap-1">
+                            <span x-show="p.atl" class="bg-sky-600 text-sky-100 text-[10px] font-bold px-1.5 py-0.5">ATL</span>
+                            <span x-show="p.sale" class="bg-red-700 text-red-100 text-[10px] font-bold px-1.5 py-0.5">SALE</span>
+                          </div>
+                        </div>
+                        <div class="px-2.5 pt-2.5 pb-3">
+                          <div class="text-xs font-semibold text-gray-900 leading-[1.3] mb-1.5 line-clamp-2" x-text="p.name"></div>
+                          <div class="flex items-baseline gap-1.5">
+                            <span class="text-sm font-bold" x-text="'$'+p.price.toFixed(2)"></span>
+                            <template x-if="p.sale"><span class="text-[11px] text-gray-300 line-through" x-text="'$'+p.reg.toFixed(2)"></span></template>
+                            <template x-if="p.sale"><span class="text-[11px] font-bold text-red-600" x-text="'−'+discountPct(p)+'%'"></span></template>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- Matching products -->
+        <template x-if="filteredProducts.length > 0">
+          <div>
+            <div class="flex items-center gap-3 mb-4">
+              <span class="text-[10px] font-bold tracking-[0.14em] uppercase text-gray-400">Matching Products</span>
+              <div class="flex-1 border-t border-gray-200"></div>
+              <span class="text-[10px] text-gray-300" x-text="filteredProducts.length + ' found'"></span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              <template x-for="p in filteredProducts.slice(0, 20)" :key="p.id">
+                <div class="bg-white border border-gray-200 overflow-hidden cursor-pointer hover:border-gray-400 hover:shadow-md transition-all">
+                  <div class="aspect-[4/3] flex items-end p-2" :style="`background:linear-gradient(160deg,hsl(${productHue(p.id)},28%,36%),hsl(${(productHue(p.id)+20)%360},22%,54%))`">
+                    <div class="flex gap-1">
+                      <span x-show="p.atl" class="bg-sky-600 text-sky-100 text-[10px] font-bold px-1.5 py-0.5">ATL</span>
+                      <span x-show="p.sale" class="bg-red-700 text-red-100 text-[10px] font-bold px-1.5 py-0.5">SALE</span>
+                    </div>
+                  </div>
+                  <div class="px-2.5 pt-2.5 pb-3">
+                    <!-- Category breadcrumb -->
+                    <div class="text-[9px] text-gray-300 uppercase tracking-wide mb-1 line-clamp-1" x-text="p.cat.replace('/',' › ')"></div>
+                    <div class="text-xs font-semibold text-gray-900 leading-[1.3] mb-1.5 line-clamp-2" x-text="p.name"></div>
+                    <div class="flex items-baseline gap-1.5">
+                      <span class="text-sm font-bold" x-text="'$'+p.price.toFixed(2)"></span>
+                      <template x-if="p.sale"><span class="text-[11px] text-gray-300 line-through" x-text="'$'+p.reg.toFixed(2)"></span></template>
+                      <template x-if="p.sale"><span class="text-[11px] font-bold text-red-600" x-text="'−'+discountPct(p)+'%'"></span></template>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <!-- No results -->
+        <template x-if="filteredCats.length === 0 && filteredProducts.length === 0">
+          <div class="py-16 text-center border border-dashed border-gray-200">
+            <p class="text-[13px] text-gray-400 mb-1">No results for "<span x-text="search" class="font-semibold"></span>"</p>
+            <p class="text-[11px] text-gray-300">Try a different category name or product keyword</p>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <!-- ── BROWSE MODE ── -->
+    <template x-if="search.length < 2">
+      <div>
+        <template x-for="(group, gi) in filteredGroups" :key="group.main">
+          <div :class="gi === 0 ? 'border-t-[3px] border-red-600' : 'border-t-[3px] border-gray-900'" class="mb-8">
+            <div class="pt-5 pb-3 flex items-baseline gap-3">
+              <h2 class="text-[18px] font-black uppercase tracking-[-0.01em] capitalize" x-text="group.main"></h2>
+              <span class="text-[12px] text-gray-400" x-text="group.visibleSubs.length + ' categories · ' + group.visibleSubs.reduce((n,s)=>n+s.products.length,0) + ' products'"></span>
+            </div>
+            <!-- Sub cards grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              <template x-for="sub in group.visibleSubs" :key="sub.slug">
+                <button
+                  @click="openSub = openSub === sub.slug ? null : sub.slug"
+                  class="text-left border p-4 transition-all"
+                  :class="openSub === sub.slug
+                    ? 'bg-gray-900 text-white border-gray-900 col-span-2 sm:col-span-3 md:col-span-4'
+                    : 'bg-white border-gray-200 hover:border-gray-400'"
+                >
+                  <template x-if="openSub !== sub.slug">
+                    <div>
+                      <div class="text-[13px] font-bold mb-2" x-text="sub.label"></div>
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="text-[11px] text-gray-400" x-text="sub.products.length + ' products'"></span>
+                        <template x-if="sub.saleCount > 0">
+                          <span class="text-[10px] font-bold text-red-600" x-text="sub.saleCount + ' sale'"></span>
+                        </template>
+                        <template x-if="sub.atlCount > 0">
+                          <span class="text-[10px] font-bold text-sky-600" x-text="sub.atlCount + ' ATL'"></span>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                  <template x-if="openSub === sub.slug">
+                    <div>
+                      <div class="flex items-center justify-between mb-4">
+                        <div>
+                          <div class="text-[11px] font-bold tracking-widest uppercase text-gray-400 mb-0.5" x-text="sub.slug.split('/')[0].toUpperCase()"></div>
+                          <div class="text-[16px] font-black text-white" x-text="sub.label"></div>
+                        </div>
+                        <button @click.stop="openSub = null" class="text-gray-400 hover:text-white text-sm">close ×</button>
+                      </div>
+                      <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                        <template x-for="p in sub.products" :key="p.id">
+                          <div class="bg-white border border-gray-700 overflow-hidden" @click.stop>
+                            <div class="aspect-[4/3] flex items-end p-1.5" :style="`background:linear-gradient(160deg,hsl(${productHue(p.id)},28%,36%),hsl(${(productHue(p.id)+20)%360},22%,54%))`">
+                              <div class="flex gap-1">
+                                <span x-show="p.atl" class="bg-sky-600 text-sky-100 text-[9px] font-bold px-1 py-0.5">ATL</span>
+                                <span x-show="p.sale" class="bg-red-700 text-red-100 text-[9px] font-bold px-1 py-0.5">SALE</span>
+                              </div>
+                            </div>
+                            <div class="px-2 pt-2 pb-2">
+                              <div class="text-[11px] font-semibold text-gray-900 leading-[1.3] mb-1 line-clamp-2" x-text="p.name"></div>
+                              <div class="flex items-baseline gap-1">
+                                <span class="text-[12px] font-bold text-gray-900" x-text="'$'+p.price.toFixed(2)"></span>
+                                <template x-if="p.sale"><span class="text-[10px] font-bold text-red-600" x-text="'−'+discountPct(p)+'%'"></span></template>
+                              </div>
+                            </div>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                </button>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <!-- Empty browse state -->
+        <template x-if="filteredGroups.length === 0 || filteredGroups.every(g => g.visibleSubs.length === 0)">
+          <div class="py-16 text-center border border-dashed border-gray-200">
+            <p class="text-[13px] text-gray-400">No categories match the current filters</p>
+          </div>
+        </template>
+      </div>
+    </template>
+
+  </div>
+
+<script>
+function productHue(id){let h=0;for(const c of id)h=(h*31+c.charCodeAt(0))&0x7fffffff;return h%360;}
+function discountPct(p){return Math.round((1-p.price/p.reg)*100);}
+const PRODUCTS=[
+  {id:'UT001',name:'AIRism Cotton Crew Neck T-Shirt',price:14.90,reg:19.90,cat:'men/tops',sale:true,atl:false},
+  {id:'UT002',name:'Dry Stretch Crew Neck T-Shirt',price:19.90,reg:19.90,cat:'men/tops',sale:false,atl:false},
+  {id:'UT003',name:'Supima Cotton Crew Neck T-Shirt',price:24.90,reg:29.90,cat:'men/tops',sale:true,atl:true},
+  {id:'UT004',name:'U Crew Neck Short Sleeve T-Shirt',price:19.90,reg:19.90,cat:'men/tops',sale:false,atl:false},
+  {id:'UT005',name:'Linen Blend V-Neck T-Shirt',price:22.90,reg:29.90,cat:'men/tops',sale:true,atl:false},
+  {id:'UB001',name:'Ultra Stretch Jeans Slim Fit',price:39.90,reg:49.90,cat:'men/bottoms',sale:true,atl:false},
+  {id:'UB002',name:'Kando Pants Regular Fit',price:44.90,reg:44.90,cat:'men/bottoms',sale:false,atl:false},
+  {id:'UB003',name:'Chino Shorts',price:19.90,reg:29.90,cat:'men/bottoms',sale:true,atl:true},
+  {id:'UB004',name:'Slim Fit Chino Pants',price:39.90,reg:39.90,cat:'men/bottoms',sale:false,atl:false},
+  {id:'UB005',name:'Dry Sweat Wide Fit Pants',price:34.90,reg:39.90,cat:'men/bottoms',sale:true,atl:false},
+  {id:'US001',name:'Extra Fine Cotton Broadcloth Shirt',price:29.90,reg:39.90,cat:'men/shirts-and-polo-shirts',sale:true,atl:false},
+  {id:'US002',name:'Flannel Long Sleeve Shirt',price:34.90,reg:34.90,cat:'men/shirts-and-polo-shirts',sale:false,atl:false},
+  {id:'US003',name:'DRY Piqué Polo Shirt',price:24.90,reg:29.90,cat:'men/shirts-and-polo-shirts',sale:true,atl:true},
+  {id:'US004',name:'Supima Cotton Polo Shirt',price:34.90,reg:34.90,cat:'men/shirts-and-polo-shirts',sale:false,atl:false},
+  {id:'UO001',name:'Hybrid Down Parka',price:89.90,reg:119.90,cat:'men/outerwear',sale:true,atl:false},
+  {id:'UO002',name:'Blocktech Parka',price:99.90,reg:99.90,cat:'men/outerwear',sale:false,atl:false},
+  {id:'UO003',name:'Fleece Full-Zip Jacket',price:34.90,reg:49.90,cat:'men/outerwear',sale:true,atl:true},
+  {id:'UI001',name:'AIRism Mesh T-Shirt 3-Pack',price:24.90,reg:29.90,cat:'men/innerwear-and-socks',sale:true,atl:false},
+  {id:'UI002',name:'HEATTECH Extra Warm Turtleneck',price:22.90,reg:22.90,cat:'men/innerwear-and-socks',sale:false,atl:false},
+  {id:'UI003',name:'Ankle Socks 3-Pack',price:9.90,reg:12.90,cat:'men/innerwear-and-socks',sale:true,atl:false},
+  {id:'WT001',name:'AIRism UV Protection T-Shirt',price:17.90,reg:22.90,cat:'women/tops',sale:true,atl:false},
+  {id:'WT002',name:'Linen Blend Cropped T-Shirt',price:24.90,reg:24.90,cat:'women/tops',sale:false,atl:false},
+  {id:'WT003',name:'Cotton Cashmere Turtleneck Sweater',price:49.90,reg:69.90,cat:'women/tops',sale:true,atl:true},
+  {id:'WT004',name:'Ribbed Knit Cardigan',price:39.90,reg:39.90,cat:'women/tops',sale:false,atl:false},
+  {id:'WT005',name:'Merino Wool Crew Neck Sweater',price:59.90,reg:79.90,cat:'women/tops',sale:true,atl:false},
+  {id:'WT006',name:'Satin Camisole Top',price:19.90,reg:19.90,cat:'women/tops',sale:false,atl:false},
+  {id:'WB001',name:'Ultra Stretch Leggings Pants',price:24.90,reg:34.90,cat:'women/bottoms',sale:true,atl:false},
+  {id:'WB002',name:'Wide Fit Chino Pants',price:39.90,reg:39.90,cat:'women/bottoms',sale:false,atl:false},
+  {id:'WB003',name:'Slim Fit Jeans',price:29.90,reg:39.90,cat:'women/bottoms',sale:true,atl:true},
+  {id:'WB004',name:'Pleated Wide Shorts',price:29.90,reg:29.90,cat:'women/bottoms',sale:false,atl:false},
+  {id:'WD001',name:'Satin Long Skirt',price:34.90,reg:44.90,cat:'women/dresses-and-skirts',sale:true,atl:false},
+  {id:'WD002',name:'Rayon Long Cami Dress',price:39.90,reg:39.90,cat:'women/dresses-and-skirts',sale:false,atl:false},
+  {id:'WD003',name:'Cotton Boat Neck Dress',price:29.90,reg:39.90,cat:'women/dresses-and-skirts',sale:true,atl:true},
+  {id:'WD004',name:'Linen Blend Midi Skirt',price:34.90,reg:34.90,cat:'women/dresses-and-skirts',sale:false,atl:false},
+  {id:'WO001',name:'Fluffy Yarn Fleece Jacket',price:44.90,reg:59.90,cat:'women/outerwear',sale:true,atl:false},
+  {id:'WO002',name:'Compact Oversized Jacket',price:79.90,reg:79.90,cat:'women/outerwear',sale:false,atl:false},
+  {id:'WO003',name:'Down Vest',price:49.90,reg:69.90,cat:'women/outerwear',sale:true,atl:true},
+  {id:'WI001',name:'AIRism Ultra Seamless Shorts',price:14.90,reg:19.90,cat:'women/innerwear-and-socks',sale:true,atl:false},
+  {id:'WI002',name:'HEATTECH Ultra Warm Turtleneck',price:24.90,reg:24.90,cat:'women/innerwear-and-socks',sale:false,atl:false},
+  {id:'KT001',name:'Kids AIRism Crew Neck T-Shirt',price:9.90,reg:12.90,cat:'kids/tops',sale:true,atl:false},
+  {id:'KT002',name:'Kids Fleece Crew Neck Sweatshirt',price:19.90,reg:19.90,cat:'kids/tops',sale:false,atl:false},
+  {id:'KT003',name:'Kids Graphic Short Sleeve T-Shirt',price:12.90,reg:14.90,cat:'kids/tops',sale:true,atl:true},
+  {id:'KB001',name:'Kids Sweatpants',price:14.90,reg:19.90,cat:'kids/bottoms',sale:true,atl:false},
+  {id:'KB002',name:'Kids Ultra Stretch Jeans',price:24.90,reg:24.90,cat:'kids/bottoms',sale:false,atl:false},
+  {id:'KO001',name:'Kids Hooded Down Jacket',price:39.90,reg:59.90,cat:'kids/outerwear',sale:true,atl:true},
+  {id:'KO002',name:'Kids Fleece Full-Zip Jacket',price:24.90,reg:29.90,cat:'kids/outerwear',sale:true,atl:false},
+];
+
+function buildData(products) {
+  const subMap = {};
+  for (const p of products) {
+    if (!subMap[p.cat]) subMap[p.cat] = { slug: p.cat, label: p.cat.split('/')[1].replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()), products: [] };
+    subMap[p.cat].products.push(p);
+  }
+  for (const key in subMap) {
+    const s = subMap[key];
+    s.saleProducts = s.products.filter(p => p.sale);
+    s.regularProducts = s.products.filter(p => !p.sale);
+    s.saleCount = s.saleProducts.length;
+    s.atlCount = s.products.filter(p => p.atl).length;
+  }
+  const allSubs = Object.values(subMap);
+  // Build groups
+  const groupMap = {};
+  for (const sub of allSubs) {
+    const main = sub.slug.split('/')[0];
+    if (!groupMap[main]) groupMap[main] = { main, subs: [] };
+    groupMap[main].subs.push(sub);
+  }
+  return { allSubs, groups: Object.values(groupMap) };
+}
+
+function app() {
+  const { allSubs, groups } = buildData(PRODUCTS);
+  const mainCats = groups.map(g => g.main);
+
+  return {
+    products: PRODUCTS, allSubs, groups, mainCats,
+    search: '',
+    activeMain: 'all',
+    saleOnly: false,
+    atlOnly: false,
+    openSub: null,
+
+    get filteredGroups() {
+      return this.groups.map(g => ({
+        ...g,
+        visibleSubs: g.subs.filter(s => {
+          if (this.activeMain !== 'all' && s.slug.split('/')[0] !== this.activeMain) return false;
+          if (this.saleOnly && s.saleCount === 0) return false;
+          if (this.atlOnly && s.atlCount === 0) return false;
+          return true;
+        })
+      })).filter(g => this.activeMain === 'all' || g.main === this.activeMain);
+    },
+
+    get filteredCats() {
+      const q = this.search.toLowerCase();
+      return this.allSubs.filter(s => {
+        if (this.activeMain !== 'all' && s.slug.split('/')[0] !== this.activeMain) return false;
+        if (this.saleOnly && s.saleCount === 0) return false;
+        if (this.atlOnly && s.atlCount === 0) return false;
+        return s.label.toLowerCase().includes(q) || s.slug.toLowerCase().includes(q);
+      });
+    },
+
+    get filteredProducts() {
+      const q = this.search.toLowerCase();
+      return this.products.filter(p => {
+        if (this.activeMain !== 'all' && p.cat.split('/')[0] !== this.activeMain) return false;
+        if (this.saleOnly && !p.sale) return false;
+        if (this.atlOnly && !p.atl) return false;
+        return p.name.toLowerCase().includes(q);
+      });
+    },
+
+    productHue, discountPct,
+  };
+}
+</script>
+</body>
+</html>

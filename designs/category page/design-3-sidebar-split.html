@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Design 3 — Sidebar Split · Categories</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #fcfaf9; }
+    [x-cloak] { display: none !important; }
+    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .sidebar-scroll { scrollbar-width: thin; scrollbar-color: #ddd transparent; }
+    .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+    .sidebar-scroll::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+  </style>
+</head>
+<body x-data="app()" x-cloak>
+
+  <!-- Navbar -->
+  <header class="sticky top-0 z-20 bg-white border-b border-gray-200">
+    <div class="max-w-[1200px] mx-auto px-4 sm:px-6 h-[52px] flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-semibold tracking-widest text-red-600">UNIQLO</span>
+        <span class="text-gray-200">|</span>
+        <span class="text-xs font-light text-gray-400 tracking-wide">Price Tracker</span>
+      </div>
+      <nav class="flex items-center gap-5">
+        <span class="text-xs text-gray-400 cursor-pointer hover:text-gray-700">Home</span>
+        <span class="text-xs font-semibold text-gray-900 border-b-2 border-red-600 pb-0.5">Categories</span>
+        <span class="text-xs text-gray-400 cursor-pointer hover:text-gray-700">Dashboard</span>
+      </nav>
+    </div>
+  </header>
+
+  <div class="max-w-[1200px] mx-auto px-4 sm:px-6 pt-10 pb-16">
+
+    <!-- Design label -->
+    <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 bg-white border border-gray-200 text-[11px] text-gray-500">
+      <span class="font-black text-gray-900">Design 3</span>
+      <span class="text-gray-300">·</span>
+      <span>Two-Column Sidebar Split</span>
+    </div>
+
+    <!-- Page Header -->
+    <div class="mb-8">
+      <h1 class="text-[26px] sm:text-[36px] font-black tracking-[-0.03em] leading-none">
+        Browse <span class="text-red-600">Categories</span>
+      </h1>
+      <p class="text-[13px] text-gray-400 mt-1.5">
+        <span x-text="totalCats"></span> categories · <span x-text="products.length"></span> products tracked
+      </p>
+    </div>
+
+    <!-- Mobile: scrollable main-category pill row -->
+    <div class="sm:hidden flex gap-2 overflow-x-auto pb-3 mb-4" style="scrollbar-width:none">
+      <template x-for="group in groups" :key="group.main">
+        <button
+          @click="activeMain = group.main; openSubs = {}"
+          class="shrink-0 text-[12px] font-semibold px-3 py-1.5 border transition-colors capitalize"
+          :class="activeMain === group.main ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'"
+          x-text="group.main"
+        ></button>
+      </template>
+    </div>
+
+    <!-- Two-column layout -->
+    <div class="flex gap-10 items-start">
+
+      <!-- ── Sidebar (desktop only) ── -->
+      <aside class="hidden sm:block w-[200px] shrink-0 sticky top-[72px] max-h-[calc(100vh-90px)] overflow-y-auto sidebar-scroll">
+        <template x-for="group in groups" :key="group.main">
+          <div class="mb-5">
+            <!-- Main category label -->
+            <button
+              @click="activeMain = group.main; openSubs = {}"
+              class="w-full text-left text-[11px] font-[800] tracking-[0.12em] uppercase mb-2 transition-colors capitalize"
+              :class="activeMain === group.main ? 'text-red-600' : 'text-gray-400 hover:text-gray-700'"
+              x-text="group.main"
+            ></button>
+
+            <!-- Subcategory links (only shown for active main) -->
+            <template x-if="activeMain === group.main">
+              <div class="space-y-0">
+                <template x-for="sub in group.subs" :key="sub.slug">
+                  <button
+                    @click="jumpTo(sub.slug)"
+                    class="w-full text-left text-[12px] py-1 pl-3 border-l-2 transition-all flex items-center justify-between group"
+                    :class="openSubs[sub.slug]
+                      ? 'border-red-500 text-red-600 font-semibold'
+                      : 'border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-800'"
+                  >
+                    <span x-text="sub.label"></span>
+                    <template x-if="sub.saleCount > 0">
+                      <span class="text-[10px] font-bold text-red-500 ml-1" x-text="sub.saleCount"></span>
+                    </template>
+                  </button>
+                </template>
+              </div>
+            </template>
+
+            <!-- Other mains: just show sub count -->
+            <template x-if="activeMain !== group.main">
+              <p class="text-[11px] text-gray-300 pl-3" x-text="group.subs.length + ' subcategories'"></p>
+            </template>
+          </div>
+        </template>
+      </aside>
+
+      <!-- ── Main content ── -->
+      <div class="flex-1 min-w-0">
+        <template x-for="(sub, si) in activeGroup.subs" :key="sub.slug">
+          <div :id="'section-'+sub.slug" :class="si === 0 ? 'border-t-[3px] border-red-600' : 'border-t-[3px] border-gray-900'">
+
+            <!-- Section header -->
+            <button
+              @click="toggleSub(sub.slug)"
+              class="w-full grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_110px_90px_80px_auto] items-center gap-4 py-4 bg-transparent border-none cursor-pointer text-left"
+            >
+              <div>
+                <span class="text-[15px] font-[800] tracking-[0.1em] uppercase text-gray-900" x-text="sub.label"></span>
+                <div class="sm:hidden text-[11px] text-gray-400 mt-0.5">
+                  <span x-text="sub.products.length + ' products'"></span>
+                  <span x-show="sub.saleCount > 0" class="text-red-600 font-semibold"> · <span x-text="sub.saleCount"></span> sale</span>
+                </div>
+              </div>
+              <span class="hidden sm:block text-xs text-gray-400" x-text="sub.products.length + ' products'"></span>
+              <div class="hidden sm:flex items-center">
+                <span x-show="sub.saleCount > 0" class="inline-flex items-center bg-red-700 text-red-100 text-[10px] font-bold tracking-[0.06em] px-1.5 py-0.5 leading-[1.4]" x-text="sub.saleCount + ' SALE'"></span>
+              </div>
+              <div class="hidden sm:flex items-center">
+                <span x-show="sub.atlCount > 0" class="inline-flex items-center bg-sky-600 text-sky-100 text-[10px] font-bold tracking-[0.06em] px-1.5 py-0.5 leading-[1.4]" x-text="sub.atlCount + ' ATL'"></span>
+              </div>
+              <div class="text-gray-300 flex items-center gap-2 justify-end text-xs">
+                <span x-text="openSubs[sub.slug] ? 'Collapse' : 'Expand'"></span>
+                <svg x-show="!openSubs[sub.slug]" class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                <svg x-show="openSubs[sub.slug]" class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </div>
+            </button>
+
+            <!-- Product mosaic -->
+            <div x-show="openSubs[sub.slug]" class="pb-7 space-y-5">
+              <template x-if="sub.saleProducts.length > 0">
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  <template x-for="p in sub.saleProducts" :key="p.id">
+                    <div class="bg-white border border-gray-200 overflow-hidden cursor-pointer transition-[border-color,box-shadow] duration-150 hover:border-gray-400 hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+                      <div class="aspect-[4/3] w-full flex items-end p-2" :style="`background:linear-gradient(160deg,hsl(${productHue(p.id)},28%,36%),hsl(${(productHue(p.id)+20)%360},22%,54%))`">
+                        <div class="flex gap-1">
+                          <span x-show="p.atl" class="bg-sky-600 text-sky-100 text-[10px] font-bold px-1.5 py-0.5 leading-[1.4]">ATL</span>
+                          <span class="bg-red-700 text-red-100 text-[10px] font-bold px-1.5 py-0.5 leading-[1.4]">SALE</span>
+                        </div>
+                      </div>
+                      <div class="px-[10px] pt-[10px] pb-3">
+                        <div class="text-xs font-semibold text-gray-900 leading-[1.3] mb-1.5 line-clamp-2" x-text="p.name"></div>
+                        <div class="flex items-baseline gap-1.5">
+                          <span class="text-sm font-bold" x-text="'$'+p.price.toFixed(2)"></span>
+                          <span class="text-[11px] text-gray-300 line-through" x-text="'$'+p.reg.toFixed(2)"></span>
+                          <span class="text-[11px] font-bold text-red-600" x-text="'−'+discountPct(p)+'%'"></span>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+              <template x-if="sub.regularProducts.length > 0">
+                <div>
+                  <template x-if="sub.saleProducts.length > 0">
+                    <div class="flex items-center gap-3 mb-3">
+                      <span class="text-[10px] font-bold tracking-[0.12em] uppercase text-gray-400">Regular Price</span>
+                      <div class="flex-1 border-t border-dashed border-gray-200"></div>
+                    </div>
+                  </template>
+                  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    <template x-for="p in sub.regularProducts" :key="p.id">
+                      <div class="bg-white border border-gray-200 overflow-hidden cursor-pointer transition-[border-color,box-shadow] duration-150 hover:border-gray-400 hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+                        <div class="aspect-[4/3] w-full flex items-end p-2" :style="`background:linear-gradient(160deg,hsl(${productHue(p.id)},28%,36%),hsl(${(productHue(p.id)+20)%360},22%,54%))`">
+                          <div class="flex gap-1">
+                            <span x-show="p.atl" class="bg-sky-600 text-sky-100 text-[10px] font-bold px-1.5 py-0.5 leading-[1.4]">ATL</span>
+                          </div>
+                        </div>
+                        <div class="px-[10px] pt-[10px] pb-3">
+                          <div class="text-xs font-semibold text-gray-900 leading-[1.3] mb-1.5 line-clamp-2" x-text="p.name"></div>
+                          <div class="flex items-baseline">
+                            <span class="text-sm font-bold" x-text="'$'+p.price.toFixed(2)"></span>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+
+<script>
+function productHue(id) {
+  let h = 0;
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) & 0x7fffffff;
+  return h % 360;
+}
+function discountPct(p) { return Math.round((1 - p.price / p.reg) * 100); }
+
+const PRODUCTS = [
+  { id:'UT001', name:'AIRism Cotton Crew Neck T-Shirt', price:14.90, reg:19.90, cat:'men/tops', sale:true, atl:false },
+  { id:'UT002', name:'Dry Stretch Crew Neck T-Shirt', price:19.90, reg:19.90, cat:'men/tops', sale:false, atl:false },
+  { id:'UT003', name:'Supima Cotton Crew Neck T-Shirt', price:24.90, reg:29.90, cat:'men/tops', sale:true, atl:true },
+  { id:'UT004', name:'U Crew Neck Short Sleeve T-Shirt', price:19.90, reg:19.90, cat:'men/tops', sale:false, atl:false },
+  { id:'UT005', name:'Linen Blend V-Neck T-Shirt', price:22.90, reg:29.90, cat:'men/tops', sale:true, atl:false },
+  { id:'UB001', name:'Ultra Stretch Jeans Slim Fit', price:39.90, reg:49.90, cat:'men/bottoms', sale:true, atl:false },
+  { id:'UB002', name:'Kando Pants Regular Fit', price:44.90, reg:44.90, cat:'men/bottoms', sale:false, atl:false },
+  { id:'UB003', name:'Chino Shorts', price:19.90, reg:29.90, cat:'men/bottoms', sale:true, atl:true },
+  { id:'UB004', name:'Slim Fit Chino Pants', price:39.90, reg:39.90, cat:'men/bottoms', sale:false, atl:false },
+  { id:'UB005', name:'Dry Sweat Wide Fit Pants', price:34.90, reg:39.90, cat:'men/bottoms', sale:true, atl:false },
+  { id:'US001', name:'Extra Fine Cotton Broadcloth Shirt', price:29.90, reg:39.90, cat:'men/shirts-and-polo-shirts', sale:true, atl:false },
+  { id:'US002', name:'Flannel Long Sleeve Shirt', price:34.90, reg:34.90, cat:'men/shirts-and-polo-shirts', sale:false, atl:false },
+  { id:'US003', name:'DRY Piqué Polo Shirt', price:24.90, reg:29.90, cat:'men/shirts-and-polo-shirts', sale:true, atl:true },
+  { id:'US004', name:'Supima Cotton Polo Shirt', price:34.90, reg:34.90, cat:'men/shirts-and-polo-shirts', sale:false, atl:false },
+  { id:'UO001', name:'Hybrid Down Parka', price:89.90, reg:119.90, cat:'men/outerwear', sale:true, atl:false },
+  { id:'UO002', name:'Blocktech Parka', price:99.90, reg:99.90, cat:'men/outerwear', sale:false, atl:false },
+  { id:'UO003', name:'Fleece Full-Zip Jacket', price:34.90, reg:49.90, cat:'men/outerwear', sale:true, atl:true },
+  { id:'UI001', name:'AIRism Mesh Crew Neck T-Shirt 3-Pack', price:24.90, reg:29.90, cat:'men/innerwear-and-socks', sale:true, atl:false },
+  { id:'UI002', name:'HEATTECH Extra Warm Turtleneck T-Shirt', price:22.90, reg:22.90, cat:'men/innerwear-and-socks', sale:false, atl:false },
+  { id:'UI003', name:'Ankle Socks 3-Pack', price:9.90, reg:12.90, cat:'men/innerwear-and-socks', sale:true, atl:false },
+  { id:'WT001', name:'AIRism UV Protection Crew Neck T-Shirt', price:17.90, reg:22.90, cat:'women/tops', sale:true, atl:false },
+  { id:'WT002', name:'Linen Blend Cropped T-Shirt', price:24.90, reg:24.90, cat:'women/tops', sale:false, atl:false },
+  { id:'WT003', name:'Cotton Cashmere Turtleneck Sweater', price:49.90, reg:69.90, cat:'women/tops', sale:true, atl:true },
+  { id:'WT004', name:'Ribbed Knit Cardigan', price:39.90, reg:39.90, cat:'women/tops', sale:false, atl:false },
+  { id:'WT005', name:'Merino Wool Ribbed Crew Neck Sweater', price:59.90, reg:79.90, cat:'women/tops', sale:true, atl:false },
+  { id:'WT006', name:'Satin Camisole Top', price:19.90, reg:19.90, cat:'women/tops', sale:false, atl:false },
+  { id:'WB001', name:'Ultra Stretch Leggings Pants', price:24.90, reg:34.90, cat:'women/bottoms', sale:true, atl:false },
+  { id:'WB002', name:'Wide Fit Chino Pants', price:39.90, reg:39.90, cat:'women/bottoms', sale:false, atl:false },
+  { id:'WB003', name:'Slim Fit Jeans', price:29.90, reg:39.90, cat:'women/bottoms', sale:true, atl:true },
+  { id:'WB004', name:'Pleated Wide Shorts', price:29.90, reg:29.90, cat:'women/bottoms', sale:false, atl:false },
+  { id:'WD001', name:'Satin Long Skirt', price:34.90, reg:44.90, cat:'women/dresses-and-skirts', sale:true, atl:false },
+  { id:'WD002', name:'Rayon Long Cami Dress', price:39.90, reg:39.90, cat:'women/dresses-and-skirts', sale:false, atl:false },
+  { id:'WD003', name:'Cotton Boat Neck Dress', price:29.90, reg:39.90, cat:'women/dresses-and-skirts', sale:true, atl:true },
+  { id:'WD004', name:'Linen Blend Midi Skirt', price:34.90, reg:34.90, cat:'women/dresses-and-skirts', sale:false, atl:false },
+  { id:'WO001', name:'Fluffy Yarn Fleece Full-Zip Jacket', price:44.90, reg:59.90, cat:'women/outerwear', sale:true, atl:false },
+  { id:'WO002', name:'Compact Oversized Jacket', price:79.90, reg:79.90, cat:'women/outerwear', sale:false, atl:false },
+  { id:'WO003', name:'Down Vest', price:49.90, reg:69.90, cat:'women/outerwear', sale:true, atl:true },
+  { id:'WI001', name:'AIRism Ultra Seamless High Rise Shorts', price:14.90, reg:19.90, cat:'women/innerwear-and-socks', sale:true, atl:false },
+  { id:'WI002', name:'HEATTECH Ultra Warm Turtleneck T-Shirt', price:24.90, reg:24.90, cat:'women/innerwear-and-socks', sale:false, atl:false },
+  { id:'KT001', name:'Kids AIRism Crew Neck T-Shirt', price:9.90, reg:12.90, cat:'kids/tops', sale:true, atl:false },
+  { id:'KT002', name:'Kids Fleece Crew Neck Sweatshirt', price:19.90, reg:19.90, cat:'kids/tops', sale:false, atl:false },
+  { id:'KT003', name:'Kids Graphic Short Sleeve T-Shirt', price:12.90, reg:14.90, cat:'kids/tops', sale:true, atl:true },
+  { id:'KB001', name:'Kids Sweatpants', price:14.90, reg:19.90, cat:'kids/bottoms', sale:true, atl:false },
+  { id:'KB002', name:'Kids Ultra Stretch Jeans', price:24.90, reg:24.90, cat:'kids/bottoms', sale:false, atl:false },
+  { id:'KO001', name:'Kids Hooded Down Jacket', price:39.90, reg:59.90, cat:'kids/outerwear', sale:true, atl:true },
+  { id:'KO002', name:'Kids Fleece Full-Zip Jacket', price:24.90, reg:29.90, cat:'kids/outerwear', sale:true, atl:false },
+];
+
+function buildGroups(products) {
+  const map = {};
+  for (const p of products) {
+    const [main, sub] = p.cat.split('/');
+    if (!map[main]) map[main] = {};
+    if (!map[main][p.cat]) map[main][p.cat] = { slug: p.cat, label: sub.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()), products: [] };
+    map[main][p.cat].products.push(p);
+  }
+  return Object.entries(map).map(([main, subs]) => {
+    const subList = Object.values(subs).map(s => ({
+      ...s,
+      saleProducts: s.products.filter(p => p.sale),
+      regularProducts: s.products.filter(p => !p.sale),
+      saleCount: s.products.filter(p => p.sale).length,
+      atlCount: s.products.filter(p => p.atl).length,
+    }));
+    return { main, subs: subList };
+  });
+}
+
+function app() {
+  const groups = buildGroups(PRODUCTS);
+  const totalCats = groups.reduce((n, g) => n + g.subs.length, 0);
+  return {
+    products: PRODUCTS,
+    groups,
+    totalCats,
+    activeMain: groups[0]?.main ?? '',
+    openSubs: {},
+    get activeGroup() { return this.groups.find(g => g.main === this.activeMain) ?? this.groups[0]; },
+    toggleSub(slug) { this.openSubs[slug] = !this.openSubs[slug]; },
+    jumpTo(slug) {
+      this.openSubs[slug] = true;
+      this.$nextTick(() => {
+        const el = document.getElementById('section-' + slug);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    },
+    productHue,
+    discountPct,
+  };
+}
+</script>
+</body>
+</html>
