@@ -18,6 +18,14 @@ export const getCategories = () => {
   })
 }
 
+export const getProductDetail = (product_id: string) => {
+  return useQuery({
+    queryKey: ['product', product_id],
+    queryFn: () => fetch(`${API_URL}/product/${product_id}`).then(res => res.json()),
+    staleTime: 1000 * 60 * 5,
+  })
+}
+
 export const getImage = (product_id: string, { enabled = true }: { enabled?: boolean } = {}) => {
   return useQuery({
     queryKey: ['image', product_id],

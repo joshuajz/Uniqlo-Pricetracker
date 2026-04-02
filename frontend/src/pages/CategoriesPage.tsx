@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { ChevronRight, ChevronDown, X } from 'lucide-react'
+import { ChevronRight, ChevronDown } from 'lucide-react'
 import { discountPct, isOnSale } from '../data/mockData'
 import type { Product } from '../types/types'
 import { getImage, getProducts } from '../data/api'
 import PageLoader from '../components/PageLoader'
-
-function productHue(id: string): number {
-  return id.split('').reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) & 0xffff, 0) % 360
-}
+import ProductModal, { productHue } from '../components/ProductModal'
+import { useProductModal } from '../hooks/useProductModal'
 
 function formatCatName(slug: string): string {
   return slug.split('/').map(s => s.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())).join(' › ')
@@ -15,7 +13,7 @@ function formatCatName(slug: string): string {
 
 // ─── Mosaic Tile ──────────────────────────────────────────────────────────────
 
-function MosaicTile({ product: p, onSelect }: { product: Product; onSelect: (p: Product) => void }) {
+function MosaicTile({ product: p, onSelect }: { product: Product; onSelect: (id: string) => void }) {
   const sale = isOnSale(p)
   const atl = p.is_all_time_low
   const pct = discountPct(p)
@@ -40,7 +38,7 @@ function MosaicTile({ product: p, onSelect }: { product: Product; onSelect: (p: 
     <div
       ref={ref}
       className="bg-white border border-gray-200 overflow-hidden cursor-pointer transition-[border-color,box-shadow] duration-150 hover:border-gray-400 hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)]"
-      onClick={() => onSelect(p)}
+      onClick={() => onSelect(p.product_id)}
     >
       {/* Image / placeholder */}
       <div className="aspect-[4/3] w-full relative flex items-end p-2 overflow-hidden">
@@ -80,88 +78,6 @@ function MosaicTile({ product: p, onSelect }: { product: Product; onSelect: (p: 
   )
 }
 
-// ─── Product Modal ────────────────────────────────────────────────────────────
-
-function ProductModal({ product: p, onClose }: { product: Product; onClose: () => void }) {
-  const sale = isOnSale(p)
-  const atl  = p.is_all_time_low
-  const pct  = discountPct(p)
-  const savings = p.regular_price - p.price
-
-  return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 bg-black/45 z-[200] flex items-center justify-center p-3 sm:p-6"
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        className="bg-white max-w-[480px] w-full max-h-[90vh] overflow-auto"
-      >
-        {/* Color block header */}
-        <div
-          className="h-[140px] sm:h-[180px] flex flex-col justify-between p-4"
-          style={{ background: `linear-gradient(160deg, hsl(${productHue(p.product_id)}, 28%, 36%), hsl(${productHue(p.product_id) + 20}, 22%, 54%))` }}
-        >
-          <button
-            onClick={onClose}
-            className="self-end bg-black/20 border-none text-white p-[4px_6px] cursor-pointer flex items-center"
-          >
-            <X size={14} />
-          </button>
-          <div className="flex gap-1.5">
-            {atl  && <span className="inline-flex items-center bg-sky-600 text-sky-100 text-[10px] font-bold tracking-[0.06em] px-1.5 py-0.5 leading-[1.4]">ATL</span>}
-            {sale && <span className="inline-flex items-center bg-red-700 text-red-100 text-[10px] font-bold tracking-[0.06em] px-1.5 py-0.5 leading-[1.4]">SALE</span>}
-          </div>
-        </div>
-
-        {/* Product info */}
-        <div className="p-4 sm:p-6">
-          <div className="text-[11px] font-bold tracking-[0.12em] text-gray-400 uppercase mb-1.5">
-            {p.categories.join(' / ')}
-          </div>
-          <h2 className="text-[18px] sm:text-[22px] font-[800] tracking-[-0.02em] mb-4 leading-[1.2]">
-            {p.name}
-          </h2>
-
-          {/* Price grid */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-5">
-            {[
-              { label: 'Current Price', value: `$${p.price.toFixed(2)}`, highlight: true },
-              { label: 'Regular Price', value: `$${p.regular_price.toFixed(2)}` },
-              { label: 'All-Time Low',  value: `$${p.lowest_price.toFixed(2)}` },
-            ].map(item => (
-              <div key={item.label} className={`border-t-2 pt-[10px] ${item.highlight ? 'border-red-600' : 'border-gray-200'}`}>
-                <div className="text-[10px] font-semibold tracking-[0.08em] text-gray-300 uppercase">
-                  {item.label}
-                </div>
-                <div className={`text-base sm:text-xl font-[800] mt-1 ${item.highlight ? 'text-red-600' : 'text-gray-900'}`}>
-                  {item.value}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {sale && (
-            <div className="bg-red-50 border border-red-200 px-[14px] py-[10px] flex justify-between items-center">
-              <span className="text-[13px] text-red-600 font-semibold">
-                You save ${savings.toFixed(2)} ({pct}% off)
-              </span>
-              {atl && <span className="text-[11px] font-bold text-gray-900">★ ATL</span>}
-            </div>
-          )}
-
-          <button
-            onClick={onClose}
-            className="mt-5 w-full py-[11px] bg-gray-900 text-white border-none text-[13px] font-semibold tracking-[0.06em] cursor-pointer font-sans transition-[background] duration-150 hover:bg-red-600"
-          >
-            View on Uniqlo →
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── Category Section ─────────────────────────────────────────────────────────
 
 function CatSection({
@@ -171,7 +87,7 @@ function CatSection({
   index: number
   isOpen: boolean
   onToggle: () => void
-  onSelect: (p: Product) => void
+  onSelect: (id: string) => void
   allProducts: Product[]
 }) {
   const saleProducts = allProducts.filter(isOnSale)
@@ -264,11 +180,12 @@ function CatSection({
 
 export default function CategoriesPage() {
   const [open, setOpen] = useState<Set<string>>(new Set())
-  const [selected, setSelected] = useState<Product | null>(null)
   const { data: productsAPI, isLoading } = getProducts()
+  const { modalId, openModal, closeModal } = useProductModal()
 
   const products: Product[] = productsAPI?.products ?? []
   const categories = Array.from(new Set(products.flatMap(p => p.categories))).sort()
+  const selectedProduct = products.find(p => p.product_id === modalId) ?? null
 
   const toggle = (cat: string) => {
     setOpen(prev => {
@@ -303,15 +220,15 @@ export default function CategoriesPage() {
             index={i}
             isOpen={open.has(cat)}
             onToggle={() => toggle(cat)}
-            onSelect={setSelected}
+            onSelect={openModal}
             allProducts={products.filter(p => p.categories.includes(cat))}
           />
         ))}
       </div>
 
       {/* ── Modal ── */}
-      {selected && (
-        <ProductModal product={selected} onClose={() => setSelected(null)} />
+      {selectedProduct && (
+        <ProductModal product={selectedProduct} onClose={closeModal} />
       )}
     </div>
   )

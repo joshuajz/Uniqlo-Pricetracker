@@ -4,6 +4,8 @@ import { discountPct, isAtl, isOnSale, genderLabel } from '../data/mockData'
 import type { Product, TabKey } from '../types/types'
 import { getProducts } from '../data/api'
 import PageLoader from '../components/PageLoader'
+import ProductModal from '../components/ProductModal'
+import { useProductModal } from '../hooks/useProductModal'
 
 // ─── Stat Card ───────────────────────────────────────────────────────────────
 
@@ -20,7 +22,7 @@ function DashStat({ value, label, accent }: { value: string | number; label: str
 
 // ─── Dashboard Row ────────────────────────────────────────────────────────────
 
-function DashRow({ product: p }: { product: Product }) {
+function DashRow({ product: p, onSelect }: { product: Product; onSelect: (id: string) => void }) {
   const pct = discountPct(p)
   const atl = isAtl(p)
   const sale = isOnSale(p)
@@ -28,7 +30,7 @@ function DashRow({ product: p }: { product: Product }) {
   const categoryLabel = p.categories[0] ?? ''
 
   return (
-    <div className="border-b border-gray-100 group">
+    <div className="border-b border-gray-100 group cursor-pointer" onClick={() => onSelect(p.product_id)}>
 
       {/* ── Mobile layout ── */}
       <div className="sm:hidden flex items-center gap-3 px-1 py-3">
@@ -105,6 +107,8 @@ export default function DashboardPage() {
   const [tab, setTab] = useState<TabKey>('all')
   const { data: productsAPI, isLoading } = getProducts()
   const products: Product[] = productsAPI?.products ?? []
+  const { modalId, openModal, closeModal } = useProductModal()
+  const selectedProduct = products.find(p => p.product_id === modalId) ?? null
 
   const onSale = useMemo(() => products.filter(isOnSale), [products])
   const atls   = useMemo(() => products.filter(isAtl),    [products])
@@ -193,10 +197,14 @@ export default function DashboardPage() {
           </div>
         ) : (
           displayed.map(p => (
-            <DashRow key={p.product_id} product={p} />
+            <DashRow key={p.product_id} product={p} onSelect={openModal} />
           ))
         )}
       </div>
+
+      {selectedProduct && (
+        <ProductModal product={selectedProduct} onClose={closeModal} />
+      )}
     </div>
   )
 }

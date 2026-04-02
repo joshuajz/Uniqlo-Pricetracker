@@ -7,6 +7,8 @@ import {
 import type { Product, SortKey } from '../types/types'
 import { getCategories, getImage, getProducts } from '../data/api'
 import PageLoader from '../components/PageLoader'
+import ProductModal from '../components/ProductModal'
+import { useProductModal } from '../hooks/useProductModal'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -23,13 +25,13 @@ function sortProducts(products: Product[], key: SortKey): Product[] {
 
 // ─── Product Row ─────────────────────────────────────────────────────────────
 
-function ProductRow({ product }: { product: Product }) {
+function ProductRow({ product, onSelect }: { product: Product; onSelect: (id: string) => void }) {
   const pct = discountPct(product)
   const atl = isAtl(product)
   const { data: imgSrc } = getImage(product.product_id)
 
   return (
-    <div className="grid grid-cols-[48px_1fr_auto] sm:grid-cols-[60px_1fr_auto_auto_96px_52px] items-center gap-2 sm:gap-3 px-1 sm:px-2 py-2 border-b border-stone-200 cursor-pointer -mx-1 sm:-mx-2 transition-[background] duration-100 hover:bg-stone-100 group">
+    <div className="grid grid-cols-[48px_1fr_auto] sm:grid-cols-[60px_1fr_auto_auto_96px_52px] items-center gap-2 sm:gap-3 px-1 sm:px-2 py-2 border-b border-stone-200 cursor-pointer -mx-1 sm:-mx-2 transition-[background] duration-100 hover:bg-stone-100 group" onClick={() => onSelect(product.product_id)}>
       {/* Thumbnail */}
       <div className="w-12 h-12 sm:w-[60px] sm:h-[60px] overflow-hidden shrink-0 bg-stone-100">
         {imgSrc
@@ -81,12 +83,13 @@ interface GroupedCat {
 }
 
 function CategorySection({
-  group, index, expanded, onToggleExpand,
+  group, index, expanded, onToggleExpand, onSelect,
 }: {
   group: GroupedCat
   index: number
   expanded: boolean
   onToggleExpand: () => void
+  onSelect: (id: string) => void
 }) {
   console.log('group:', group)
   return (
@@ -127,7 +130,7 @@ function CategorySection({
 
       <div className="mt-1">
         {(expanded ? group.products : group.products.slice(0, 3)).map(p => (
-          <ProductRow key={p.product_id} product={p} />
+          <ProductRow key={p.product_id} product={p} onSelect={onSelect} />
         ))}
       </div>
     </div>
@@ -142,13 +145,14 @@ export default function HomePage() {
   const [catFilter, setCatFilter] = useState('all')
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [onSale, setOnSale] = useState<Product[]>([])
+  const { modalId, openModal, closeModal } = useProductModal()
 
   const { data: productsAPI = [], isLoading: productsLoading } = getProducts()
   const { data: categoriesAPI = [], isLoading: categoriesLoading } = getCategories()
 
-  // const products = productsAPI?.products
   const products = productsAPI?.products
   const categories = categoriesAPI?.categories
+  const selectedProduct = products?.find((p: Product) => p.product_id === modalId) ?? null
 
   useEffect(() => setOnSale(products?.filter((p: Product) => p.price < p.regular_price) || []), [products])
 
@@ -335,11 +339,16 @@ export default function HomePage() {
                 index={i}
                 expanded={!!expanded[group.name]}
                 onToggleExpand={() => toggleExpand(group.name)}
+                onSelect={openModal}
               />
             ))
           )}
         </div>
       </div>
+
+      {selectedProduct && (
+        <ProductModal product={selectedProduct} onClose={closeModal} />
+      )}
     </div>
   )
 }
