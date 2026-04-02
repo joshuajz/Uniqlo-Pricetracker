@@ -4,35 +4,35 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 const FAQS = [
   {
     q: 'What is Uniqlo Tracker?',
-    a: 'Uniqlo Tracker is a price monitoring tool that tracks Uniqlo product prices over time. We check prices daily and alert you when items you\'re watching drop to new lows or go on sale.',
+    a: 'Uniqlo Tracker tracks Uniqlo prices, duh!',
   },
   {
     q: 'How often are prices updated?',
-    a: 'Prices are scraped and updated daily, typically between 2:00–4:00 AM AEST. Price history graphs reflect the last 10 months of data.',
+    a: 'Once per day',
   },
   {
     q: 'How do I add a product to my watchlist?',
-    a: 'Browse the product catalogue from the Home or Categories page, then click "Add to Watchlist" on any product. Tracked products appear in your Dashboard with trend graphs and price alerts.',
+    a: 'Watchlists aren\'t made yet',
   },
   {
     q: 'What does "At All-Time Low" (ATL) mean?',
-    a: 'ATL means the current price is the lowest we\'ve ever recorded for that product. This is a strong buy signal — historically, prices tend to rise again after hitting a low.',
+    a: 'all time low',
   },
   {
     q: 'Will I be notified when a price drops?',
-    a: 'Email notifications are coming soon. For now, check your Dashboard daily to see price movements on your tracked products.',
+    a: 'notifications TBD',
   },
   {
     q: 'Is Uniqlo Tracker affiliated with Uniqlo?',
-    a: 'No. Uniqlo Tracker is an independent, community-built tool and is not affiliated with, endorsed by, or connected to Uniqlo Co., Ltd. in any way.',
+    a: 'no',
   },
   {
     q: 'Which regions are supported?',
-    a: 'Currently we track Australian Uniqlo prices (uniqlo.com/au). Support for other regions is on the roadmap.',
+    a: 'Tracks Canadian prices',
   },
   {
     q: 'How do I remove a product from my watchlist?',
-    a: 'Open your Dashboard, find the product you want to remove, and click the remove icon on its row. Changes take effect immediately.',
+    a: 'Unclick the "star", watchlists TBD',
   },
 ]
 
