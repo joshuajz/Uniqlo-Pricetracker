@@ -37,7 +37,7 @@ function MosaicTile({ product: p, onSelect }: { product: Product; onSelect: (id:
   return (
     <div
       ref={ref}
-      className="bg-white border border-gray-200 overflow-hidden cursor-pointer transition-[border-color,box-shadow] duration-150 hover:border-gray-400 hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)]"
+      className="bg-white dark:bg-stone-900 border border-gray-200 dark:border-stone-700 overflow-hidden cursor-pointer transition-[border-color,box-shadow] duration-150 hover:border-gray-400 dark:hover:border-stone-500 hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_2px_12px_rgba(0,0,0,0.3)]"
       onClick={() => onSelect(p.product_id)}
     >
       {/* Image / placeholder */}
@@ -50,7 +50,7 @@ function MosaicTile({ product: p, onSelect }: { product: Product; onSelect: (id:
           <img
             src={imgSrc}
             alt={p.name}
-            className="absolute inset-0 w-full h-full object-contain bg-stone-100"
+            className="absolute inset-0 w-full h-full object-contain bg-stone-100 dark:bg-stone-800"
           />
         )}
         <div className="relative flex gap-1">
@@ -61,14 +61,14 @@ function MosaicTile({ product: p, onSelect }: { product: Product; onSelect: (id:
 
       {/* Info */}
       <div className="px-[10px] pt-[10px] pb-3">
-        <div className="text-xs font-semibold text-gray-900 leading-[1.3] mb-1.5 line-clamp-2">
+        <div className="text-xs font-semibold text-gray-900 dark:text-stone-100 leading-[1.3] mb-1.5 line-clamp-2">
           {p.name}
         </div>
         <div className="flex items-baseline gap-1.5">
           <span className="text-sm font-bold">${p.price.toFixed(2)}</span>
           {sale && (
             <>
-              <span className="text-[11px] text-gray-300 line-through">${p.regular_price.toFixed(2)}</span>
+              <span className="text-[11px] text-gray-300 dark:text-stone-600 line-through">${p.regular_price.toFixed(2)}</span>
               <span className="text-[11px] font-bold text-red-600">−{pct}%</span>
             </>
           )}
@@ -96,7 +96,7 @@ function CatSection({
   const atlCount    = allProducts.filter((p: Product) => p.is_all_time_low).length
 
   return (
-    <div className={`border-t-[3px] ${index === 0 ? 'border-red-600' : 'border-gray-900'}`}>
+    <div className={`border-t-[3px] ${index === 0 ? 'border-red-600' : 'border-gray-900 dark:border-stone-100'}`}>
       {/* Header */}
       <button
         onClick={onToggle}
@@ -104,10 +104,10 @@ function CatSection({
       >
         {/* Name — on mobile shows summary stats inline */}
         <div>
-          <span className="text-[15px] font-[800] tracking-[0.1em] uppercase text-gray-900">
+          <span className="text-[15px] font-[800] tracking-[0.1em] uppercase text-gray-900 dark:text-stone-100">
             {formatCatName(name)}
           </span>
-          <div className="sm:hidden text-[11px] text-gray-400 mt-0.5">
+          <div className="sm:hidden text-[11px] text-gray-400 dark:text-stone-500 mt-0.5">
             {allProducts.length} products
             {onSaleCount > 0 && <span className="text-red-600 font-semibold"> · {onSaleCount} sale</span>}
             {atlCount > 0 && <span className="text-sky-600 font-semibold"> · {atlCount} ATL</span>}
@@ -115,7 +115,7 @@ function CatSection({
         </div>
 
         {/* Desktop-only columns */}
-        <span className="hidden sm:block text-xs text-gray-400">
+        <span className="hidden sm:block text-xs text-gray-400 dark:text-stone-500">
           {allProducts.length} products
         </span>
         <div className="hidden sm:block">
@@ -134,7 +134,7 @@ function CatSection({
         </div>
 
         {/* Expand/collapse — always visible */}
-        <div className="text-gray-300 flex items-center gap-2 justify-end">
+        <div className="text-gray-300 dark:text-stone-600 flex items-center gap-2 justify-end">
           <span className="text-xs">{isOpen ? 'Collapse' : 'Expand'}</span>
           {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         </div>
@@ -157,10 +157,10 @@ function CatSection({
             <div>
               {saleProducts.length > 0 && (
                 <div className="flex items-center gap-3 mb-3">
-                  <span className="text-[10px] font-bold tracking-[0.12em] uppercase text-gray-400">
+                  <span className="text-[10px] font-bold tracking-[0.12em] uppercase text-gray-400 dark:text-stone-500">
                     Regular Price
                   </span>
-                  <div className="flex-1 border-t border-dashed border-gray-200" />
+                  <div className="flex-1 border-t border-dashed border-gray-200 dark:border-stone-700" />
                 </div>
               )}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
@@ -206,7 +206,7 @@ export default function CategoriesPage() {
         <h1 className="text-[26px] sm:text-[36px] font-black tracking-[-0.03em] leading-none">
           Browse <span className="text-red-600">Categories</span>
         </h1>
-        <p className="text-[13px] text-gray-400 mt-1.5">
+        <p className="text-[13px] text-gray-400 dark:text-stone-500 mt-1.5">
           {categories.length} categories · {products.length} products tracked
         </p>
       </div>

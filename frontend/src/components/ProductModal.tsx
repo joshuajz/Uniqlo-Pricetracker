@@ -4,6 +4,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceL
 import { discountPct, isOnSale } from '../data/mockData'
 import type { Product } from '../types/types'
 import { getImage, getProductDetail } from '../data/api'
+import { useTheme } from '../context/ThemeContext'
 
 export function productHue(id: string): number {
   return id.split('').reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) & 0xffff, 0) % 360
@@ -93,11 +94,16 @@ export default function ProductModal({ product: p, onClose }: { product: Product
   const pct  = discountPct(p)
   const savings = p.regular_price - p.price
 
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
+
   const { data: detail, isLoading: detailLoading } = getProductDetail(p.product_id)
   const { data: imgSrc } = getImage(p.product_id)
   const palette = useImagePalette(imgSrc)
 
-  const fallbackGradient = `linear-gradient(160deg, #f5f5f4, #e7e5e4)`
+  const fallbackGradient = isDark
+    ? `linear-gradient(160deg, #1c1917, #292524)`
+    : `linear-gradient(160deg, #f5f5f4, #e7e5e4)`
 
   // Palette gradient — clamp lightness to a dark, rich range
   const paletteGradient = palette
@@ -123,6 +129,17 @@ export default function ProductModal({ product: p, onClose }: { product: Product
   const chartReady = !detailLoading && !!detail
   const hasEnoughData = chartData.length >= 2
 
+  // Theme-aware chart colours
+  const chartStroke      = isDark ? '#d6d3d1' : '#111827'
+  const chartGridStroke  = isDark ? '#292524' : '#f3f4f6'
+  const chartTickFill    = isDark ? '#78716c' : '#9ca3af'
+  const chartRefStroke   = isDark ? '#44403c' : '#d1d5db'
+  const chartRefLblFill  = isDark ? '#78716c' : '#9ca3af'
+  const tooltipBg        = isDark ? '#1c1917' : '#ffffff'
+  const tooltipBorder    = isDark ? '#44403c' : '#e5e7eb'
+  const tooltipColor     = isDark ? '#f5f5f4' : '#111827'
+  const tooltipLblColor  = isDark ? '#78716c' : '#6b7280'
+
   return (
     <div
       onClick={onClose}
@@ -130,12 +147,12 @@ export default function ProductModal({ product: p, onClose }: { product: Product
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="bg-white max-w-[520px] w-full max-h-[90vh] overflow-auto relative"
+        className="bg-white dark:bg-stone-900 max-w-[520px] w-full max-h-[90vh] overflow-auto relative transition-colors duration-200"
       >
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 z-20 bg-black/10 border-none text-gray-600 p-[5px_7px] cursor-pointer flex items-center hover:bg-black/20 transition-colors"
+          className="absolute top-3 right-3 z-20 bg-black/10 dark:bg-white/10 border-none text-gray-600 dark:text-stone-300 p-[5px_7px] cursor-pointer flex items-center hover:bg-black/20 dark:hover:bg-white/20 transition-colors"
         >
           <X size={13} />
         </button>
@@ -167,10 +184,10 @@ export default function ProductModal({ product: p, onClose }: { product: Product
 
           {/* Info column */}
           <div className="flex-1 min-w-0 p-4 pr-10 flex flex-col justify-center">
-            <div className="text-[10px] font-bold tracking-[0.12em] text-gray-400 uppercase mb-1.5 truncate">
+            <div className="text-[10px] font-bold tracking-[0.12em] text-gray-400 dark:text-stone-500 uppercase mb-1.5 truncate">
               {p.categories.join(' / ')}
             </div>
-            <h2 className="text-[14px] sm:text-[16px] font-[800] tracking-[-0.02em] leading-[1.25] mb-4">
+            <h2 className="text-[14px] sm:text-[16px] font-[800] tracking-[-0.02em] leading-[1.25] mb-4 text-gray-900 dark:text-stone-100">
               {p.name}
             </h2>
 
@@ -181,11 +198,11 @@ export default function ProductModal({ product: p, onClose }: { product: Product
                 { label: 'Regular', value: `$${p.regular_price.toFixed(2)}` },
                 { label: 'ATL',     value: `$${p.lowest_price.toFixed(2)}` },
               ].map(item => (
-                <div key={item.label} className={`border-t-2 pt-2 ${item.highlight ? 'border-red-600' : 'border-gray-200'}`}>
-                  <div className="text-[9px] font-semibold tracking-[0.08em] text-gray-300 uppercase">
+                <div key={item.label} className={`border-t-2 pt-2 ${item.highlight ? 'border-red-600' : 'border-gray-200 dark:border-stone-700'}`}>
+                  <div className="text-[9px] font-semibold tracking-[0.08em] text-gray-300 dark:text-stone-600 uppercase">
                     {item.label}
                   </div>
-                  <div className={`text-[13px] sm:text-[15px] font-[800] mt-0.5 ${item.highlight ? 'text-red-600' : 'text-gray-900'}`}>
+                  <div className={`text-[13px] sm:text-[15px] font-[800] mt-0.5 ${item.highlight ? 'text-red-600' : 'text-gray-900 dark:text-stone-100'}`}>
                     {item.value}
                   </div>
                 </div>
@@ -195,30 +212,30 @@ export default function ProductModal({ product: p, onClose }: { product: Product
         </div>
 
         {/* ── Chart ── */}
-        <div className="border-t border-gray-100 px-4 pt-4 pb-3">
-          <div className="text-[10px] font-bold tracking-[0.12em] text-gray-300 uppercase mb-3">
+        <div className="border-t border-gray-100 dark:border-stone-800 px-4 pt-4 pb-3">
+          <div className="text-[10px] font-bold tracking-[0.12em] text-gray-300 dark:text-stone-600 uppercase mb-3">
             Price History
           </div>
           {!chartReady ? (
-            <div className="h-[110px] bg-gray-100 animate-pulse" />
+            <div className="h-[110px] bg-gray-100 dark:bg-stone-800 animate-pulse" />
           ) : !hasEnoughData ? (
-            <div className="h-[72px] flex items-center justify-center text-[11px] text-gray-300 border border-dashed border-gray-200">
+            <div className="h-[72px] flex items-center justify-center text-[11px] text-gray-300 dark:text-stone-600 border border-dashed border-gray-200 dark:border-stone-700">
               Not enough history yet
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={110}>
               <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                <CartesianGrid vertical={false} stroke="#f3f4f6" />
+                <CartesianGrid vertical={false} stroke={chartGridStroke} />
                 <XAxis
                   dataKey="date"
-                  tick={{ fontSize: 9, fill: '#9ca3af' }}
+                  tick={{ fontSize: 9, fill: chartTickFill }}
                   tickLine={false}
                   axisLine={false}
                   interval="preserveStartEnd"
                 />
                 <YAxis
                   domain={yDomain}
-                  tick={{ fontSize: 9, fill: '#9ca3af' }}
+                  tick={{ fontSize: 9, fill: chartTickFill }}
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={v => `$${v}`}
@@ -226,27 +243,34 @@ export default function ProductModal({ product: p, onClose }: { product: Product
                 />
                 <Tooltip
                   formatter={(v: number) => [`$${v.toFixed(2)}`, 'Price']}
-                  labelStyle={{ fontSize: 10, color: '#6b7280' }}
-                  contentStyle={{ border: '1px solid #e5e7eb', borderRadius: 0, padding: '4px 10px', fontSize: 11 }}
-                  cursor={{ stroke: '#e5e7eb', strokeWidth: 1 }}
+                  labelStyle={{ fontSize: 10, color: tooltipLblColor }}
+                  contentStyle={{
+                    border: `1px solid ${tooltipBorder}`,
+                    borderRadius: 0,
+                    padding: '4px 10px',
+                    fontSize: 11,
+                    background: tooltipBg,
+                    color: tooltipColor,
+                  }}
+                  cursor={{ stroke: chartRefStroke, strokeWidth: 1 }}
                 />
                 {detail?.regular_price && (
                   <ReferenceLine
                     y={detail.regular_price}
-                    stroke="#d1d5db"
+                    stroke={chartRefStroke}
                     strokeDasharray="3 3"
-                    label={{ value: 'Regular', position: 'insideTopRight', fontSize: 8, fill: '#9ca3af' }}
+                    label={{ value: 'Regular', position: 'insideTopRight', fontSize: 8, fill: chartRefLblFill }}
                   />
                 )}
                 <Area
                   type="linear"
                   dataKey="price"
-                  stroke="#111827"
+                  stroke={chartStroke}
                   strokeWidth={1.5}
-                  fill="#111827"
+                  fill={chartStroke}
                   fillOpacity={0.05}
                   dot={false}
-                  activeDot={{ r: 3, fill: '#111827', strokeWidth: 0 }}
+                  activeDot={{ r: 3, fill: chartStroke, strokeWidth: 0 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -255,11 +279,11 @@ export default function ProductModal({ product: p, onClose }: { product: Product
 
         {/* ── Sale banner ── */}
         {sale && (
-          <div className="mx-4 mb-3 bg-red-50 border border-red-200 px-[14px] py-[10px] flex justify-between items-center">
-            <span className="text-[12px] text-red-600 font-semibold">
+          <div className="mx-4 mb-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 px-[14px] py-[10px] flex justify-between items-center">
+            <span className="text-[12px] text-red-600 dark:text-red-400 font-semibold">
               You save ${savings.toFixed(2)} ({pct}% off)
             </span>
-            {atl && <span className="text-[11px] font-bold text-gray-900">★ ATL</span>}
+            {atl && <span className="text-[11px] font-bold text-gray-900 dark:text-stone-100">★ ATL</span>}
           </div>
         )}
 
@@ -269,7 +293,7 @@ export default function ProductModal({ product: p, onClose }: { product: Product
             href={detail?.url ?? p.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="block w-full py-[11px] bg-gray-900 text-white text-center text-[13px] font-semibold tracking-[0.06em] font-sans transition-[background] duration-150 hover:bg-red-600 no-underline"
+            className="block w-full py-[11px] bg-gray-900 dark:bg-stone-100 text-white dark:text-stone-900 text-center text-[13px] font-semibold tracking-[0.06em] font-sans transition-[background,color] duration-150 hover:bg-red-600 dark:hover:bg-red-600 dark:hover:text-white no-underline"
           >
             View on Uniqlo →
           </a>
