@@ -31,20 +31,23 @@ function ProductRow({ product, onSelect }: { product: Product; onSelect: (id: st
   const { data: imgSrc } = getImage(product.product_id)
 
   return (
-    <div className="grid grid-cols-[48px_1fr_auto] sm:grid-cols-[60px_1fr_auto_auto_96px_52px] items-center gap-2 sm:gap-3 px-1 sm:px-2 py-2 border-b border-stone-200 cursor-pointer -mx-1 sm:-mx-2 transition-[background] duration-100 hover:bg-stone-100 group" onClick={() => onSelect(product.product_id)}>
+    <div
+      className="grid grid-cols-[48px_1fr_auto] sm:grid-cols-[60px_1fr_auto_auto_96px_52px] items-center gap-2 sm:gap-3 px-1 sm:px-2 py-2 border-b border-stone-200 dark:border-stone-700 cursor-pointer -mx-1 sm:-mx-2 transition-[background] duration-100 hover:bg-stone-100 dark:hover:bg-stone-800 group"
+      onClick={() => onSelect(product.product_id)}
+    >
       {/* Thumbnail */}
-      <div className="w-12 h-12 sm:w-[60px] sm:h-[60px] overflow-hidden shrink-0 bg-stone-100">
+      <div className="w-12 h-12 sm:w-[60px] sm:h-[60px] overflow-hidden shrink-0 bg-stone-100 dark:bg-stone-800">
         {imgSrc
           ? <img src={imgSrc} alt={product.name} className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.08]" />
-          : <div className="w-full h-full bg-stone-200 animate-pulse" />
+          : <div className="w-full h-full bg-stone-200 dark:bg-stone-700 animate-pulse" />
         }
       </div>
 
       {/* Name + info */}
       <div>
-        <div className="text-sm font-medium text-gray-900">{product.name}</div>
+        <div className="text-sm font-medium text-gray-900 dark:text-stone-100">{product.name}</div>
         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-          {product.gender && <span className="text-stone-600 text-xs">{genderLabel(product.gender)}</span>}
+          {product.gender && <span className="text-stone-600 dark:text-stone-400 text-xs">{genderLabel(product.gender)}</span>}
           {atl && <span className="sm:hidden inline-flex items-center bg-sky-600 px-1 py-0.5 text-[9px] font-medium text-sky-100">ATL</span>}
         </div>
       </div>
@@ -62,13 +65,13 @@ function ProductRow({ product, onSelect }: { product: Product; onSelect: (id: st
       {/* Price (+ discount on mobile) */}
       <div className="text-right">
         <div className="text-sm sm:text-base font-semibold">${product.price.toFixed(2)}</div>
-        <div className="text-xs text-gray-400 line-through font-light">${product.regular_price.toFixed(2)}</div>
-        <div className="sm:hidden text-xs font-bold text-emerald-600">−{pct}%</div>
+        <div className="text-xs text-gray-400 dark:text-stone-500 line-through font-light">${product.regular_price.toFixed(2)}</div>
+        <div className="sm:hidden text-xs font-bold text-emerald-600 dark:text-emerald-400">−{pct}%</div>
       </div>
 
       {/* Discount % — desktop only */}
       <div className="hidden sm:block text-right">
-        <span className="text-sm font-bold text-emerald-600">−{pct}%</span>
+        <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">−{pct}%</span>
       </div>
     </div>
   )
@@ -94,13 +97,13 @@ function CategorySection({
   console.log('group:', group)
   return (
     <div className="mb-8">
-      <div className="border-t-2 border-gray-900 pt-3 flex flex-wrap justify-between gap-y-1">
+      <div className="border-t-2 border-gray-900 dark:border-stone-100 pt-3 flex flex-wrap justify-between gap-y-1">
         {/* Left: name · count · view link */}
         <div className="flex items-baseline gap-2 sm:gap-[10px] flex-wrap">
           <span className="text-[11px] font-[800] tracking-[0.14em] uppercase">
             {group.name}
           </span>
-          <span className="text-[11px] text-gray-400">
+          <span className="text-[11px] text-gray-400 dark:text-stone-500">
             {group.onSale} on sale
           </span>
           <Link to="/categories" className="text-[11px] font-semibold text-red-700">
@@ -120,7 +123,7 @@ function CategorySection({
           ) : group.onSale > 3 && expanded ? (
             <button
               onClick={onToggleExpand}
-              className="text-xs font-semibold text-gray-500 bg-transparent border-none cursor-pointer flex items-center gap-1 p-0 font-sans"
+              className="text-xs font-semibold text-gray-500 dark:text-stone-400 bg-transparent border-none cursor-pointer flex items-center gap-1 p-0 font-sans"
             >
               Show less <ChevronUp size={12} />
             </button>
@@ -209,7 +212,7 @@ export default function HomePage() {
       {/* ── Swiss Masthead ── */}
       <div className="pt-6">
         {/* Supertitle row */}
-        <div className="flex justify-between items-center text-[10px] font-semibold tracking-[0.1em] uppercase text-gray-400 border-b border-stone-200 pb-[10px]">
+        <div className="flex justify-between items-center text-[10px] font-semibold tracking-[0.1em] uppercase text-gray-400 dark:text-stone-500 border-b border-stone-200 dark:border-stone-700 pb-[10px]">
           <span>Uniqlo Canada · Price Tracker</span>
           <span className="hidden sm:inline">Updated daily</span>
         </div>
@@ -224,13 +227,13 @@ export default function HomePage() {
             placeholder="Search products"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="bg-transparent border-0 border-b-2 border-gray-300 focus:border-sky-700 outline-none px-0 py-1 text-base w-full sm:w-[260px] text-left sm:text-right font-normal text-gray-900 transition-[border-color] duration-150 placeholder:italic placeholder:text-gray-400 mb-1 font-sans"
+            className="bg-transparent border-0 border-b-2 border-gray-300 dark:border-stone-600 focus:border-sky-700 dark:focus:border-sky-500 outline-none px-0 py-1 text-base w-full sm:w-[260px] text-left sm:text-right font-normal text-gray-900 dark:text-stone-100 transition-[border-color] duration-150 placeholder:italic placeholder:text-gray-400 dark:placeholder:text-stone-500 mb-1 font-sans"
           />
         </div>
       </div>
 
       {/* ── Stat cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 border-t-[3px] border-t-zinc-700 border-l border-l-zinc-700 border-r border-r-zinc-700 mb-8 sm:mb-11">
+      <div className="grid grid-cols-2 sm:grid-cols-4 border-t-[3px] border-t-zinc-700 dark:border-t-stone-400 border-l border-l-zinc-700 dark:border-l-stone-600 border-r border-r-zinc-700 dark:border-r-stone-600 mb-8 sm:mb-11">
         {[
           { value: products.length, label: 'Products Tracked' },
           { value: onSale.length, label: 'On Sale Now' },
@@ -239,14 +242,14 @@ export default function HomePage() {
         ].map((s, i) => (
           <div
             key={i}
-            className={`px-4 py-[14px] border-b border-b-zinc-700 ${
-              i === 0 || i === 2 ? 'border-r border-r-zinc-700' : i === 1 ? 'sm:border-r sm:border-r-zinc-700' : ''
+            className={`px-4 py-[14px] border-b border-b-zinc-700 dark:border-b-stone-600 ${
+              i === 0 || i === 2 ? 'border-r border-r-zinc-700 dark:border-r-stone-600' : i === 1 ? 'sm:border-r sm:border-r-zinc-700 dark:sm:border-r-stone-600' : ''
             }`}
           >
             <div className="text-[24px] sm:text-[30px] font-black tracking-[-0.03em] leading-none text-red-700">
               {s.value}
             </div>
-            <div className="text-[10px] font-semibold tracking-[0.12em] uppercase text-gray-400 mt-1">
+            <div className="text-[10px] font-semibold tracking-[0.12em] uppercase text-gray-400 dark:text-stone-500 mt-1">
               {s.label}
             </div>
           </div>
@@ -258,7 +261,7 @@ export default function HomePage() {
 
         {/* ── Sidebar — desktop only ── */}
         <div className="hidden sm:block">
-          <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 uppercase border-b border-stone-200 pb-2 mb-3">
+          <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 dark:text-stone-500 uppercase border-b border-stone-200 dark:border-stone-700 pb-2 mb-3">
             Sort by
           </div>
           <div className="flex flex-col gap-0.5">
@@ -266,15 +269,15 @@ export default function HomePage() {
               <button
                 key={opt.key}
                 onClick={() => setSort(opt.key)}
-                className={`flex items-center gap-2 text-[13px] cursor-pointer py-1 transition-colors select-none bg-transparent border-none font-sans text-left ${sort === opt.key ? 'text-gray-900 font-semibold' : 'text-gray-600 hover:text-gray-900'}`}
+                className={`flex items-center gap-2 text-[13px] cursor-pointer py-1 transition-colors select-none bg-transparent border-none font-sans text-left ${sort === opt.key ? 'text-gray-900 dark:text-stone-100 font-semibold' : 'text-gray-600 dark:text-stone-400 hover:text-gray-900 dark:hover:text-stone-100'}`}
               >
-                <span className={`w-2 h-2 rounded-full shrink-0 transition-[background] duration-150 ${sort === opt.key ? 'bg-red-700' : 'bg-gray-300'}`} />
+                <span className={`w-2 h-2 rounded-full shrink-0 transition-[background] duration-150 ${sort === opt.key ? 'bg-red-700' : 'bg-gray-300 dark:bg-stone-600'}`} />
                 {opt.label}
               </button>
             ))}
           </div>
 
-          <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 uppercase border-b border-stone-200 pb-2 mb-3 mt-7">
+          <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 dark:text-stone-500 uppercase border-b border-stone-200 dark:border-stone-700 pb-2 mb-3 mt-7">
             Category
           </div>
           <div className="flex flex-col gap-0.5">
@@ -282,9 +285,9 @@ export default function HomePage() {
               <button
                 key={cat}
                 onClick={() => setCatFilter(cat)}
-                className={`flex items-center gap-2 text-[13px] cursor-pointer py-1 transition-colors select-none bg-transparent border-none font-sans text-left ${catFilter === cat ? 'text-gray-900 font-semibold' : 'text-gray-600 hover:text-gray-900'}`}
+                className={`flex items-center gap-2 text-[13px] cursor-pointer py-1 transition-colors select-none bg-transparent border-none font-sans text-left ${catFilter === cat ? 'text-gray-900 dark:text-stone-100 font-semibold' : 'text-gray-600 dark:text-stone-400 hover:text-gray-900 dark:hover:text-stone-100'}`}
               >
-                <span className={`w-2 h-2 rounded-full shrink-0 transition-[background] duration-150 ${catFilter === cat ? 'bg-red-700' : 'bg-gray-300'}`} />
+                <span className={`w-2 h-2 rounded-full shrink-0 transition-[background] duration-150 ${catFilter === cat ? 'bg-red-700' : 'bg-gray-300 dark:bg-stone-600'}`} />
                 {cat === 'all' ? 'All' : cat}
               </button>
             ))}
@@ -297,13 +300,13 @@ export default function HomePage() {
           {/* ── Mobile filters ── */}
           <div className="sm:hidden mb-6 space-y-3">
             <div>
-              <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 uppercase mb-2">Sort</div>
+              <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 dark:text-stone-500 uppercase mb-2">Sort</div>
               <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
                 {sortOptions.map(opt => (
                   <button
                     key={opt.key}
                     onClick={() => setSort(opt.key)}
-                    className={`shrink-0 text-[11px] font-semibold px-3 py-1.5 border transition-colors font-sans ${sort === opt.key ? 'bg-gray-900 text-white border-gray-900' : 'bg-transparent text-gray-600 border-gray-300'}`}
+                    className={`shrink-0 text-[11px] font-semibold px-3 py-1.5 border transition-colors font-sans ${sort === opt.key ? 'bg-gray-900 dark:bg-stone-100 text-white dark:text-stone-900 border-gray-900 dark:border-stone-100' : 'bg-transparent text-gray-600 dark:text-stone-400 border-gray-300 dark:border-stone-600'}`}
                   >
                     {opt.label}
                   </button>
@@ -311,13 +314,13 @@ export default function HomePage() {
               </div>
             </div>
             <div>
-              <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 uppercase mb-2">Category</div>
+              <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 dark:text-stone-500 uppercase mb-2">Category</div>
               <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
                 {['all', ...CATEGORIES].map(cat => (
                   <button
                     key={cat}
                     onClick={() => setCatFilter(cat)}
-                    className={`shrink-0 text-[11px] font-semibold px-3 py-1.5 border transition-colors font-sans ${catFilter === cat ? 'bg-gray-900 text-white border-gray-900' : 'bg-transparent text-gray-600 border-gray-300'}`}
+                    className={`shrink-0 text-[11px] font-semibold px-3 py-1.5 border transition-colors font-sans ${catFilter === cat ? 'bg-gray-900 dark:bg-stone-100 text-white dark:text-stone-900 border-gray-900 dark:border-stone-100' : 'bg-transparent text-gray-600 dark:text-stone-400 border-gray-300 dark:border-stone-600'}`}
                   >
                     {cat === 'all' ? 'All' : cat}
                   </button>
@@ -327,7 +330,7 @@ export default function HomePage() {
           </div>
 
           {filtered.length === 0 ? (
-            <div className="text-center py-[60px] text-gray-400">
+            <div className="text-center py-[60px] text-gray-400 dark:text-stone-500">
               <div className="text-[32px] mb-3">∅</div>
               <div className="text-sm">No products match your search.</div>
             </div>

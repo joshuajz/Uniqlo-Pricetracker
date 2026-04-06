@@ -1,7 +1,19 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: "Inter", system-ui, sans-serif;
+}
+
+/* ── Theme tokens ───────────────────────────────────────────────────────────── */
+:root {
+  --color-bg: #fcfaf9;
+  --color-fg: #111;
+}
+
+.dark {
+  --color-bg: #0c0a09;
+  --color-fg: #f5f5f4;
 }
 
 @layer base {
@@ -13,10 +25,11 @@
 
   body {
     font-family: "Inter", system-ui, sans-serif;
-    background: #fcfaf9;
-    color: #111;
+    background: var(--color-bg);
+    color: var(--color-fg);
     -webkit-font-smoothing: antialiased;
     margin: 0;
+    transition: background 0.2s ease, color 0.2s ease;
   }
 
   a {
@@ -25,7 +38,7 @@
   }
 }
 
-/* Scrollbar */
+/* ── Scrollbar ──────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -39,4 +52,11 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #bbb;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #44403c;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #57534e;
 }
