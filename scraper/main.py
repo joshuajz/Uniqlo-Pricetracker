@@ -19,6 +19,7 @@ WAIT_TIMEOUT = 15  # seconds to wait for elements
 SCRAPER_VERSION = "1.0.0"
 
 URLS = [
+    # Men's
     'https://www.uniqlo.com/ca/en/men/tops',
     'https://www.uniqlo.com/ca/en/men/outerwear',
     'https://www.uniqlo.com/ca/en/men/sweaters-and-knitwear',
@@ -27,7 +28,25 @@ URLS = [
     'https://www.uniqlo.com/ca/en/men/innerwear-and-base-layers/',
     'https://www.uniqlo.com/ca/en/men/loungewear',
     'https://www.uniqlo.com/ca/en/men/accessories-and-home',
-    'https://www.uniqlo.com/ca/en/men/sport-utility-wear'
+    'https://www.uniqlo.com/ca/en/men/sport-utility-wear',
+    # Women's
+    'https://www.uniqlo.com/ca/en/women/outerwear',
+    'https://www.uniqlo.com/ca/en/women/tops',
+    'https://www.uniqlo.com/ca/en/women/sweaters-and-knitwear',
+    'https://www.uniqlo.com/ca/en/women/shirts-and-blouses',
+    'https://www.uniqlo.com/ca/en/women/bottoms',
+    'https://www.uniqlo.com/ca/en/women/bottoms',
+    'https://www.uniqlo.com/ca/en/women/innerwear',
+    'https://www.uniqlo.com/ca/en/women/loungewear-and-homeware',
+    'https://www.uniqlo.com/ca/en/women/accessories-and-home',
+    # Kids
+    'https://www.uniqlo.com/ca/en/kids/tops',
+    'https://www.uniqlo.com/ca/en/kids/bottoms',
+    'https://www.uniqlo.com/ca/en/kids/shirts-and-knitwear',
+    'https://www.uniqlo.com/ca/en/kids/outerwear',
+    'https://www.uniqlo.com/ca/en/kids/dresses-and-jumpsuits',
+    'https://www.uniqlo.com/ca/en/kids/innerwear-and-base-layers',
+    'https://www.uniqlo.com/ca/en/kids/accessories'
 ]
 PRICES = {}
 PRICES_LOCK = Lock()
