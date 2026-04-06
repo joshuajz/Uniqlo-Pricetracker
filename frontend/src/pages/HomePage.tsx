@@ -2,25 +2,22 @@ import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import {
-  PRODUCTS, CATEGORIES, discountPct, isAtl, isOnSale, genderLabel,
+  discountPct, isAtl, isOnSale, genderLabel,
 } from '../data/mockData'
-import type { Product, SortKey } from '../types/types'
+import type { Product } from '../types/types'
 import { getCategories, getImage, getProducts } from '../data/api'
 import PageLoader from '../components/PageLoader'
 import ProductModal from '../components/ProductModal'
 import { useProductModal } from '../hooks/useProductModal'
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function sortProducts(products: Product[], key: SortKey): Product[] {
-  return [...products].sort((a, b) => {
-    switch (key) {
-      case 'price': return a.price - b.price
-      case 'name': return a.name.localeCompare(b.name)
-      case 'atl': return (isAtl(a) ? 0 : 1) - (isAtl(b) ? 0 : 1)
-      default: return discountPct(b) - discountPct(a)
-    }
-  })
+function sortByDiscount(products: Product[]): Product[] {
+  return [...products].sort((a, b) => discountPct(b) - discountPct(a))
+}
+
+function formatGroupName(slug: string): string {
+  return slug.split('/').map(s => s.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())).join(' › ')
 }
 
 // ─── Product Row ─────────────────────────────────────────────────────────────
@@ -94,19 +91,21 @@ function CategorySection({
   onToggleExpand: () => void
   onSelect: (id: string) => void
 }) {
-  console.log('group:', group)
   return (
     <div className="mb-8">
       <div className="border-t-2 border-gray-900 dark:border-stone-100 pt-3 flex flex-wrap justify-between gap-y-1">
         {/* Left: name · count · view link */}
         <div className="flex items-baseline gap-2 sm:gap-[10px] flex-wrap">
           <span className="text-[11px] font-[800] tracking-[0.14em] uppercase">
-            {group.name}
+            {formatGroupName(group.name)}
           </span>
           <span className="text-[11px] text-gray-400 dark:text-stone-500">
             {group.onSale} on sale
           </span>
-          <Link to="/categories" className="text-[11px] font-semibold text-red-700">
+          <Link
+            to={`/categories?open=${encodeURIComponent(group.name)}`}
+            className="text-[11px] font-semibold text-red-700"
+          >
             View category →
           </Link>
         </div>
@@ -144,8 +143,6 @@ function CategorySection({
 
 export default function HomePage() {
   const [search, setSearch] = useState('')
-  const [sort, setSort] = useState<SortKey>('discount')
-  const [catFilter, setCatFilter] = useState('all')
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [onSale, setOnSale] = useState<Product[]>([])
   const { modalId, openModal, closeModal } = useProductModal()
@@ -165,7 +162,6 @@ export default function HomePage() {
       0
     ) / onSale.length) : 0
 
-
   const onSaleByCategory = useMemo<{[key: string]: Product[]}>(() => {
     const map: {[key: string]: Product[]} = {}
     onSale.forEach(element => {
@@ -176,33 +172,24 @@ export default function HomePage() {
     return map
   }, [onSale])
 
-
   const filtered = useMemo<GroupedCat[]>(() => {
     const searchTerm = search.trim().toLowerCase()
     return Object.keys(onSaleByCategory).map(category => {
       const categoryItems = onSaleByCategory?.[category] || []
-      const filterCategory = categoryItems.filter(p => p.name.toLowerCase().includes(searchTerm) || p.product_id.includes(searchTerm))
-
+      const filterCategory = categoryItems.filter(p =>
+        p.name.toLowerCase().includes(searchTerm) || p.product_id.includes(searchTerm)
+      )
       return {
         name: category,
-        products: sortProducts(filterCategory, sort),
+        products: sortByDiscount(filterCategory),
         onSale: categoryItems.length,
       }
-    }
-    )
-
+    })
   }, [search, onSaleByCategory])
 
   const toggleExpand = (cat: string) => {
     setExpanded(prev => ({ ...prev, [cat]: !prev[cat] }))
   }
-
-  const sortOptions: { key: SortKey; label: string }[] = [
-    { key: 'discount', label: 'Most Discounted' },
-    { key: 'price', label: 'Price: Low → High' },
-    { key: 'name', label: 'Name: A → Z' },
-    { key: 'atl', label: 'At All-Time Low' },
-  ]
 
   if (productsLoading || categoriesLoading) return <PageLoader />
 
@@ -211,24 +198,23 @@ export default function HomePage() {
 
       {/* ── Swiss Masthead ── */}
       <div className="pt-6">
-        {/* Supertitle row */}
-        <div className="flex justify-between items-center text-[10px] font-semibold tracking-[0.1em] uppercase text-gray-400 dark:text-stone-500 border-b border-stone-200 dark:border-stone-700 pb-[10px]">
-          <span>Uniqlo Canada · Price Tracker</span>
-          <span className="hidden sm:inline">Updated daily</span>
-        </div>
-
         {/* Title + search row */}
         <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto] gap-3 sm:gap-[48px] sm:items-end py-5">
           <h1 className="text-[36px] sm:text-[52px] font-black tracking-[-0.03em] leading-none m-0 whitespace-nowrap">
             Uniqlo <span className="text-red-700">Tracker</span>
           </h1>
-          <input
-            type="text"
-            placeholder="Search products"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="bg-transparent border-0 border-b-2 border-gray-300 dark:border-stone-600 focus:border-sky-700 dark:focus:border-sky-500 outline-none px-0 py-1 text-base w-full sm:w-[260px] text-left sm:text-right font-normal text-gray-900 dark:text-stone-100 transition-[border-color] duration-150 placeholder:italic placeholder:text-gray-400 dark:placeholder:text-stone-500 mb-1 font-sans"
-          />
+          <div className="flex flex-col items-start sm:items-end gap-0.5">
+            <input
+              type="text"
+              placeholder="Search discounted products…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="bg-transparent border-0 border-b-2 border-gray-300 dark:border-stone-600 focus:border-sky-700 dark:focus:border-sky-500 outline-none px-0 py-1 text-base w-full sm:w-[280px] text-left sm:text-right font-normal text-gray-900 dark:text-stone-100 transition-[border-color] duration-150 placeholder:italic placeholder:text-gray-400 dark:placeholder:text-stone-500 mb-1 font-sans"
+            />
+            <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-gray-400 dark:text-stone-500">
+              On-sale items only
+            </span>
+          </div>
         </div>
       </div>
 
@@ -256,97 +242,25 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* ── Main layout ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-[180px_1fr] gap-10">
-
-        {/* ── Sidebar — desktop only ── */}
-        <div className="hidden sm:block">
-          <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 dark:text-stone-500 uppercase border-b border-stone-200 dark:border-stone-700 pb-2 mb-3">
-            Sort by
+      {/* ── Product list ── */}
+      <div>
+        {filtered.length === 0 ? (
+          <div className="text-center py-[60px] text-gray-400 dark:text-stone-500">
+            <div className="text-[32px] mb-3">∅</div>
+            <div className="text-sm">No discounted products match your search.</div>
           </div>
-          <div className="flex flex-col gap-0.5">
-            {sortOptions.map(opt => (
-              <button
-                key={opt.key}
-                onClick={() => setSort(opt.key)}
-                className={`flex items-center gap-2 text-[13px] cursor-pointer py-1 transition-colors select-none bg-transparent border-none font-sans text-left ${sort === opt.key ? 'text-gray-900 dark:text-stone-100 font-semibold' : 'text-gray-600 dark:text-stone-400 hover:text-gray-900 dark:hover:text-stone-100'}`}
-              >
-                <span className={`w-2 h-2 rounded-full shrink-0 transition-[background] duration-150 ${sort === opt.key ? 'bg-red-700' : 'bg-gray-300 dark:bg-stone-600'}`} />
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 dark:text-stone-500 uppercase border-b border-stone-200 dark:border-stone-700 pb-2 mb-3 mt-7">
-            Category
-          </div>
-          <div className="flex flex-col gap-0.5">
-            {['all', ...CATEGORIES].map(cat => (
-              <button
-                key={cat}
-                onClick={() => setCatFilter(cat)}
-                className={`flex items-center gap-2 text-[13px] cursor-pointer py-1 transition-colors select-none bg-transparent border-none font-sans text-left ${catFilter === cat ? 'text-gray-900 dark:text-stone-100 font-semibold' : 'text-gray-600 dark:text-stone-400 hover:text-gray-900 dark:hover:text-stone-100'}`}
-              >
-                <span className={`w-2 h-2 rounded-full shrink-0 transition-[background] duration-150 ${catFilter === cat ? 'bg-red-700' : 'bg-gray-300 dark:bg-stone-600'}`} />
-                {cat === 'all' ? 'All' : cat}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Products ── */}
-        <div>
-
-          {/* ── Mobile filters ── */}
-          <div className="sm:hidden mb-6 space-y-3">
-            <div>
-              <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 dark:text-stone-500 uppercase mb-2">Sort</div>
-              <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
-                {sortOptions.map(opt => (
-                  <button
-                    key={opt.key}
-                    onClick={() => setSort(opt.key)}
-                    className={`shrink-0 text-[11px] font-semibold px-3 py-1.5 border transition-colors font-sans ${sort === opt.key ? 'bg-gray-900 dark:bg-stone-100 text-white dark:text-stone-900 border-gray-900 dark:border-stone-100' : 'bg-transparent text-gray-600 dark:text-stone-400 border-gray-300 dark:border-stone-600'}`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] font-bold tracking-[0.15em] text-gray-400 dark:text-stone-500 uppercase mb-2">Category</div>
-              <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
-                {['all', ...CATEGORIES].map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => setCatFilter(cat)}
-                    className={`shrink-0 text-[11px] font-semibold px-3 py-1.5 border transition-colors font-sans ${catFilter === cat ? 'bg-gray-900 dark:bg-stone-100 text-white dark:text-stone-900 border-gray-900 dark:border-stone-100' : 'bg-transparent text-gray-600 dark:text-stone-400 border-gray-300 dark:border-stone-600'}`}
-                  >
-                    {cat === 'all' ? 'All' : cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {filtered.length === 0 ? (
-            <div className="text-center py-[60px] text-gray-400 dark:text-stone-500">
-              <div className="text-[32px] mb-3">∅</div>
-              <div className="text-sm">No products match your search.</div>
-            </div>
-          ) : (
-            filtered.map((group, i) => (
-              <CategorySection
-                key={group.name}
-                group={group}
-                index={i}
-                expanded={!!expanded[group.name]}
-                onToggleExpand={() => toggleExpand(group.name)}
-                onSelect={openModal}
-              />
-            ))
-          )}
-        </div>
+        ) : (
+          filtered.map((group, i) => (
+            <CategorySection
+              key={group.name}
+              group={group}
+              index={i}
+              expanded={!!expanded[group.name]}
+              onToggleExpand={() => toggleExpand(group.name)}
+              onSelect={openModal}
+            />
+          ))
+        )}
       </div>
 
       {selectedProduct && (

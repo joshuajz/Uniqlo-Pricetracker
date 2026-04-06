@@ -5,7 +5,6 @@ import { useTheme } from '../context/ThemeContext'
 const links = [
   { to: '/', label: 'Home', end: true },
   { to: '/categories', label: 'Categories', end: false },
-  { to: '/dashboard', label: 'Dashboard', end: false },
   { to: '/faq', label: 'FAQ', end: false },
 ]
 
