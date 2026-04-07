@@ -35,7 +35,6 @@ URLS = [
     'https://www.uniqlo.com/ca/en/women/sweaters-and-knitwear',
     'https://www.uniqlo.com/ca/en/women/shirts-and-blouses',
     'https://www.uniqlo.com/ca/en/women/bottoms',
-    'https://www.uniqlo.com/ca/en/women/bottoms',
     'https://www.uniqlo.com/ca/en/women/innerwear',
     'https://www.uniqlo.com/ca/en/women/loungewear-and-homeware',
     'https://www.uniqlo.com/ca/en/women/accessories-and-home',

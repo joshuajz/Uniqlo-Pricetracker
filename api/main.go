@@ -719,7 +719,7 @@ func getCategories(c *gin.Context) {
 
 // getProductsByCategory returns all products from the most recent scrape filtered by category
 func getProductsByCategory(c *gin.Context) {
-	category := c.Param("category")
+	category := strings.TrimPrefix(c.Param("category"), "/")
 	if category == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Category is required"})
 		return
@@ -836,7 +836,7 @@ func main() {
 	router.GET("/api/products", getProducts)
 
 	// Public endpoint to get products by category
-	router.GET("/api/category/:category", getProductsByCategory)
+	router.GET("/api/category/*category", getProductsByCategory)
 
 	// Public endpoint to get single product with all datapoints
 	router.GET("/api/product/:id", getProduct)
