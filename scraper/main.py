@@ -125,7 +125,7 @@ def scrape_url(url, worker_id):
                 driver.get(link)
 
                 # Wait for product name element to be present
-                name_xpath = '/html/body/div[1]/div/div/div[1]/div[2]/div/div[1]/div/main/div[1]/div'
+                name_xpath = '/html/body/div[1]/div/div/div[1]/div[2]/div/div[1]/div/main/div[1]/h1'
                 price_xpath = '/html/body/div[1]/div/div/div[1]/div[2]/div/div[1]/div/main/div[5]/div/div/div[1]/div/div/p'
 
                 wait.until(EC.presence_of_element_located((By.XPATH, name_xpath)))
