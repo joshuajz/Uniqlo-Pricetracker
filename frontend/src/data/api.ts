@@ -5,8 +5,17 @@ const API_URL = import.meta.env.VITE_API_URL || '/api'
 export const getProducts = () => {
   return useQuery({
     queryKey: ['products'],
-    queryFn: () => fetch(`${API_URL}/products`).then(res => res.json()),
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/products`)
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.error || `HTTP ${res.status}`)
+      }
+      return res.json()
+    },
     staleTime: 1000 * 60 * 5, // 5 mins
+    retry: 5,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 15000), // 1s, 2s, 4s, 8s, 15s
   })
 }
 

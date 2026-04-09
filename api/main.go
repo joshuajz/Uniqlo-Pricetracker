@@ -100,6 +100,25 @@ type ScraperOutput struct {
 
 var db *sql.DB
 
+// waitForDB pings the database with exponential backoff, allowing time for Postgres
+// to finish starting up or recovering from a crash before giving up.
+func waitForDB(maxAttempts int) error {
+	backoff := 2 * time.Second
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if lastErr = db.Ping(); lastErr == nil {
+			return nil
+		}
+		fmt.Printf("DB ping failed (attempt %d/%d): %v — retrying in %s\n", attempt, maxAttempts, lastErr, backoff)
+		time.Sleep(backoff)
+		backoff *= 2
+		if backoff > 30*time.Second {
+			backoff = 30 * time.Second
+		}
+	}
+	return fmt.Errorf("database unavailable after %d attempts: %w", maxAttempts, lastErr)
+}
+
 // initDB connects to PostgreSQL and creates tables if they don't exist
 func initDB() error {
 	databaseURL := os.Getenv("DATABASE_URL")
@@ -314,6 +333,13 @@ func injestProducts(c *gin.Context) {
 				}
 			}
 		}
+	}
+
+	// Wait for DB to be ready — handles the case where Postgres is still recovering
+	// from a crash when this request arrives (e.g. from a GH Actions run).
+	if err := waitForDB(5); err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Database unavailable, try again later", "details": err.Error()})
+		return
 	}
 
 	// Inject consolidated products into the database
