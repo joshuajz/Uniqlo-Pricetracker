@@ -4,36 +4,36 @@ import posthog from 'posthog-js'
 
 const FAQS = [
   {
-    q: 'What is Uniqlo Tracker?',
-    a: 'Uniqlo Tracker tracks Uniqlo prices, duh!',
+    q: 'What is Uniqlo Price Tracker?',
+    a: 'Uniqlo Price Tracker is a free tool that monitors prices across hundreds of Uniqlo Canada products and updates them daily. Our historical data determines whether a product is on sale, and highlgihts items that have hit their \'all time lowest\' price.',
   },
   {
     q: 'How often are prices updated?',
-    a: 'Once per day',
+    a: 'Prices are scraped and updated once per day.',
   },
   {
-    q: 'How do I add a product to my watchlist?',
-    a: 'Watchlists aren\'t made yet',
+    q: 'Which region does Uniqlo Tracker cover?',
+    a: 'Uniqlo Price Tracker currently covers Uniqlo Canada only, as such all products are displayed in CAD (Canadian Dollars).',
   },
   {
-    q: 'What does "At All-Time Low" (ATL) mean?',
-    a: 'all time low',
+    q: 'What does "All-Time Low" (ATL) mean?',
+    a: 'The ATL badge appears on products whose current price is the lowest price ever recorded by the tracker (or equal to the previous lowest price ever recorded). It means the item has never been cheaper since we started tracking it, usually meaning it\'s a good time to buy!.',
   },
   {
-    q: 'Will I be notified when a price drops?',
-    a: 'notifications TBD',
+    q: 'Does Uniqlo Tracker only show sale items?',
+    a: 'The home page shows only items that are currently on sale (i.e. selling below their regular price). The Categories page lets you browse all tracked products, including those at full price, so you can monitor items you\'re waiting to go on sale.',
   },
   {
     q: 'Is Uniqlo Tracker affiliated with Uniqlo?',
-    a: 'no',
+    a: 'No.',
   },
   {
-    q: 'Which regions are supported?',
-    a: 'Tracks Canadian prices',
+    q: 'Is there a price alert or notification feature?',
+    a: 'Price drop notifications are not available yet, but are planned for a future update. In the meantime, you can check back daily. Please contact us with any other feature requests!',
   },
   {
-    q: 'How do I remove a product from my watchlist?',
-    a: 'Unclick the "star", watchlists TBD',
+    q: 'Is Uniqlo Tracker free to use?',
+    a: 'Yes, completely free. No account, no sign-up, no subscription required.',
   },
 ]
 
@@ -88,12 +88,12 @@ export default function FAQPage() {
       {/* ── Contact CTA ── */}
       <div className="mt-14 border-t-[3px] border-gray-900 dark:border-stone-100 pt-6 flex flex-col sm:flex-row gap-4 sm:gap-0 sm:justify-between sm:items-center">
         <div>
-          <div className="text-sm font-semibold mb-1">Still have questions?</div>
-          <div className="text-[13px] text-gray-400 dark:text-stone-500">We're happy to help.</div>
+          <div className="text-sm font-semibold mb-1">Contact</div>
+          <div className="text-[13px] text-gray-400 dark:text-stone-500">Suggest any feature requests or report issues.</div>
         </div>
         <a
-          href="mailto:hello@uniqlotracker.com"
-          onClick={() => posthog.capture('faq_contact_us')}
+          href="https://github.com/joshuajz/Uniqlo-Pricetracker/issues/new?assignees=&labels=triage%2C+needs+triage%2C+bug%2C+feature+request&template=issue_template.md&title=%5BFeature+Request%2FBug%5D+Short+but+descriptive+title"
+          onClick={() => posthog.capture('faq_contact_click')}
           className="px-5 py-[10px] bg-gray-900 dark:bg-stone-100 text-white dark:text-stone-900 text-[13px] font-semibold tracking-[0.04em] transition-[background,color] duration-150 hover:bg-red-600 dark:hover:bg-red-600 dark:hover:text-white inline-block"
         >
           Contact Us →

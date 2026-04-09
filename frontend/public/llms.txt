@@ -1,0 +1,27 @@
+# Uniqlo Price Tracker
+
+> A free, daily-updated price tracking tool for Uniqlo Canada.
+
+## What it does
+
+- Tracks prices across hundreds of Uniqlo Canada products, updated once per day
+- Shows every item **currently on sale** with exact discount percentages
+- Flags **All-Time Low (ATL)** prices — the cheapest a product has ever been recorded
+- Displays full **price history charts** for individual products
+- Organises products by Uniqlo category (e.g. T-Shirts, Jeans, Outerwear, Knitwear, etc.)
+- Covers both Men's and Women's lines
+
+## Who it's for
+
+Shoppers in Canada who want to know when Uniqlo products go on sale or reach their lowest-ever recorded price, without checking the Uniqlo website manually every day.
+
+## Key facts
+
+- Region: Canada (prices in CAD)
+- Update frequency: Once per day
+- Free to use — no account or sign-up required
+- Not affiliated with Uniqlo Co., Ltd.
+
+## URL
+
+https://uniqlotracker.com
