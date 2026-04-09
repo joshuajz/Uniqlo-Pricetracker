@@ -6,6 +6,7 @@ import { discountPct, isOnSale, isAtl } from '../data/mockData'
 import type { Product, SortKey } from '../types/types'
 import { getImage, getProducts } from '../data/api'
 import PageLoader from '../components/PageLoader'
+import ApiErrorFallback from '../components/ApiErrorFallback'
 import ProductModal, { productHue } from '../components/ProductModal'
 import { useProductModal } from '../hooks/useProductModal'
 
@@ -319,7 +320,7 @@ export default function CategoriesPage() {
   const deferredSearch      = useDeferredValue(search)
   const [searchParams]      = useSearchParams()
 
-  const { data: productsAPI, isLoading } = getProducts()
+  const { data: productsAPI, isLoading, isError, refetch } = getProducts()
   const { modalId, openModal, closeModal } = useProductModal()
 
   const products: Product[] = productsAPI?.products ?? []
@@ -442,6 +443,7 @@ export default function CategoriesPage() {
     : openSubcats
 
   if (isLoading) return <PageLoader />
+  if (isError) return <ApiErrorFallback onRetry={refetch} />
 
   return (
     <div className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-10 pb-[60px]">

@@ -8,6 +8,7 @@ import {
 import type { Product } from '../types/types'
 import { getCategories, getImage, getProducts } from '../data/api'
 import PageLoader from '../components/PageLoader'
+import ApiErrorFallback from '../components/ApiErrorFallback'
 import ProductModal from '../components/ProductModal'
 import { useProductModal } from '../hooks/useProductModal'
 
@@ -149,8 +150,8 @@ export default function HomePage() {
   const [onSale, setOnSale] = useState<Product[]>([])
   const { modalId, openModal, closeModal } = useProductModal()
 
-  const { data: productsAPI = [], isLoading: productsLoading } = getProducts()
-  const { data: categoriesAPI = [], isLoading: categoriesLoading } = getCategories()
+  const { data: productsAPI, isLoading: productsLoading, isError: productsError, refetch: refetchProducts } = getProducts()
+  const { data: categoriesAPI, isLoading: categoriesLoading, isError: categoriesError, refetch: refetchCategories } = getCategories()
 
   const products = productsAPI?.products
   const categories = categoriesAPI?.categories
@@ -225,6 +226,9 @@ export default function HomePage() {
   }
 
   if (productsLoading || categoriesLoading) return <PageLoader />
+  if (productsError || categoriesError) return (
+    <ApiErrorFallback onRetry={() => { refetchProducts(); refetchCategories() }} />
+  )
 
   return (
     <div className="max-w-[1100px] mx-auto px-4 sm:px-6 pb-[60px]">

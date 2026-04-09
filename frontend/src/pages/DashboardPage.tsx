@@ -4,6 +4,7 @@ import { discountPct, isAtl, isOnSale, genderLabel } from '../data/mockData'
 import type { Product, TabKey } from '../types/types'
 import { getProducts } from '../data/api'
 import PageLoader from '../components/PageLoader'
+import ApiErrorFallback from '../components/ApiErrorFallback'
 import ProductModal from '../components/ProductModal'
 import { useProductModal } from '../hooks/useProductModal'
 
@@ -105,7 +106,7 @@ function DashRow({ product: p, onSelect }: { product: Product; onSelect: (id: st
 
 export default function DashboardPage() {
   const [tab, setTab] = useState<TabKey>('all')
-  const { data: productsAPI, isLoading } = getProducts()
+  const { data: productsAPI, isLoading, isError, refetch } = getProducts()
   const products: Product[] = productsAPI?.products ?? []
   const { modalId, openModal, closeModal } = useProductModal()
   const selectedProduct = products.find(p => p.product_id === modalId) ?? null
@@ -135,6 +136,7 @@ export default function DashboardPage() {
   ]
 
   if (isLoading) return <PageLoader />
+  if (isError) return <ApiErrorFallback onRetry={refetch} />
 
   return (
     <div className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-10 pb-[60px]">

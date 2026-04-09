@@ -1,4 +1,13 @@
+import { useEffect, useState } from 'react'
+
 export default function PageLoader() {
+  const [showHint, setShowHint] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setShowHint(true), 6000)
+    return () => clearTimeout(t)
+  }, [])
+
   return (
     <div className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-10 pb-[60px] animate-pulse">
 
@@ -8,6 +17,13 @@ export default function PageLoader() {
         <div className="h-9 w-64 bg-stone-200 dark:bg-stone-800 rounded" />
         <div className="h-3 w-48 bg-stone-200 dark:bg-stone-800 rounded mt-3" />
       </div>
+
+      {/* Waking-up hint — appears after 6 s */}
+      {showHint && (
+        <div className="mb-6 -mt-2 animate-[fadeIn_0.4s_ease] text-xs text-gray-400 dark:text-stone-500 tracking-wide">
+          Server is waking up, please wait&hellip;
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-9">
