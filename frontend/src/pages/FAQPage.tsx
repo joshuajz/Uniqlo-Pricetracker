@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import posthog from 'posthog-js'
 
 const FAQS = [
   {
@@ -42,7 +43,10 @@ function FAQItem({ q, a, index }: { q: string; a: string; index: number }) {
   return (
     <div className={`last:border-b last:border-gray-200 dark:last:border-stone-700 ${index === 0 ? 'border-t-[3px] border-red-600' : 'border-t border-gray-200 dark:border-stone-700'}`}>
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => {
+          posthog.capture(open ? 'faq_item_collapsed' : 'faq_item_expanded', { question: q })
+          setOpen(o => !o)
+        }}
         className="w-full flex justify-between items-center py-[18px] bg-transparent border-none cursor-pointer font-sans text-left gap-4"
       >
         <span className="text-[15px] font-semibold text-gray-900 dark:text-stone-100 leading-[1.3]">{q}</span>
@@ -89,6 +93,7 @@ export default function FAQPage() {
         </div>
         <a
           href="mailto:hello@uniqlotracker.com"
+          onClick={() => posthog.capture('faq_contact_us')}
           className="px-5 py-[10px] bg-gray-900 dark:bg-stone-100 text-white dark:text-stone-900 text-[13px] font-semibold tracking-[0.04em] transition-[background,color] duration-150 hover:bg-red-600 dark:hover:bg-red-600 dark:hover:text-white inline-block"
         >
           Contact Us →

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import posthog from 'posthog-js'
 import {
   discountPct, isAtl, isOnSale, genderLabel,
 } from '../data/mockData'
@@ -105,6 +106,7 @@ function CategorySection({
           <Link
             to={`/categories?open=${encodeURIComponent(group.name)}`}
             className="text-[11px] font-semibold text-red-700"
+            onClick={() => posthog.capture('home_category_clicked', { category_name: group.name })}
           >
             View category →
           </Link>
@@ -156,6 +158,16 @@ export default function HomePage() {
 
   useEffect(() => setOnSale(products?.filter((p: Product) => p.price < p.regular_price) || []), [products])
 
+  // Track search with debounce
+  useEffect(() => {
+    if (!search.trim()) return
+    const timer = setTimeout(() => {
+      const count = filtered.reduce((acc, g) => acc + g.products.length, 0)
+      posthog.capture('home_search', { query: search.trim(), results_count: count })
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [search]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const avgDiscount = onSale.length ?
     (onSale.reduce(
       (acc, product: Product) => acc + (1 - product.price / product.regular_price),
@@ -188,7 +200,28 @@ export default function HomePage() {
   }, [search, onSaleByCategory])
 
   const toggleExpand = (cat: string) => {
+    const isCurrentlyExpanded = !!expanded[cat]
+    posthog.capture(isCurrentlyExpanded ? 'home_category_collapse' : 'home_category_expand', {
+      category_name: cat,
+      total_items: onSaleByCategory[cat]?.length ?? 0,
+    })
     setExpanded(prev => ({ ...prev, [cat]: !prev[cat] }))
+  }
+
+  const handleProductSelect = (id: string) => {
+    const product = products?.find((p: Product) => p.product_id === id)
+    if (product) {
+      posthog.capture('product_clicked', {
+        product_id: id,
+        product_name: product.name,
+        price: product.price,
+        discount_pct: discountPct(product),
+        is_atl: isAtl(product),
+        is_on_sale: isOnSale(product),
+        source: 'home',
+      })
+    }
+    openModal(id)
   }
 
   if (productsLoading || categoriesLoading) return <PageLoader />
@@ -257,7 +290,7 @@ export default function HomePage() {
               index={i}
               expanded={!!expanded[group.name]}
               onToggleExpand={() => toggleExpand(group.name)}
-              onSelect={openModal}
+              onSelect={handleProductSelect}
             />
           ))
         )}

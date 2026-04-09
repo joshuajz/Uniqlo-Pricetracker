@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue } from 'react'
 import { ChevronRight, ChevronDown } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
+import posthog from 'posthog-js'
 import { discountPct, isOnSale, isAtl } from '../data/mockData'
 import type { Product, SortKey } from '../types/types'
 import { getImage, getProducts } from '../data/api'
@@ -338,6 +339,18 @@ export default function CategoriesPage() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Track search with debounce
+  useEffect(() => {
+    if (!search.trim()) return
+    const timer = setTimeout(() => {
+      posthog.capture('categories_search', {
+        query: search.trim(),
+        results_count: visibleProducts.length,
+      })
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [search]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Filter by search — uses deferred value so the input stays snappy
   // while the expensive expansion/render is scheduled at lower priority.
   const visibleProducts = useMemo(() => {
@@ -373,6 +386,8 @@ export default function CategoriesPage() {
   const genders = Array.from(genderTree.keys())
 
   const toggleGender = (gender: string) => {
+    const isOpen = openGenders.has(gender)
+    posthog.capture(isOpen ? 'categories_gendersect_collapse' : 'categories_gendersect_expand', { gender })
     setOpenGenders(prev => {
       const next = new Set(prev)
       if (next.has(gender)) next.delete(gender); else next.add(gender)
@@ -381,11 +396,32 @@ export default function CategoriesPage() {
   }
 
   const toggleSubcat = (slug: string) => {
+    const isOpen = openSubcats.has(slug)
+    posthog.capture(isOpen ? 'categories_subcategory_collapse' : 'categories_subcategory_expand', {
+      subcategory: slug,
+      gender: slug.split('/')[0],
+    })
     setOpenSubcats(prev => {
       const next = new Set(prev)
       if (next.has(slug)) next.delete(slug); else next.add(slug)
       return next
     })
+  }
+
+  const handleProductSelect = (id: string) => {
+    const product = products.find(p => p.product_id === id)
+    if (product) {
+      posthog.capture('product_clicked', {
+        product_id: id,
+        product_name: product.name,
+        price: product.price,
+        discount_pct: discountPct(product),
+        is_atl: isAtl(product),
+        is_on_sale: isOnSale(product),
+        source: 'categories',
+      })
+    }
+    openModal(id)
   }
 
   // When searching, auto-expand every gender/subcat that has matching products.
@@ -438,7 +474,7 @@ export default function CategoriesPage() {
           {SORT_OPTIONS.map(opt => (
             <button
               key={opt.key}
-              onClick={() => setSort(opt.key)}
+              onClick={() => { posthog.capture('categories_sort_changed', { sort_key: opt.key }); setSort(opt.key) }}
               className={`text-[11px] font-semibold px-2.5 py-1 border transition-colors font-sans cursor-pointer ${
                 sort === opt.key
                   ? 'bg-gray-900 dark:bg-stone-100 text-white dark:text-stone-900 border-gray-900 dark:border-stone-100'
@@ -469,7 +505,7 @@ export default function CategoriesPage() {
               subcategories={subcategories}
               openSubcats={effectiveOpenSubcats}
               onSubcatToggle={toggleSubcat}
-              onSelect={openModal}
+              onSelect={handleProductSelect}
               allProducts={genderProducts}
               sort={sort}
             />

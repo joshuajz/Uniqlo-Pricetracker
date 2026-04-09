@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
+import posthog from 'posthog-js'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid } from 'recharts'
 import { discountPct, isOnSale } from '../data/mockData'
 import type { Product } from '../types/types'
@@ -97,6 +98,30 @@ export default function ProductModal({ product: p, onClose }: { product: Product
   const { theme } = useTheme()
   const isDark = theme === 'dark'
 
+  // Fire once when the modal mounts
+  useEffect(() => {
+    posthog.capture('product_modal_opened', {
+      product_id: p.product_id,
+      product_name: p.name,
+      price: p.price,
+      regular_price: p.regular_price,
+      discount_pct: pct,
+      is_atl: atl,
+      is_on_sale: sale,
+      category: p.categories[0] ?? '',
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCloseBackdrop = () => {
+    posthog.capture('product_modal_closed', { product_id: p.product_id, closed_via: 'backdrop' })
+    onClose()
+  }
+
+  const handleCloseButton = () => {
+    posthog.capture('product_modal_closed', { product_id: p.product_id, closed_via: 'button' })
+    onClose()
+  }
+
   const { data: detail, isLoading: detailLoading } = getProductDetail(p.product_id)
   const { data: imgSrc } = getImage(p.product_id)
   const palette = useImagePalette(imgSrc)
@@ -142,7 +167,7 @@ export default function ProductModal({ product: p, onClose }: { product: Product
 
   return (
     <div
-      onClick={onClose}
+      onClick={handleCloseBackdrop}
       className="fixed inset-0 bg-black/45 z-[200] flex items-center justify-center p-3 sm:p-6"
     >
       <div
@@ -151,7 +176,7 @@ export default function ProductModal({ product: p, onClose }: { product: Product
       >
         {/* Close button */}
         <button
-          onClick={onClose}
+          onClick={handleCloseButton}
           className="absolute top-3 right-3 z-20 bg-black/10 dark:bg-white/10 border-none text-gray-600 dark:text-stone-300 p-[5px_7px] cursor-pointer flex items-center hover:bg-black/20 dark:hover:bg-white/20 transition-colors"
         >
           <X size={13} />
@@ -293,6 +318,13 @@ export default function ProductModal({ product: p, onClose }: { product: Product
             href={detail?.url ?? p.url}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => posthog.capture('view_on_uniqlo_clicked', {
+              product_id: p.product_id,
+              product_name: p.name,
+              price: p.price,
+              is_atl: atl,
+              is_on_sale: sale,
+            })}
             className="block w-full py-[11px] bg-gray-900 dark:bg-stone-100 text-white dark:text-stone-900 text-center text-[13px] font-semibold tracking-[0.06em] font-sans transition-[background,color] duration-150 hover:bg-red-600 dark:hover:bg-red-600 dark:hover:text-white no-underline"
           >
             View on Uniqlo →

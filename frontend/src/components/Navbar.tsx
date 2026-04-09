@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { Moon, Sun } from 'lucide-react'
+import posthog from 'posthog-js'
 import { useTheme } from '../context/ThemeContext'
 
 const links = [
@@ -45,7 +46,10 @@ export default function Navbar() {
 
       {/* Dark mode toggle */}
       <button
-        onClick={toggle}
+        onClick={() => {
+          posthog.capture('theme_toggled', { new_theme: theme === 'dark' ? 'light' : 'dark' })
+          toggle()
+        }}
         aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
         className="ml-auto shrink-0 flex items-center justify-center w-8 h-8 rounded-none border border-stone-200 dark:border-stone-700 text-gray-500 dark:text-stone-400 hover:text-gray-900 dark:hover:text-stone-100 hover:border-gray-400 dark:hover:border-stone-500 bg-transparent transition-colors duration-150 cursor-pointer"
       >
