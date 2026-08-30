@@ -1,9 +1,15 @@
-name: Selenium Web Scraper
+name: Uniqlo Price Scraper
 
 on:
   schedule:
     - cron: "0 0 * * *"
   workflow_dispatch:
+    inputs:
+      include_images:
+        description: Download and ingest product images
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   scrape-latest:
@@ -18,16 +24,27 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: 0.9.11
-      - name: Initalize the project using uv
+      - name: Initialize the project using uv
         run: uv sync --locked --all-extras --dev
-      - name: Remove mismatched bundled ChromeDriver
-        run: sudo rm -f /usr/local/bin/chromedriver
-      - name: Install and verify matching ChromeDriver
+      - name: Configure scrape mode
         run: |
-          uv run python -c "from main import create_driver; d=create_driver(); print('Chrome:', d.capabilities['browserVersion']); d.quit()"
+          if [[ "${{ github.event_name }}" == "schedule" && "$(date -u +%d)" == "01" ]]; then
+            echo "SAVE_PHOTO=true" >> "$GITHUB_ENV"
+          elif [[ "${{ inputs.include_images }}" == "true" ]]; then
+            echo "SAVE_PHOTO=true" >> "$GITHUB_ENV"
+          else
+            echo "SAVE_PHOTO=false" >> "$GITHUB_ENV"
+          fi
       - name: Run scraper
+        env:
+          PYTHONUNBUFFERED: 1
+          CHROME_BINARY: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+          HEADLESS: false
+          PROXY_SERVER: ${{ secrets.PROXY_SERVER }}
+          PROXY_USERNAME: ${{ secrets.PROXY_USERNAME }}
+          PROXY_PASSWORD: ${{ secrets.PROXY_PASSWORD }}
         run: |
           uv run main.py
       - name: Make an API Request to store the scraped results
         run: |
-          curl -X POST -F "file=@output.zip" -u "${{secrets.AUTH_USER}}:${{secrets.AUTH_PASS}}" https://api.uniqlotracker.com/api/products/injest
+          curl --fail-with-body --show-error -X POST -F "file=@output.zip" -u "${{secrets.AUTH_USER}}:${{secrets.AUTH_PASS}}" https://api.uniqlotracker.com/api/products/injest

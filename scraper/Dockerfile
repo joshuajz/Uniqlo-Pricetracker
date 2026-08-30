@@ -6,13 +6,13 @@ ENV PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     CHROME_BINARY=/usr/bin/chromium \
-    MIN_PRODUCTS=500
+    MIN_PRODUCTS=500 \
+    SAVE_PHOTO=false
 
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
         ca-certificates \
         chromium \
-        chromium-driver \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
