@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import time
 import urllib.request
@@ -17,6 +18,7 @@ DEBUG_MODE = True
 MAX_WORKERS = 3
 WAIT_TIMEOUT = 15  # seconds to wait for elements
 SCRAPER_VERSION = "1.0.0"
+DEFAULT_MIN_PRODUCTS = 500
 
 URLS = [
     # Men's
@@ -52,6 +54,20 @@ PRICES_LOCK = Lock()
 SAVE_PHOTO = True
 
 
+def get_min_products():
+    """Return the minimum acceptable product count for a complete scrape."""
+    raw_value = os.getenv("MIN_PRODUCTS", str(DEFAULT_MIN_PRODUCTS))
+    try:
+        min_products = int(raw_value)
+    except ValueError as exc:
+        raise ValueError(f"MIN_PRODUCTS must be an integer, got {raw_value!r}") from exc
+
+    if min_products < 1:
+        raise ValueError("MIN_PRODUCTS must be at least 1")
+
+    return min_products
+
+
 def extract_product_id(url):
     """Extract product ID from Uniqlo product URL.
 
@@ -66,6 +82,9 @@ def create_driver():
     """Create and configure a new Chrome WebDriver instance."""
     # src: https://www.scrapingbee.com/blog/selenium-python/
     opts = Options()
+    chrome_binary = os.getenv("CHROME_BINARY")
+    if chrome_binary:
+        opts.binary_location = chrome_binary
     # opts.add_argument("--headless")  # modern headless mode (Chrome 109+)
     opts.add_argument("--no-sandbox")         # handy for CI or Docker
     opts.add_argument("--disable-dev-shm-usage")  # avoids /dev/shm issues in containers
@@ -173,11 +192,11 @@ def scrape_url(url, worker_id):
             PRICES[url_key] = local_prices
 
         print(f"[Worker {worker_id}] Completed: {url_key} ({len(local_prices)} products)")
-        return url_key, len(local_prices), failed_count
+        return url_key, len(local_prices), failed_count, True
 
     except Exception as e:
         print(f"[Worker {worker_id}] ERROR scraping {url_key}: {e}")
-        return url_key, 0, 0
+        return url_key, 0, 0, False
 
     finally:
         if driver:
@@ -199,6 +218,7 @@ def main():
     total_products = 0
     total_failed = 0
     categories_scraped = []
+    categories_failed = []
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = {
@@ -209,12 +229,18 @@ def main():
         for future in as_completed(futures):
             url = futures[future]
             try:
-                url_key, count, failed = future.result()
+                url_key, count, failed, succeeded = future.result()
                 total_products += count
                 total_failed += failed
-                categories_scraped.append(url_key)
-                print(f"INFO: Finished {url_key} with {count} products")
+                if succeeded:
+                    categories_scraped.append(url_key)
+                    print(f"INFO: Finished {url_key} with {count} products")
+                else:
+                    categories_failed.append(url_key)
+                    print(f"ERROR: Failed to scrape category {url_key}")
             except Exception as e:
+                url_key = url.split('https://www.uniqlo.com/ca/en/')[1].rstrip('/')
+                categories_failed.append(url_key)
                 print(f"ERROR: {url} generated an exception: {e}")
 
     end_time = time.time()
@@ -222,6 +248,20 @@ def main():
 
     if DEBUG_MODE:
         print("DEBUG: Final Prices Dictionary:", PRICES)
+
+    min_products = get_min_products()
+    if total_products < min_products:
+        print(
+            f"ERROR: Scrape produced {total_products} products, below the required "
+            f"minimum of {min_products}. Refusing to create an ingest archive."
+        )
+        print(
+            f"ERROR: Successful categories: {len(categories_scraped)}/{len(URLS)}; "
+            f"failed categories: {len(categories_failed)}"
+        )
+        if categories_failed:
+            print(f"ERROR: Failed category names: {', '.join(categories_failed)}")
+        raise SystemExit(1)
 
     # Build output with metadata
     output = {

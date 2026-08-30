@@ -335,6 +335,17 @@ func injestProducts(c *gin.Context) {
 		}
 	}
 
+	// Do not treat an empty scrape as a successful ingest. Without this guard,
+	// the request returns 200 while the products table remains on its previous date.
+	if scraperOutput.Metadata.TotalProducts == 0 || len(consolidated) == 0 {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error":                   "Scrape contained no products",
+			"reported_total_products": scraperOutput.Metadata.TotalProducts,
+			"consolidated_products":   len(consolidated),
+		})
+		return
+	}
+
 	// Wait for DB to be ready — handles the case where Postgres is still recovering
 	// from a crash when this request arrives (e.g. from a GH Actions run).
 	if err := waitForDB(5); err != nil {
