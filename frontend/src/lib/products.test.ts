@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Product, ProductDetail } from '../types/types.ts'
-import { chartHistory, DAY, departmentHasCategory, filterProducts, formatRecordingDate, isLowestRecorded, PAGE_SIZE, productFromDetail, readBrowseFilters, recordingTime } from './products.ts'
+import { chartHistory, DAY, departmentHasCategory, departmentsLabel, filterProducts, formatRecordingDate, isLowestRecorded, PAGE_SIZE, productFromDetail, readBrowseFilters, recordingTime } from './products.ts'
 
 const product = (id: string, overrides: Partial<Product> = {}): Product => ({
   product_id: id, name: id, price: 19.9, regular_price: 39.9, lowest_price: 19.9,
@@ -34,6 +34,11 @@ test('cross-listed products appear once and department/category must match the s
   assert.equal(filterProducts([cross], { ...defaults, department: 'men', category: 'bottoms' }, true).length, 0)
   assert.equal(filterProducts([cross], { ...defaults, department: 'women', category: 'bottoms' }, true).length, 1)
   assert.equal(filterProducts([product('uncategorized', { categories: [] })], defaults, false).length, 1)
+})
+
+test('department labels use one stable customer-facing order', () => {
+  assert.equal(departmentsLabel(product('cross', { categories: ['men/tops', 'women/tops', 'kids/tops'] })), 'Women & Men & Kids')
+  assert.equal(departmentsLabel(product('cross', { categories: ['kids/tops', 'men/tops', 'women/tops'] })), 'Women & Men & Kids')
 })
 
 test('a category selection can carry between departments only when it exists there', () => {

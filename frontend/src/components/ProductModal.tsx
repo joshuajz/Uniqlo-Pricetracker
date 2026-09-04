@@ -1,11 +1,12 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { ExternalLink, X } from 'lucide-react'
 import type { Product } from '../types/types'
 import { ApiError, getProductDetail } from '../data/api'
 import { track } from '../lib/analytics'
 import { departmentsLabel, discountPct, formatRecordingDate, isLowestRecorded, isOnSale, money, productFromDetail, recordedHistory, recordingAge } from '../lib/products'
 import ProductImage from './ProductImage'
-import PriceHistory from './PriceHistory'
+
+const PriceHistory = lazy(() => import('./PriceHistory'))
 
 export default function ProductModal({ productId, product, archived, onClose }: {
   productId: string; product?: Product; archived: boolean; onClose: () => void
@@ -95,7 +96,9 @@ export default function ProductModal({ productId, product, archived, onClose }: 
           {!notFound && <button type="button" className="secondary-button" disabled={query.isFetching} onClick={() => { void query.refetch() }}>{query.isFetching ? 'Retrying…' : 'Retry price history'}</button>}
           {notFound && <button type="button" className="primary-button" onClick={() => close('unavailable')}>Back to products</button>}
         </div>}
-        {query.data && <PriceHistory datapoints={query.data.datapoints} typicalPrice={query.data.regular_price} />}
+        {query.data && <Suspense fallback={<div className="detail-loading" role="status">
+          <div className="skeleton chart-skeleton" aria-hidden="true" /><p>Loading price chart…</p>
+        </div>}><PriceHistory datapoints={query.data.datapoints} typicalPrice={query.data.regular_price} /></Suspense>}
         {p && <>
           <p className="recording-note">Prices checked <time dateTime={p.datetime.slice(0, 10)}>{formatRecordingDate(p.datetime)}</time> · Updated daily</p>
           {!archived && recordingAge(p.datetime) > 1 && <p className="notice">This price is {recordingAge(p.datetime)} days old. Confirm the current price on Uniqlo.</p>}

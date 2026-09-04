@@ -144,18 +144,27 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
                 }}>{categoryLabel(department)}</button>
             ))}
           </div>
-          <div id="additional-filters" className={`additional-filters ${filtersOpen ? 'is-open' : ''}`}>
+          <div className="desktop-additional-filters">
             <label className="check-label"><input type="checkbox" checked={filters.lowestOnly}
               onChange={e => updateFilters({ lowestOnly: e.target.checked })} />Lowest recorded only</label>
           </div>
         </div>
-        {visibleCategories.length > 0 && <div className="category-options" role="group" aria-label="Category">
-          <button type="button" aria-pressed={filters.category === 'all'}
-            onClick={() => updateFilters({ category: 'all' })}>All categories</button>
-          {visibleCategories.map(category => <button key={category} type="button"
-            aria-pressed={filters.category === category}
-            onClick={() => updateFilters({ category })}>{categoryLabel(category)}</button>)}
-        </div>}
+        {visibleCategories.length > 0 && <>
+          <div className="category-options" role="group" aria-label="Category">
+            <button type="button" aria-pressed={filters.category === 'all'}
+              onClick={() => updateFilters({ category: 'all' })}>All categories</button>
+            {visibleCategories.map(category => <button key={category} type="button"
+              aria-pressed={filters.category === category}
+              onClick={() => updateFilters({ category })}>{categoryLabel(category)}</button>)}
+          </div>
+          <label className="mobile-category-control" htmlFor="mobile-category-select"><span>Category</span>
+            <select id="mobile-category-select" value={filters.category}
+              onChange={e => updateFilters({ category: e.target.value })}>
+              <option value="all">All categories</option>
+              {visibleCategories.map(category => <option key={category} value={category}>{categoryLabel(category)}</option>)}
+            </select>
+          </label>
+        </>}
         {hasFilters && <div className="active-filters" aria-label="Active filters">
           {filters.department !== 'all' && <span>{categoryLabel(filters.department)}</span>}
           {filters.category !== 'all' && <span>{categoryLabel(filters.category)}</span>}
@@ -173,7 +182,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
               : `${filtered.length.toLocaleString('en-CA')} ${dealsOnly ? 'deal' : 'product'}${filtered.length === 1 ? '' : 's'}`}
           </h2>
           <button type="button" className="filter-toggle secondary-button" aria-expanded={filtersOpen}
-            aria-controls="additional-filters" onClick={() => setFiltersOpen(open => !open)}>
+            aria-controls="mobile-additional-filters" onClick={() => setFiltersOpen(open => !open)}>
             <SlidersHorizontal size={15} aria-hidden="true" />Filters{hiddenFilterCount > 0 ? ` (${hiddenFilterCount})` : ''}
           </button>
           <label className="sort-label"><span>Sort by</span>
@@ -191,6 +200,10 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
               onClick={() => updateFilters({ view: 'grid' }, false, true)}><Grid2X2 size={18} aria-hidden="true" /></button>
           </div>
         </div>
+        <div id="mobile-additional-filters" className={`mobile-additional-filters ${filtersOpen ? 'is-open' : ''}`}>
+          <label className="check-label"><input type="checkbox" checked={filters.lowestOnly}
+            onChange={e => updateFilters({ lowestOnly: e.target.checked })} />Lowest recorded only</label>
+        </div>
         {query.isPending ? <PageLoader /> : query.isError && !query.data ? <ApiErrorFallback onRetry={() => { void query.refetch() }} /> : <>
           {query.isError && <div className="notice" role="status">Showing the last loaded prices. The latest update couldn't load. <button type="button" className="text-button" onClick={() => { void query.refetch() }}>Try again</button></div>}
           {filtered.length === 0 ? <div className="empty-state">
@@ -207,8 +220,8 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
             <ul ref={resultsRef} className={`product-results ${filters.view === 'grid' ? 'product-grid' : 'product-list'}`} aria-busy={filters.query !== deferredQuery}>
               {filtered.slice(0, filters.limit).map(p => <li key={p.product_id}>
                 <button type="button" className="product-row" onClick={() => selectProduct(p)}
-                  onPointerEnter={() => prepareProduct(p.product_id)} onFocus={() => prepareProduct(p.product_id)}
-                  onTouchStart={() => prepareProduct(p.product_id)}
+                  onPointerEnter={event => { if (event.pointerType === 'mouse') prepareProduct(p.product_id) }}
+                  onFocus={() => prepareProduct(p.product_id)}
                   aria-label={productButtonLabel(p)}>
                   <ProductImage id={p.product_id} />
                   <span className="product-info"><span className="product-name">{p.name}</span>
@@ -232,7 +245,11 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
               </button>}
             </div>
           </>}
-          <p className="price-basis">Deals are below the most frequently recorded price. <Link to="/faq#price-comparisons">How price comparisons work</Link></p>
+          <p className="price-basis">{dealsOnly
+            ? 'Deals are below the most frequently recorded price. '
+            : 'Price comparisons use the most frequently recorded price. '}
+            <Link to="/faq#price-comparisons">How price comparisons work</Link>
+          </p>
         </>}
       </section>
       {modalId && <ProductModal key={modalId} productId={modalId} product={products.find(p => p.product_id === modalId)}

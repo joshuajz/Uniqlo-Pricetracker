@@ -23,7 +23,9 @@ export const isLowestRecorded = (p: Product) => p.price <= p.lowest_price && p.l
 export const discountPct = (p: Product) => p.regular_price > 0
   ? Math.max(0, Math.round((1 - p.price / p.regular_price) * 100)) : 0
 export const categoryLabel = (slug: string) => slug.replace(/-/g, ' ').replace(/^./, s => s.toUpperCase())
+const DEPARTMENT_ORDER: Record<string, number> = { women: 0, men: 1, kids: 2 }
 export const departmentsLabel = (p: Product) => [...new Set(p.categories.map(c => c.split('/')[0]))]
+  .sort((a, b) => (DEPARTMENT_ORDER[a] ?? 99) - (DEPARTMENT_ORDER[b] ?? 99) || a.localeCompare(b))
   .map(categoryLabel).join(' & ') || 'Uncategorized'
 export const departmentHasCategory = (products: Product[], department: Department, category: string) =>
   category === 'all' || department === 'all' || products.some(p => p.categories.some(slug => {
