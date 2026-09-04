@@ -108,7 +108,7 @@ export default function ProductModal({ productId, product, archived, onClose }: 
       {p && <div className="dialog-footer">
           <a className="primary-button store-link" href={p.url} target="_blank" rel="noopener noreferrer"
             onClick={() => track('view_on_uniqlo_clicked', { product_id: p.product_id, product_name: p.name, price: p.price, is_atl: isLowestRecorded(p), is_on_sale: isOnSale(p) })}>
-            Check sizes on Uniqlo <ExternalLink size={16} aria-hidden="true" />
+            Check sizes on Uniqlo <ExternalLink size={16} aria-hidden="true" /><span className="sr-only"> (opens in a new tab)</span>
           </a>
       </div>}
     </dialog>

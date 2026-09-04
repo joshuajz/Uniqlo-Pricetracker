@@ -16,6 +16,21 @@ import ProductImage from '../components/ProductImage'
 import PageLoader from '../components/PageLoader'
 import ApiErrorFallback from '../components/ApiErrorFallback'
 
+function productButtonLabel(product: Product) {
+  const details = [
+    `View price history for ${product.name}`,
+    departmentsLabel(product),
+    `Current price ${money(product.price)} CAD`,
+  ]
+  if (isOnSale(product)) {
+    details.push(`Typical tracked price ${money(product.regular_price)} CAD`, `${discountPct(product)}% off`)
+  } else {
+    details.push(product.price === product.regular_price ? 'At the typical tracked price' : 'Above the typical tracked price')
+  }
+  details.push(isLowestRecorded(product) ? 'Lowest recorded price' : `Lowest recorded price ${money(product.lowest_price)} CAD`)
+  return details.join('. ')
+}
+
 export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
   const [params, setParams] = useSearchParams()
   const filters = useMemo(() => readBrowseFilters(params), [params])
@@ -102,12 +117,12 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
   return (
     <div className="browse-page page-container">
       <header className="browse-heading">
-        <h1>Uniqlo <span>Tracker</span></h1>
+        <h1 tabIndex={-1}>Uniqlo <span>Tracker</span></h1>
         <p className="browse-intro">Compare today's prices with their history.</p>
         <p className="recording-note">Canada · All prices in CAD
           {query.data?.datetime && <> · Prices checked <time dateTime={query.data.datetime.slice(0, 10)}>{formatRecordingDate(query.data.datetime)}</time></>}
         </p>
-        {staleDays > 1 && <p className="notice">The latest update is {staleDays} days old. Check Uniqlo for current prices.</p>}
+        {staleDays > 1 && <p className="notice" role="status">The latest update is {staleDays} days old. Check Uniqlo for current prices.</p>}
       </header>
 
       <div className="browse-controls">
@@ -194,7 +209,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
                 <button type="button" className="product-row" onClick={() => selectProduct(p)}
                   onPointerEnter={() => prepareProduct(p.product_id)} onFocus={() => prepareProduct(p.product_id)}
                   onTouchStart={() => prepareProduct(p.product_id)}
-                  aria-label={`View price history for ${p.name}, ${money(p.price)} CAD`}>
+                  aria-label={productButtonLabel(p)}>
                   <ProductImage id={p.product_id} />
                   <span className="product-info"><span className="product-name">{p.name}</span>
                     <span className="product-meta">{departmentsLabel(p)}</span>

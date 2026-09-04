@@ -17,14 +17,14 @@ const FAQS = [
 export default function FAQPage() {
   const { hash } = useLocation()
   return <div className="faq-page page-container">
-    <header><h1>Frequently asked <span>questions</span></h1><p>How prices, history and availability work.</p></header>
+    <header><h1 tabIndex={-1}>Frequently asked <span>questions</span></h1><p>How prices, history and availability work.</p></header>
     <div className="faq-list">{FAQS.map(item => <details key={item.id} id={item.id} open={hash === `#${item.id}`}
       onToggle={event => track(event.currentTarget.open ? 'faq_item_expanded' : 'faq_item_collapsed', { question: item.q })}>
       <summary>{item.q}</summary><p>{item.a}</p>
     </details>)}</div>
     <div className="contact-section"><div><h2>Something to improve?</h2><p>Report an issue or suggest a feature. A GitHub account is required.</p></div>
       <a className="primary-button" href="https://github.com/joshuajz/Uniqlo-Pricetracker/issues/new?assignees=&labels=triage%2C+needs+triage%2C+bug%2C+feature+request&template=issue_template.md&title=%5BFeature+Request%2FBug%5D+Short+but+descriptive+title"
-        target="_blank" rel="noopener noreferrer" onClick={() => track('faq_contact_click')}>Report an issue on GitHub ↗</a>
+        target="_blank" rel="noopener noreferrer" onClick={() => track('faq_contact_click')}>Report an issue on GitHub <span aria-hidden="true">↗</span><span className="sr-only"> (opens in a new tab)</span></a>
     </div>
   </div>
 }
