@@ -1,6 +1,6 @@
 export interface ProductsAPI {
   count: number,
-  datetime: string,
+  datetime: string | null,
   products: Product[]
 }
 

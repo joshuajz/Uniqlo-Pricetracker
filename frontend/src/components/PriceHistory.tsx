@@ -1,0 +1,59 @@
+import { useMemo } from 'react'
+import { Area, AreaChart, CartesianGrid, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import type { ProductDatapoint } from '../types/types'
+import { chartHistory, DAY, formatRecordingDate, money, recordedHistory } from '../lib/products'
+
+export default function PriceHistory({ datapoints, typicalPrice }: { datapoints: ProductDatapoint[]; typicalPrice: number }) {
+  const observations = useMemo(() => recordedHistory(datapoints), [datapoints])
+  const series = useMemo(() => chartHistory(datapoints), [datapoints])
+  if (!observations.length) return <p className="notice">No price observations are available yet.</p>
+  const first = observations[0]
+  const last = observations[observations.length - 1]
+  const dateLabel = (time: number, year = false) => formatRecordingDate(new Date(time).toISOString(), year)
+  const min = Math.min(typicalPrice, ...observations.map(d => d.price))
+  const max = Math.max(typicalPrice, ...observations.map(d => d.price))
+  const pad = Math.max(2, (max - min) * .12)
+  const ticks = [...new Set([first.time, Math.floor((first.time + last.time) / 2 / DAY) * DAY, last.time])]
+  const hasGaps = series.some(d => d.price === null)
+
+  return (
+    <section className="price-history" aria-labelledby="history-heading">
+      <div className="chart-heading"><h3 id="history-heading">Price history</h3>
+        <span>{dateLabel(first.time, true)} – {dateLabel(last.time, true)}</span>
+      </div>
+      {observations.length === 1 ? <p className="notice">Tracking started {dateLabel(first.time, true)} at {money(first.price)} CAD. More daily observations are needed to show a trend.</p>
+        : <>
+          <div className="history-chart" role="img" aria-label={`Daily recorded prices in CAD. First ${money(first.price)} on ${dateLabel(first.time, true)}; latest ${money(last.price)} on ${dateLabel(last.time, true)}. A table of all observations follows.`}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={series} margin={{ top: 14, right: 26, left: 0, bottom: 6 }}>
+                <CartesianGrid vertical={false} stroke="var(--border)" />
+                <XAxis dataKey="time" type="number" scale="time" domain={[first.time, last.time]} ticks={ticks}
+                  tickFormatter={time => dateLabel(Number(time))} tick={{ fontSize: 11, fill: 'var(--muted)' }}
+                  axisLine={false} tickLine={false} minTickGap={22} />
+                <YAxis domain={[Math.max(0, min - pad), max + pad]} width={65} tickCount={3}
+                  tickFormatter={value => money(Number(value))} tick={{ fontSize: 11, fill: 'var(--muted)' }}
+                  axisLine={false} tickLine={false} />
+                <Tooltip labelFormatter={value => dateLabel(Number(value), true)}
+                  formatter={value => [money(Number(value)), 'Recorded price']}
+                  contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 0, color: 'var(--ink)', fontSize: 12 }}
+                  labelStyle={{ color: 'var(--muted)' }} itemStyle={{ color: 'var(--ink)' }}
+                  cursor={{ stroke: 'var(--muted)' }} />
+                <ReferenceLine y={typicalPrice} stroke="var(--muted)" strokeDasharray="3 4" />
+                <Area type="monotone" dataKey="price" stroke="var(--ink)" strokeWidth={2}
+                  fill="var(--ink)" fillOpacity={0.045} dot={false} activeDot={{ r: 4 }}
+                  connectNulls={false} isAnimationActive={false} />
+                <ReferenceDot x={last.time} y={last.price} r={3.5} fill="var(--accent)" stroke="var(--surface)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="chart-caption">Dashed line: typical tracked price ({money(typicalPrice)}).{hasGaps && ' Gaps indicate days without a recorded price.'}</p>
+        </>}
+      <details className="history-table">
+        <summary>View all {observations.length} recorded {observations.length === 1 ? 'price' : 'prices'}</summary>
+        <table><caption>Daily recorded prices, most recent first</caption><thead><tr><th scope="col">Recording date</th><th scope="col">Price (CAD)</th></tr></thead>
+          <tbody>{[...observations].reverse().map(point => <tr key={point.time}><td>{dateLabel(point.time, true)}</td><td>{money(point.price)}</td></tr>)}</tbody>
+        </table>
+      </details>
+    </section>
+  )
+}
