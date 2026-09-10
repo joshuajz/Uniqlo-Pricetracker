@@ -6,7 +6,8 @@ A simple web app for following Uniqlo Canada product prices and viewing their pr
 
 - `frontend/` — React and Vite web app
 - `api/` — Go API backed by PostgreSQL
-- `scraper/` — Playwright scraper that collects product data
+- `scraper/` — legacy Playwright scraper
+- `scraper-api/` — direct storefront API scraper used by GitHub Actions
 
 ## Run the frontend
 

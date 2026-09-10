@@ -30,6 +30,8 @@ __pycache__/
 *.jpg
 scraper/images/*
 scraper/prices.json
+scraper-api/images/*
+scraper-api/prices.json
 *.zip
 
 # Database
