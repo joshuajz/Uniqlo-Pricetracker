@@ -7,7 +7,7 @@ import { track } from '../lib/analytics'
 import {
   PAGE_SIZE, categoryFilterPresentation, categoryLabel, departmentHasCategory, departmentsLabel, discountPct,
   filterProducts, formatRecordingDate, isLowestRecorded, isOnSale, money, productCategory, productFacets,
-  readBrowseFilters, recordingAge,
+  readBrowseFilters, recordingAge, recordingStatus,
 } from '../lib/products'
 import type { BrowseFilters, Department, ProductSort } from '../lib/products'
 import type { Product } from '../types/types'
@@ -134,7 +134,9 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
     if (!filterModalActive) return
     const nav = document.querySelector<HTMLElement>('.site-nav')
     const footer = document.querySelector<HTMLElement>('.site-footer')
+    const skipLink = document.querySelector<HTMLElement>('.skip-link')
     const previousOverflow = document.body.style.overflow
+    skipLink?.setAttribute('inert', '')
     nav?.setAttribute('inert', '')
     footer?.setAttribute('inert', '')
     document.body.style.overflow = 'hidden'
@@ -144,11 +146,11 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
       if (event.key !== 'Tab') return
       const focusable = [...(filterPanelRef.current?.querySelectorAll<HTMLElement>(
         'button:not(:disabled), input:not(:disabled), select:not(:disabled), [href], [tabindex]:not([tabindex="-1"])',
-      ) ?? [])].filter(element => !element.hasAttribute('hidden'))
+      ) ?? [])].filter(element => element.getClientRects().length > 0 && !element.closest('[inert]'))
       if (!focusable.length) return
       const first = focusable[0]
       const last = focusable[focusable.length - 1]
-      if (event.shiftKey && document.activeElement === first) {
+      if (event.shiftKey && (document.activeElement === first || !filterPanelRef.current?.contains(document.activeElement))) {
         event.preventDefault()
         last.focus()
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -158,6 +160,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
     }
     document.addEventListener('keydown', trapFocus)
     return () => {
+      skipLink?.removeAttribute('inert')
       nav?.removeAttribute('inert')
       footer?.removeAttribute('inert')
       document.body.style.overflow = previousOverflow
@@ -244,7 +247,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
             : 'Search the current Uniqlo Canada catalogue and price history'}
             {query.data?.datetime && <> · Updated <time dateTime={query.data.datetime.slice(0, 10)}>{formatRecordingDate(query.data.datetime, false)}</time></>}</p>
         </div>
-        <p className="volume-status"><span aria-hidden="true" />{query.isPending ? 'Loading prices' : staleDays <= 1 ? 'Prices checked today' : 'Latest prices loaded'}</p>
+        <p className="volume-status"><span aria-hidden="true" />{query.isPending ? 'Loading prices' : query.isError ? 'Update unavailable' : recordingStatus(query.data?.datetime)}</p>
         {staleDays > 1 && <p className="notice" role="status">The latest update is {staleDays} days old. Check Uniqlo for current prices.</p>}
       </header>
 

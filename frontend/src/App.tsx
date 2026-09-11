@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { PostHogProvider } from '@posthog/react'
 import posthog from 'posthog-js'
 import { track } from './lib/analytics'
+import { applyMetadata, pageMetadata } from './lib/metadata'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import ScrollManager from './components/ScrollManager'
@@ -18,9 +19,7 @@ function PageviewTracker() {
   const previousPath = useRef(location.pathname)
   useEffect(() => {
     track('$pageview')
-    const title = location.pathname === '/' ? 'Deals' : location.pathname === '/categories' ? 'All products'
-      : location.pathname === '/faq' ? 'FAQ' : location.pathname.startsWith('/products/') ? 'Product' : 'Page not found'
-    document.title = `${title} | Uniqlo Price Tracker Canada`
+    if (!location.pathname.startsWith('/products/')) applyMetadata(pageMetadata(location.pathname))
   }, [location])
   useEffect(() => {
     if (previousPath.current === location.pathname) return

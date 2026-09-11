@@ -85,7 +85,16 @@ export function formatRecordingDate(date: string | null | undefined, year = true
   }).format(recordingTime(date))
 }
 export function recordingAge(date: string | null | undefined, now = Date.now()) {
-  return date ? Math.max(0, Math.floor((now - recordingTime(date)) / DAY)) : 0
+  return date ? Math.max(0, Math.floor((now - recordingTime(date)) / DAY)) : NaN
+}
+
+export function recordingStatus(date: string | null | undefined, now = Date.now()) {
+  if (!date || !Number.isFinite(recordingTime(date))) return 'Recording date unavailable'
+  const today = recordingTime(new Date(now).toISOString())
+  const day = recordingTime(date)
+  if (day === today) return 'Prices checked today'
+  if (day === today - DAY) return 'Prices checked yesterday'
+  return 'Latest prices loaded'
 }
 
 export function readBrowseFilters(params: URLSearchParams, defaultSort: ProductSort = 'discount'): BrowseFilters {

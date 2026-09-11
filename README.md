@@ -40,6 +40,16 @@ VITE_API_URL=http://localhost:8080/api npm run dev
 
 Deploy the frontend to Vercel with `frontend` as the project root. Set `VITE_API_URL` to your deployed API URL followed by `/api`.
 
+Keep `VITE_API_URL` available to both builds and Vercel Functions. Product routes
+use `api/page.ts` to put their title, description, canonical URL, and sharing
+metadata in the initial HTML. The function bundles `dist/index.html`; the app
+also updates metadata during client-side navigation. A missing product returns
+404 with `noindex`; an unavailable API returns a non-cached 503 app shell.
+
 Deploy the API to a Go-compatible service such as Railway with a PostgreSQL database. Set `DATABASE_URL`, `AUTH_USER`, `AUTH_PASS`, and `CORS_ORIGINS` (your frontend URL).
 
 Run the scraper on a schedule, such as a daily GitHub Actions job. It needs `API_URL`, `AUTH_USER`, and `AUTH_PASS` to upload the latest prices to the API.
+
+The scheduled GitHub workflow downloads product images every day, so newly
+tracked products do not wait for a monthly refresh. Manual runs can opt into
+image downloads with `include_images`.

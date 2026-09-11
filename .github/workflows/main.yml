@@ -31,7 +31,7 @@ jobs:
         run: python -m unittest discover -s tests
       - name: Configure scrape mode
         run: |
-          if [[ "${{ github.event_name }}" == "schedule" && "$(date -u +%d)" == "01" ]]; then
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
             echo "SAVE_PHOTO=true" >> "$GITHUB_ENV"
           elif [[ "${{ inputs.include_images }}" == "true" ]]; then
             echo "SAVE_PHOTO=true" >> "$GITHUB_ENV"

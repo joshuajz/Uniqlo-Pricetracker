@@ -3,6 +3,7 @@ import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { ApiError, getProductDetail, getProducts } from '../data/api'
 import { track } from '../lib/analytics'
+import { applyMetadata, pageMetadata } from '../lib/metadata'
 import {
   departmentsLabel, discountPct, formatRecordingDate, isLowestRecorded, isOnSale, money,
   productCategory, productFromDetail, recordedHistory, recordingAge,
@@ -23,7 +24,7 @@ export default function ProductPage() {
   const state = (location.state ?? {}) as ProductLocationState
   const productsQuery = getProducts()
   const detailQuery = getProductDetail(productId)
-  const tracked = useRef(false)
+  const tracked = useRef('')
   const product = useMemo(() => {
     const listed = productsQuery.data?.products.find(item => item.product_id === productId) ?? state.product
     if (!detailQuery.data) return listed
@@ -43,9 +44,12 @@ export default function ProductPage() {
   const backLabel = origin.startsWith('/categories') ? 'All products' : 'Back to deals'
 
   useEffect(() => {
-    if (!product || tracked.current) return
-    tracked.current = true
-    document.title = `${product.name} | Uniqlo Price Tracker Canada`
+    applyMetadata(pageMetadata(location.pathname, product, notFound))
+  }, [location.pathname, product, notFound])
+
+  useEffect(() => {
+    if (!product || tracked.current === product.product_id) return
+    tracked.current = product.product_id
     track('product_page_viewed', {
       product_id: product.product_id, product_name: product.name, price: product.price,
       regular_price: product.regular_price, discount_pct: discountPct(product),

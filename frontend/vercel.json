@@ -1,5 +1,12 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
+  "functions": { "api/page.ts": { "includeFiles": "dist/index.html" } },
+  "rewrites": [
+    { "source": "/", "destination": "/api/page?path=/" },
+    { "source": "/categories", "destination": "/api/page?path=/categories" },
+    { "source": "/faq", "destination": "/api/page?path=/faq" },
+    { "source": "/products/:id", "destination": "/api/page?path=/products/:id" },
+    { "source": "/((?!assets/).*)", "destination": "/index.html" }
+  ]
 }

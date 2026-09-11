@@ -5,11 +5,11 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -100,25 +100,6 @@ type ScraperOutput struct {
 
 var db *sql.DB
 
-// waitForDB pings the database with exponential backoff, allowing time for Postgres
-// to finish starting up or recovering from a crash before giving up.
-func waitForDB(maxAttempts int) error {
-	backoff := 2 * time.Second
-	var lastErr error
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		if lastErr = db.Ping(); lastErr == nil {
-			return nil
-		}
-		fmt.Printf("DB ping failed (attempt %d/%d): %v — retrying in %s\n", attempt, maxAttempts, lastErr, backoff)
-		time.Sleep(backoff)
-		backoff *= 2
-		if backoff > 30*time.Second {
-			backoff = 30 * time.Second
-		}
-	}
-	return fmt.Errorf("database unavailable after %d attempts: %w", maxAttempts, lastErr)
-}
-
 // initDB connects to PostgreSQL and creates tables if they don't exist
 func initDB() error {
 	databaseURL := os.Getenv("DATABASE_URL")
@@ -136,6 +117,10 @@ func initDB() error {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
+	return initializeSchema(db)
+}
+
+func initializeSchema(database *sql.DB) error {
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS products (
 			product_id TEXT NOT NULL,
@@ -172,87 +157,15 @@ func initDB() error {
 	}
 
 	for _, q := range queries {
-		if _, err := db.Exec(q); err != nil {
+		if _, err := database.Exec(q); err != nil {
 			return fmt.Errorf("failed to create table: %w", err)
 		}
 	}
 
+	if err := migrateObservations(database); err != nil {
+		return err
+	}
 	fmt.Println("Database initialized successfully")
-	return nil
-}
-
-// calculateRegularPrice calculates the mode (most frequent price) for a product
-func calculateRegularPrice(db *sql.DB, productID string) (float64, error) {
-	query := `
-		SELECT price, COUNT(*) as count
-		FROM products
-		WHERE product_id = $1
-		GROUP BY price
-		ORDER BY count DESC, price DESC
-		LIMIT 1
-	`
-	var regularPrice float64
-	var count int
-	err := db.QueryRow(query, productID).Scan(&regularPrice, &count)
-	if err != nil {
-		return 0, fmt.Errorf("failed to calculate regular price: %w", err)
-	}
-	return regularPrice, nil
-}
-
-// updateProductStats updates the stats table with lowest, highest, and regular price tracking
-// Case 1: Product doesn't exist -> insert with current price as lowest, highest, and regular
-// Case 2: Product exists -> update lowest if current < lowest, update highest if current > highest, recalculate regular
-func updateProductStats(db *sql.DB, productID string, currentPrice float64, datetime time.Time) error {
-	var lowestPrice, highestPrice float64
-	err := db.QueryRow("SELECT lowest_price, highest_price FROM stats WHERE product_id = $1", productID).Scan(&lowestPrice, &highestPrice)
-
-	if err == sql.ErrNoRows {
-		_, err := db.Exec(
-			"INSERT INTO stats (product_id, lowest_price, lowest_price_datetime, highest_price, highest_price_datetime, regular_price) VALUES ($1, $2, $3, $4, $5, $6)",
-			productID, currentPrice, datetime, currentPrice, datetime, currentPrice,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to insert stats: %w", err)
-		}
-		return nil
-	} else if err != nil {
-		return fmt.Errorf("failed to query stats: %w", err)
-	}
-
-	if currentPrice < lowestPrice {
-		_, err := db.Exec(
-			"UPDATE stats SET lowest_price = $1, lowest_price_datetime = $2 WHERE product_id = $3",
-			currentPrice, datetime, productID,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to update lowest price: %w", err)
-		}
-	}
-
-	if currentPrice > highestPrice {
-		_, err := db.Exec(
-			"UPDATE stats SET highest_price = $1, highest_price_datetime = $2 WHERE product_id = $3",
-			currentPrice, datetime, productID,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to update highest price: %w", err)
-		}
-	}
-
-	regularPrice, err := calculateRegularPrice(db, productID)
-	if err != nil {
-		return fmt.Errorf("failed to calculate regular price: %w", err)
-	}
-
-	_, err = db.Exec(
-		"UPDATE stats SET regular_price = $1 WHERE product_id = $2",
-		regularPrice, productID,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to update regular price: %w", err)
-	}
-
 	return nil
 }
 
@@ -312,141 +225,19 @@ func injestProducts(c *gin.Context) {
 		return
 	}
 
-	// Consolidate products by product_id across categories
-	type ConsolidatedProduct struct {
-		Product    Product
-		Categories []string
-		Price      string
-	}
-	consolidated := map[string]*ConsolidatedProduct{}
-
-	for category, categoryProducts := range scraperOutput.Products {
-		for _, product := range categoryProducts {
-			if existing, ok := consolidated[product.ProductID]; ok {
-				existing.Categories = append(existing.Categories, category)
-			} else {
-				price := strings.Split(product.Price, "CA $ ")[1]
-				consolidated[product.ProductID] = &ConsolidatedProduct{
-					Product:    product,
-					Categories: []string{category},
-					Price:      price,
-				}
-			}
-		}
-	}
-
-	// Do not treat an empty scrape as a successful ingest. Without this guard,
-	// the request returns 200 while the products table remains on its previous date.
-	if scraperOutput.Metadata.TotalProducts == 0 || len(consolidated) == 0 {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{
-			"error":                   "Scrape contained no products",
-			"reported_total_products": scraperOutput.Metadata.TotalProducts,
-			"consolidated_products":   len(consolidated),
-		})
+	prepared, err := prepareIngest(scraperOutput, images)
+	if err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
-
-	// Wait for DB to be ready — handles the case where Postgres is still recovering
-	// from a crash when this request arrives (e.g. from a GH Actions run).
-	if err := waitForDB(5); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Database unavailable, try again later", "details": err.Error()})
-		return
-	}
-
-	// Inject consolidated products into the database
-	count := 0
-	total := len(consolidated)
-	date := time.Now()
-
-	fmt.Printf("Ingesting %d products...\n", total)
-
-	for _, cp := range consolidated {
-		count++
-
-		categoriesJSON, err := json.Marshal(cp.Categories)
-		if err != nil {
-			fmt.Printf("[%d/%d] %s - ERROR marshaling categories: %v\n", count, total, cp.Product.ProductID, err)
-			continue
-		}
-
-		sqlStmt := "INSERT INTO products (product_id, name, price, url, category, datetime) VALUES ($1, $2, $3, $4, $5, $6)"
-		_, err = db.Exec(sqlStmt, cp.Product.ProductID, cp.Product.Name, cp.Price, cp.Product.URL, string(categoriesJSON), date)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to insert product into database", "details": err.Error()})
-			return
-		}
-
-		// Update stats table with lowest price tracking
-		priceFloat, err := strconv.ParseFloat(cp.Price, 64)
-		if err != nil {
-			fmt.Printf("[%d/%d] %s $%s - WARNING bad price\n", count, total, cp.Product.ProductID, cp.Price)
+	if err := persistIngest(c.Request.Context(), db, prepared); err != nil {
+		if errors.Is(err, errOlderScrape) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		} else {
-			if err := updateProductStats(db, cp.Product.ProductID, priceFloat, date); err != nil {
-				fmt.Printf("[%d/%d] %s $%s - WARNING stats failed: %v\n", count, total, cp.Product.ProductID, cp.Price, err)
-			}
+			fmt.Printf("Ingest rolled back: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Ingest failed; no changes were committed"})
 		}
-
-		// Save image to database
-		imageFile, ok := images[cp.Product.Image]
-		if !ok {
-			fmt.Printf("[%d/%d] %s $%s - no image\n", count, total, cp.Product.ProductID, cp.Price)
-			continue
-		}
-
-		rc, err := imageFile.Open()
-		if err != nil {
-			fmt.Printf("[%d/%d] %s $%s - image read error\n", count, total, cp.Product.ProductID, cp.Price)
-			continue
-		}
-
-		imageBytes, err := io.ReadAll(rc)
-		rc.Close()
-		if err != nil {
-			fmt.Printf("[%d/%d] %s $%s - image read error\n", count, total, cp.Product.ProductID, cp.Price)
-			continue
-		}
-
-		_, err = db.Exec(
-			`INSERT INTO images (product_id, image) VALUES ($1, $2)
-			 ON CONFLICT (product_id) DO UPDATE SET image = EXCLUDED.image, last_updated = NOW()`,
-			cp.Product.ProductID, imageBytes,
-		)
-		if err != nil {
-			fmt.Printf("[%d/%d] %s $%s - image save error: %v\n", count, total, cp.Product.ProductID, cp.Price, err)
-			continue
-		}
-
-		fmt.Printf("[%d/%d] %s $%s OK\n", count, total, cp.Product.ProductID, cp.Price)
-	}
-
-	// Insert scraper run metadata into scraper table
-	categoriesStr := strings.Join(scraperOutput.Metadata.Categories, ",")
-	scraperDatetime, err := time.Parse(time.RFC3339, scraperOutput.Metadata.Datetime)
-	if err != nil {
-		scraperDatetime = date
-	}
-	_, err = db.Exec(
-		"INSERT INTO scraper (datetime, scraper_version, total_products, total_failed, categories_scraped, categories) VALUES ($1, $2, $3, $4, $5, $6)",
-		scraperDatetime,
-		scraperOutput.Metadata.ScraperVersion,
-		scraperOutput.Metadata.TotalProducts,
-		scraperOutput.Metadata.TotalFailed,
-		scraperOutput.Metadata.CategoriesScraped,
-		categoriesStr,
-	)
-	if err != nil {
-		fmt.Printf("WARNING: failed to insert scraper stats: %v\n", err)
-	}
-
-	// Upsert each category into the categories table
-	for _, category := range scraperOutput.Metadata.Categories {
-		_, err := db.Exec(
-			"INSERT INTO categories (category) VALUES ($1) ON CONFLICT DO NOTHING",
-			category,
-		)
-		if err != nil {
-			fmt.Printf("WARNING: failed to insert category %q: %v\n", category, err)
-		}
+		return
 	}
 
 	// Invalidate caches after ingesting new data
@@ -461,7 +252,7 @@ func injestProducts(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":    "Products ingested successfully",
-		"count":      count,
+		"count":      len(prepared.products),
 		"categories": len(scraperOutput.Products),
 		"metadata":   scraperOutput.Metadata,
 	})
