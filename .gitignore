@@ -37,6 +37,9 @@ scraper-api/images/*
 scraper-api/prices.json
 *.zip
 
+# Design explorations live on the design branch only
+/designs/
+
 # Database
 api/database/*.db
 api/database/backups/
