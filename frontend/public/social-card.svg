@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">Uniqlo Price Tracker — Know the real low</title>
+  <desc id="description">A 90-day price history falls from 39 dollars and 90 cents to 19 dollars and 90 cents.</desc>
+  <rect width="1200" height="630" fill="#fcfaf9"/>
+  <rect width="500" height="630" fill="#111827"/>
+
+  <g transform="translate(62 58)">
+    <g transform="rotate(45 23 23)">
+      <path d="M4 5h25l15 15a5 5 0 0 1 0 7L30 41a5 5 0 0 1-7 0L4 22V5Z" fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
+      <circle cx="13" cy="14" r="3" fill="#fff"/>
+      <path d="m18 20 6 6 5-4 7 7" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <text x="68" y="26" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" letter-spacing="2">PRICE TRACKER</text>
+    <text x="68" y="52" fill="#fca5a5" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" letter-spacing="2.4">INDEPENDENT · CANADA</text>
+  </g>
+
+  <text x="62" y="270" fill="#fff" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="72" font-weight="900" letter-spacing="-4">Know the</text>
+  <text x="62" y="346" fill="#fff" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="72" font-weight="900" letter-spacing="-4">real low.</text>
+  <text x="66" y="408" fill="#d6d3d1" font-family="Arial, Helvetica, sans-serif" font-size="22">Price history, recorded daily.</text>
+  <line x1="62" y1="514" x2="438" y2="514" stroke="#57534e" stroke-width="2"/>
+  <text x="62" y="552" fill="#a8a29e" font-family="Courier New, monospace" font-size="14" letter-spacing="1.2">LOWEST RECORDED · UPDATED DAILY</text>
+
+  <g transform="translate(560 56)">
+    <text x="0" y="18" fill="#57534e" font-family="Courier New, monospace" font-size="15" font-weight="700" letter-spacing="2">90-DAY PRICE</text>
+    <text x="0" y="105" fill="#111827" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="76" font-weight="900" letter-spacing="-4">$19.90</text>
+    <text x="285" y="96" fill="#57534e" font-family="Arial, Helvetica, sans-serif" font-size="20" text-decoration="line-through">$39.90</text>
+    <rect x="420" y="63" width="144" height="40" fill="#b91c1c"/>
+    <text x="442" y="90" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700">50% BELOW</text>
+
+    <line x1="0" y1="190" x2="574" y2="190" stroke="#d6d3d1" stroke-width="2"/>
+    <line x1="0" y1="298" x2="574" y2="298" stroke="#d6d3d1" stroke-width="2"/>
+    <line x1="0" y1="406" x2="574" y2="406" stroke="#d6d3d1" stroke-width="2"/>
+    <text x="0" y="177" fill="#78716c" font-family="Courier New, monospace" font-size="13">$39.90</text>
+    <text x="0" y="285" fill="#78716c" font-family="Courier New, monospace" font-size="13">$29.90</text>
+    <text x="0" y="393" fill="#78716c" font-family="Courier New, monospace" font-size="13">$19.90</text>
+
+    <path d="M20 190H138V231H248V214H358V298H458V354H548V406" fill="none" stroke="#b91c1c" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="548" cy="406" r="16" fill="#b91c1c"/>
+    <circle cx="548" cy="406" r="7" fill="#fff"/>
+
+    <text x="0" y="468" fill="#57534e" font-family="Courier New, monospace" font-size="14">90 DAYS AGO</text>
+    <text x="502" y="468" fill="#57534e" font-family="Courier New, monospace" font-size="14">TODAY</text>
+  </g>
+</svg>

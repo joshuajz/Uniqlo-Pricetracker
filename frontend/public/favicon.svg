@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Price tag with a falling price line">
+  <rect width="64" height="64" rx="10" fill="#b91c1c"/>
+  <path d="M12 13h23.5L53 30.5a5 5 0 0 1 0 7L38 52.5a5 5 0 0 1-7 0L12 33.5V13Z" fill="#fff"/>
+  <circle cx="21" cy="22" r="3.5" fill="#b91c1c"/>
+  <path d="m25 30 7 7 6-5 9 9" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

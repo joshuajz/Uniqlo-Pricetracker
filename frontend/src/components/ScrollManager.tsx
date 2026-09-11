@@ -18,7 +18,7 @@ export default function ScrollManager() {
   const previousPath = useRef(pathname)
   const browseScroll = useRef(0)
   const params = new URLSearchParams(search)
-  // Opening a modal, loading more results, or changing their presentation must not move the page.
+  // Legacy modal links, loading more results, or changing their presentation must not move the page.
   for (const key of ['modal', 'limit', 'view']) params.delete(key)
   params.sort()
   // Filters change the result set in place; they should not trigger a scroll restoration.

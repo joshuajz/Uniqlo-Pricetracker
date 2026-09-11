@@ -6,14 +6,14 @@
 
 - Tracks prices across hundreds of Uniqlo Canada products, updated once per day
 - Shows every item **currently on sale** with exact discount percentages
-- Flags **All-Time Low (ATL)** prices — the cheapest a product has ever been recorded
+- Flags **Lowest recorded** prices — the cheapest observed since tracking began
 - Displays full **price history charts** for individual products
 - Organises products by Uniqlo category (e.g. T-Shirts, Jeans, Outerwear, Knitwear, etc.)
-- Covers both Men's and Women's lines
+- Covers Women's, Men's and Kids' lines
 
 ## Who it's for
 
-Shoppers in Canada who want to know when Uniqlo products go on sale or reach their lowest-ever recorded price, without checking the Uniqlo website manually every day.
+Shoppers in Canada who want to know when Uniqlo products go on sale or reach their lowest price observed by the tracker, without checking the Uniqlo website manually every day.
 
 ## Key facts
 
@@ -24,4 +24,4 @@ Shoppers in Canada who want to know when Uniqlo products go on sale or reach the
 
 ## URL
 
-https://uniqlotracker.com
+https://www.uniqlotracker.com

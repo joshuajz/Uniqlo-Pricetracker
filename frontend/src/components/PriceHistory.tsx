@@ -3,9 +3,44 @@ import { Area, AreaChart, CartesianGrid, ReferenceDot, ReferenceLine, Responsive
 import type { ProductDatapoint } from '../types/types'
 import { chartHistory, DAY, formatRecordingDate, money, recordedHistory } from '../lib/products'
 
+type Observation = { time: number; price: number }
+type CalendarDay = { day: number; inRange: boolean; observation?: Observation }
+type CalendarMonth = { key: string; label: string; offset: number; days: CalendarDay[] }
+
+function priceCalendar(observations: Observation[]): CalendarMonth[] {
+  if (!observations.length) return []
+  const byDate = new Map(observations.map(point => [new Date(point.time).toISOString().slice(0, 10), point]))
+  const first = new Date(observations[0].time)
+  const last = new Date(observations[observations.length - 1].time)
+  const cursor = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), 1))
+  const finalMonth = Date.UTC(last.getUTCFullYear(), last.getUTCMonth(), 1)
+  const months: CalendarMonth[] = []
+
+  while (cursor.getTime() <= finalMonth) {
+    const year = cursor.getUTCFullYear()
+    const month = cursor.getUTCMonth()
+    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
+    const days = Array.from({ length: daysInMonth }, (_, index) => {
+      const day = index + 1
+      const time = Date.UTC(year, month, day)
+      const key = new Date(time).toISOString().slice(0, 10)
+      return { day, inRange: time >= observations[0].time && time <= observations[observations.length - 1].time, observation: byDate.get(key) }
+    })
+    months.push({
+      key: `${year}-${String(month + 1).padStart(2, '0')}`,
+      label: new Intl.DateTimeFormat('en-CA', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(cursor),
+      offset: cursor.getUTCDay(),
+      days,
+    })
+    cursor.setUTCMonth(month + 1)
+  }
+  return months.reverse()
+}
+
 export default function PriceHistory({ datapoints, typicalPrice }: { datapoints: ProductDatapoint[]; typicalPrice: number }) {
   const observations = useMemo(() => recordedHistory(datapoints), [datapoints])
   const series = useMemo(() => chartHistory(datapoints), [datapoints])
+  const calendarMonths = useMemo(() => priceCalendar(observations), [observations])
   if (!observations.length) return <p className="notice">No price observations are available yet.</p>
   const first = observations[0]
   const last = observations[observations.length - 1]
@@ -15,6 +50,11 @@ export default function PriceHistory({ datapoints, typicalPrice }: { datapoints:
   const pad = Math.max(2, (max - min) * .12)
   const ticks = [...new Set([first.time, Math.floor((first.time + last.time) / 2 / DAY) * DAY, last.time])]
   const hasGaps = series.some(d => d.price === null)
+  const priceLevel = (price: number) => {
+    if (max === min) return 'single'
+    const position = (price - min) / (max - min)
+    return position <= .2 ? 'lowest' : position <= .5 ? 'low' : position <= .8 ? 'mid' : 'high'
+  }
 
   return (
     <section className="price-history" aria-labelledby="history-heading">
@@ -23,7 +63,7 @@ export default function PriceHistory({ datapoints, typicalPrice }: { datapoints:
       </div>
       {observations.length === 1 ? <p className="notice">Tracking started {dateLabel(first.time, true)} at {money(first.price)} CAD. More daily observations are needed to show a trend.</p>
         : <>
-          <div className="history-chart" role="img" aria-label={`Daily recorded prices in CAD. First ${money(first.price)} on ${dateLabel(first.time, true)}; latest ${money(last.price)} on ${dateLabel(last.time, true)}. A table of all observations follows.`}>
+          <div className="history-chart" role="img" aria-label={`Daily recorded prices in CAD. First ${money(first.price)} on ${dateLabel(first.time, true)}; latest ${money(last.price)} on ${dateLabel(last.time, true)}. A date and price table follows.`}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={series} margin={{ top: 14, right: 26, left: 0, bottom: 6 }}>
                 <CartesianGrid vertical={false} stroke="var(--border)" />
@@ -48,10 +88,32 @@ export default function PriceHistory({ datapoints, typicalPrice }: { datapoints:
           </div>
           <p className="chart-caption">Dashed line: typical tracked price ({money(typicalPrice)}).{hasGaps && ' Gaps indicate days without a recorded price.'}</p>
         </>}
-      <details className="history-table">
+      <details className="history-calendar">
         <summary>View all {observations.length} recorded {observations.length === 1 ? 'price' : 'prices'}</summary>
-        <table><caption>Daily recorded prices, most recent first</caption><thead><tr><th scope="col">Recording date</th><th scope="col">Price (CAD)</th></tr></thead>
-          <tbody>{[...observations].reverse().map(point => <tr key={point.time}><td>{dateLabel(point.time, true)}</td><td>{money(point.price)}</td></tr>)}</tbody>
+        <div className="price-calendar-months" aria-hidden="true">
+          {calendarMonths.map(month => <section className="price-calendar-month" aria-label={month.label} key={month.key}>
+            <h4>{month.label}</h4>
+            <div className="price-calendar-weekdays" aria-hidden="true"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+            <div className="price-calendar-grid">
+              {Array.from({ length: month.offset }, (_, index) => <span className="price-calendar-day is-empty" aria-hidden="true" key={`empty-${index}`} />)}
+              {month.days.map(({ day, inRange, observation }) => !inRange
+                ? <span className="price-calendar-day is-empty" aria-hidden="true" key={day} />
+                : observation ? <time className="price-calendar-day has-price" data-level={priceLevel(observation.price)}
+                    dateTime={new Date(observation.time).toISOString().slice(0, 10)}
+                    title={`${dateLabel(observation.time, true)}: ${money(observation.price)}`}
+                    aria-label={`${dateLabel(observation.time, true)}: ${money(observation.price)}`} key={day}>
+                    <span>{day}</span><strong>{money(observation.price)}</strong>
+                  </time>
+                : <span className="price-calendar-day is-missing" aria-label={`${month.label} ${day}: no recorded price`} key={day}><span>{day}</span></span>)}
+            </div>
+          </section>)}
+        </div>
+        <table className="sr-only">
+          <caption>Daily recorded prices, most recent first</caption>
+          <thead><tr><th scope="col">Recording date</th><th scope="col">Price (CAD)</th></tr></thead>
+          <tbody>{[...observations].reverse().map(point => <tr key={point.time}>
+            <td>{dateLabel(point.time, true)}</td><td>{money(point.price)}</td>
+          </tr>)}</tbody>
         </table>
       </details>
     </section>

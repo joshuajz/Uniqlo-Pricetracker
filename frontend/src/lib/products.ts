@@ -7,7 +7,8 @@ export type ProductSort = 'discount' | 'price' | 'name'
 export interface BrowseFilters {
   query: string
   department: Department
-  category: string
+  categories: string[]
+  tags: string[]
   lowestOnly: boolean
   sort: ProductSort
   view: 'list' | 'grid'
@@ -23,14 +24,56 @@ export const isLowestRecorded = (p: Product) => p.price <= p.lowest_price && p.l
 export const discountPct = (p: Product) => p.regular_price > 0
   ? Math.max(0, Math.round((1 - p.price / p.regular_price) * 100)) : 0
 export const categoryLabel = (slug: string) => slug.replace(/-/g, ' ').replace(/^./, s => s.toUpperCase())
+export type ProductFacetGroup = 'Material' | 'Feature'
+export interface ProductFacet { group: ProductFacetGroup; label: string }
+
+const PRODUCT_FACETS: Array<ProductFacet & { terms: RegExp }> = [
+  { group: 'Material', label: 'Cotton', terms: /\bcotton\b/i },
+  { group: 'Material', label: 'Denim', terms: /\bdenim\b|\bjeans?\b/i },
+  { group: 'Material', label: 'Linen', terms: /\blinen\b/i },
+  { group: 'Material', label: 'Merino wool', terms: /\bmerino\b/i },
+  { group: 'Material', label: 'Wool', terms: /\bwool\b/i },
+  { group: 'Material', label: 'Cashmere', terms: /\bcashmere\b/i },
+  { group: 'Material', label: 'Fleece', terms: /\bfleece\b/i },
+  { group: 'Feature', label: 'AIRism', terms: /\bairism\b/i },
+  { group: 'Feature', label: 'HEATTECH', terms: /\bheattech\b/i },
+  { group: 'Feature', label: 'PUFFTECH', terms: /\bpufftech\b/i },
+  { group: 'Feature', label: 'UV protection', terms: /\buv protection\b/i },
+  { group: 'Feature', label: 'Ultra light down', terms: /\bultra light down\b/i },
+  { group: 'Feature', label: 'BLOCKTECH', terms: /\bblocktech\b/i },
+  { group: 'Feature', label: 'Stretch', terms: /\bstretch\b/i },
+  { group: 'Feature', label: 'Washable', terms: /\bwashable\b/i },
+  { group: 'Feature', label: 'Quick dry', terms: /\bquick dry\b|\bdry-ex\b/i },
+]
+
+export const productFacets = (product: Product) => PRODUCT_FACETS
+  .filter(facet => facet.terms.test(product.name))
+  .map(({ group, label }) => ({ group, label }))
+
+export const productCategory = (product: Product) => {
+  const path = product.categories[0]?.split('/').slice(1).join('/')
+  return path ? categoryLabel(path) : 'Uncategorized'
+}
+export interface CategoryFilterPresentation { key: string; label: string; values: string[] }
+const CATEGORY_FILTER_PRESENTATIONS: CategoryFilterPresentation[] = [
+  { key: 'accessories-and-home', label: 'Accessories and home', values: ['accessories', 'accessories-and-home'] },
+  { key: 'formal-and-polo-shirts', label: 'Formal and polo shirts', values: ['shirts-and-polo-shirts'] },
+  { key: 'knitwear', label: 'Knitwear', values: [
+    'shirts-and-knitwear', 'shirts-and-knitware', 'sweaters-and-knitwear', 'sweaters-and-knitware',
+  ] },
+]
+export function categoryFilterPresentation(category: string): CategoryFilterPresentation {
+  return CATEGORY_FILTER_PRESENTATIONS.find(option => option.values.includes(category))
+    ?? { key: category, label: categoryLabel(category), values: [category] }
+}
 const DEPARTMENT_ORDER: Record<string, number> = { women: 0, men: 1, kids: 2 }
 export const departmentsLabel = (p: Product) => [...new Set(p.categories.map(c => c.split('/')[0]))]
   .sort((a, b) => (DEPARTMENT_ORDER[a] ?? 99) - (DEPARTMENT_ORDER[b] ?? 99) || a.localeCompare(b))
   .map(categoryLabel).join(' & ') || 'Uncategorized'
-export const departmentHasCategory = (products: Product[], department: Department, category: string) =>
-  category === 'all' || department === 'all' || products.some(p => p.categories.some(slug => {
+export const departmentHasCategory = (products: Product[], department: Department, categories: string[]) =>
+  categories.length === 0 || department === 'all' || products.some(p => p.categories.some(slug => {
     const [productDepartment, ...productCategory] = slug.split('/')
-    return productDepartment === department && productCategory.join('/') === category
+    return productDepartment === department && categories.includes(productCategory.join('/'))
   }))
 
 // The API stores calendar dates, not instants in the viewer's timezone.
@@ -45,17 +88,20 @@ export function recordingAge(date: string | null | undefined, now = Date.now()) 
   return date ? Math.max(0, Math.floor((now - recordingTime(date)) / DAY)) : 0
 }
 
-export function readBrowseFilters(params: URLSearchParams): BrowseFilters {
+export function readBrowseFilters(params: URLSearchParams, defaultSort: ProductSort = 'discount'): BrowseFilters {
   const legacy = params.get('open')?.split('/') ?? []
   const department = params.get('department') ?? legacy[0] ?? 'all'
   const sort = params.get('sort')
   const limit = Number(params.get('limit'))
+  const categories = params.getAll('category').filter(value => value && value !== 'all')
+  if (categories.length === 0 && legacy.length > 1) categories.push(legacy.slice(1).join('/'))
   return {
     query: params.get('q') ?? '',
     department: (['all', 'women', 'men', 'kids'].includes(department) ? department : 'all') as Department,
-    category: (params.get('category') ?? legacy.slice(1).join('/')) || 'all',
+    categories: [...new Set(categories)],
+    tags: [...new Set(params.getAll('tag').filter(value => value && value !== 'all'))],
     lowestOnly: params.get('lowest') === '1' || sort === 'atl',
-    sort: sort === 'price' || sort === 'name' ? sort : 'discount',
+    sort: sort === 'discount' || sort === 'price' || sort === 'name' ? sort : defaultSort,
     view: params.get('view') === 'list' ? 'list' : 'grid',
     limit: Number.isSafeInteger(limit) && limit >= PAGE_SIZE ? Math.min(limit, 10000) : PAGE_SIZE,
   }
@@ -64,13 +110,20 @@ export function readBrowseFilters(params: URLSearchParams): BrowseFilters {
 export function filterProducts(products: Product[], filters: BrowseFilters, dealsOnly: boolean) {
   const query = filters.query.trim().toLowerCase()
   const unique = [...new Map(products.map(p => [p.product_id, p])).values()]
+  const selectedFacetGroups = new Map<ProductFacetGroup, string[]>()
+  for (const facet of PRODUCT_FACETS.filter(item => filters.tags.includes(item.label))) {
+    selectedFacetGroups.set(facet.group, [...(selectedFacetGroups.get(facet.group) ?? []), facet.label])
+  }
   return unique.filter(p => (!dealsOnly || isOnSale(p))
     && (!filters.lowestOnly || isLowestRecorded(p))
-    && (!query || p.name.toLowerCase().includes(query) || p.product_id.toLowerCase().includes(query))
-    && ((filters.department === 'all' && filters.category === 'all') || p.categories.some(slug => {
+    && [...selectedFacetGroups].every(([group, labels]) => productFacets(p)
+      .some(facet => facet.group === group && labels.includes(facet.label)))
+    && (!query || p.name.toLowerCase().includes(query) || p.product_id.toLowerCase().includes(query)
+      || productFacets(p).some(facet => facet.label.toLowerCase().includes(query)))
+    && ((filters.department === 'all' && filters.categories.length === 0) || p.categories.some(slug => {
       const [department, ...category] = slug.split('/')
       return (filters.department === 'all' || department === filters.department)
-        && (filters.category === 'all' || category.join('/') === filters.category)
+        && (filters.categories.length === 0 || filters.categories.includes(category.join('/')))
     })))
     .sort((a, b) => {
       const difference = filters.sort === 'price' ? a.price - b.price

@@ -10,6 +10,7 @@ import HomePage from './pages/HomePage'
 import DashboardPage from './pages/DashboardPage'
 import CategoriesPage from './pages/CategoriesPage'
 import FAQPage from './pages/FAQPage'
+import ProductPage from './pages/ProductPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 function PageviewTracker() {
@@ -17,7 +18,8 @@ function PageviewTracker() {
   const previousPath = useRef(location.pathname)
   useEffect(() => {
     track('$pageview')
-    const title = location.pathname === '/' ? 'Deals' : location.pathname === '/categories' ? 'All products' : location.pathname === '/faq' ? 'FAQ' : 'Page not found'
+    const title = location.pathname === '/' ? 'Deals' : location.pathname === '/categories' ? 'All products'
+      : location.pathname === '/faq' ? 'FAQ' : location.pathname.startsWith('/products/') ? 'Product' : 'Page not found'
     document.title = `${title} | Uniqlo Price Tracker Canada`
   }, [location])
   useEffect(() => {
@@ -36,6 +38,7 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/categories" element={<CategoriesPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/products/:productId" element={<ProductPage />} />
         <Route path="/faq" element={<FAQPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes></main><Footer />

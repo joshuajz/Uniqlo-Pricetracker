@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Product, ProductDetail } from '../types/types.ts'
-import { chartHistory, DAY, departmentHasCategory, departmentsLabel, filterProducts, formatRecordingDate, isLowestRecorded, PAGE_SIZE, productFromDetail, readBrowseFilters, recordingTime } from './products.ts'
+import { categoryFilterPresentation, chartHistory, DAY, departmentHasCategory, departmentsLabel, filterProducts, formatRecordingDate, isLowestRecorded, PAGE_SIZE, productFacets, productFromDetail, readBrowseFilters, recordingTime } from './products.ts'
 
 const product = (id: string, overrides: Partial<Product> = {}): Product => ({
   product_id: id, name: id, price: 19.9, regular_price: 39.9, lowest_price: 19.9,
@@ -12,12 +12,37 @@ const defaults = readBrowseFilters(new URLSearchParams())
 test('grid is the default view and list remains an explicit URL preference', () => {
   assert.equal(defaults.view, 'grid')
   assert.equal(readBrowseFilters(new URLSearchParams('view=list')).view, 'list')
+  assert.equal(readBrowseFilters(new URLSearchParams(), 'name').sort, 'name')
+  assert.equal(readBrowseFilters(new URLSearchParams('sort=discount'), 'name').sort, 'discount')
 })
 
 test('an unmatched query returns no groups or products, and IDs are case-insensitive', () => {
   const data = [product('E123-000', { name: 'AIRism T-Shirt' })]
   assert.deepEqual(filterProducts(data, { ...defaults, query: 'zzzz-no-match' }, true), [])
   assert.equal(filterProducts(data, { ...defaults, query: ' e123 ' }, true).length, 1)
+})
+
+test('product facets are derived from collected names and can filter the catalogue', () => {
+  const airism = product('airism', { name: 'AIRism Cotton Crew Neck T-Shirt' })
+  const denim = product('denim', { name: 'Wide Straight Jeans' })
+  assert.deepEqual(productFacets(airism), [
+    { group: 'Material', label: 'Cotton' },
+    { group: 'Feature', label: 'AIRism' },
+  ])
+  assert.deepEqual(productFacets(denim), [{ group: 'Material', label: 'Denim' }])
+  assert.deepEqual(filterProducts([airism, denim], { ...defaults, tags: ['AIRism'] }, true).map(p => p.product_id), ['airism'])
+  assert.deepEqual(filterProducts([airism, denim], { ...defaults, query: 'cotton' }, true).map(p => p.product_id), ['airism'])
+})
+
+test('facet selections use OR within a group and AND across groups', () => {
+  const cottonStretch = product('cotton-stretch', { name: 'Cotton Stretch Shirt' })
+  const cottonAirism = product('cotton-airism', { name: 'Cotton AIRism Shirt' })
+  const denimStretch = product('denim-stretch', { name: 'Denim Stretch Shirt' })
+  assert.deepEqual(filterProducts([cottonStretch, cottonAirism, denimStretch],
+    { ...defaults, tags: ['Cotton', 'Denim'] }, true).map(p => p.product_id),
+  ['cotton-airism', 'cotton-stretch', 'denim-stretch'])
+  assert.deepEqual(filterProducts([cottonStretch, cottonAirism, denimStretch],
+    { ...defaults, tags: ['Cotton', 'Stretch'] }, true).map(p => p.product_id), ['cotton-stretch'])
 })
 
 test('broadening the same query includes a full-price item and price sorting is global', () => {
@@ -31,8 +56,9 @@ test('broadening the same query includes a full-price item and price sorting is 
 test('cross-listed products appear once and department/category must match the same slug', () => {
   const cross = product('cross', { categories: ['women/bottoms', 'men/tops'] })
   assert.equal(filterProducts([cross, cross], defaults, true).length, 1)
-  assert.equal(filterProducts([cross], { ...defaults, department: 'men', category: 'bottoms' }, true).length, 0)
-  assert.equal(filterProducts([cross], { ...defaults, department: 'women', category: 'bottoms' }, true).length, 1)
+  assert.equal(filterProducts([cross], { ...defaults, department: 'men', categories: ['bottoms'] }, true).length, 0)
+  assert.equal(filterProducts([cross], { ...defaults, department: 'women', categories: ['bottoms'] }, true).length, 1)
+  assert.equal(filterProducts([cross], { ...defaults, categories: ['bottoms', 'tops'] }, true).length, 1)
   assert.equal(filterProducts([product('uncategorized', { categories: [] })], defaults, false).length, 1)
 })
 
@@ -43,9 +69,18 @@ test('department labels use one stable customer-facing order', () => {
 
 test('a category selection can carry between departments only when it exists there', () => {
   const data = [product('men-bottoms', { categories: ['men/bottoms'] }), product('women-bottoms', { categories: ['women/bottoms'] })]
-  assert.equal(departmentHasCategory(data, 'women', 'bottoms'), true)
-  assert.equal(departmentHasCategory(data, 'kids', 'bottoms'), false)
-  assert.equal(departmentHasCategory(data, 'kids', 'all'), true)
+  assert.equal(departmentHasCategory(data, 'women', ['bottoms']), true)
+  assert.equal(departmentHasCategory(data, 'kids', ['bottoms']), false)
+  assert.equal(departmentHasCategory(data, 'kids', []), true)
+})
+
+test('category presentation combines and renames filters without changing stored values', () => {
+  assert.deepEqual(categoryFilterPresentation('accessories'), {
+    key: 'accessories-and-home', label: 'Accessories and home', values: ['accessories', 'accessories-and-home'],
+  })
+  assert.equal(categoryFilterPresentation('shirts-and-polo-shirts').label, 'Formal and polo shirts')
+  assert.deepEqual(categoryFilterPresentation('sweaters-and-knitwear').values,
+    ['shirts-and-knitwear', 'shirts-and-knitware', 'sweaters-and-knitwear', 'sweaters-and-knitware'])
 })
 
 test('lowest-recorded eligibility excludes a new full-price observation everywhere', () => {
@@ -56,10 +91,11 @@ test('lowest-recorded eligibility excludes a new full-price observation everywhe
   assert.deepEqual(filterProducts([fresh, low], { ...defaults, lowestOnly: true }, false).map(p => p.product_id), ['low'])
 })
 
-test('legacy category and ATL links map to active filters; malformed options are bounded', () => {
-  const filters = readBrowseFilters(new URLSearchParams('open=men%2Fbottoms&sort=atl&limit=-9'))
+test('legacy and repeated facet links map to active filters; malformed options are bounded', () => {
+  const filters = readBrowseFilters(new URLSearchParams('open=men%2Fbottoms&tag=Cotton&tag=Stretch&sort=atl&limit=-9'))
   assert.equal(filters.department, 'men')
-  assert.equal(filters.category, 'bottoms')
+  assert.deepEqual(filters.categories, ['bottoms'])
+  assert.deepEqual(filters.tags, ['Cotton', 'Stretch'])
   assert.equal(filters.lowestOnly, true)
   assert.equal(filters.sort, 'discount')
   assert.equal(filters.limit, PAGE_SIZE)
