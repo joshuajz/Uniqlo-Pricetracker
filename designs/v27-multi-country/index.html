@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Multi-country market overview concept for the Uniqlo Price Tracker.">
+  <title>Market overview — Uniqlo Price Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="market-rail" aria-label="Tracked markets">
+      <a class="logo" href="index.html"><span class="logo-mark">UNI<br>QLO</span><span class="logo-name">Price Atlas<span>Global tracker</span></span></a>
+      <div class="rail-label">Your markets</div>
+      <div class="market-list">
+        <button class="market-button" data-market="CA"><span class="flag">🇨🇦</span><span><span class="market-name">Canada</span><span class="market-code">CA · CAD</span></span><i class="status-dot"></i></button>
+        <button class="market-button" data-market="US"><span class="flag">🇺🇸</span><span><span class="market-name">United States</span><span class="market-code">US · USD</span></span><i class="status-dot"></i></button>
+        <button class="market-button" data-market="GB"><span class="flag">🇬🇧</span><span><span class="market-name">United Kingdom</span><span class="market-code">GB · GBP</span></span><i class="status-dot"></i></button>
+        <button class="market-button" data-market="JP"><span class="flag">🇯🇵</span><span><span class="market-name">Japan</span><span class="market-code">JP · JPY</span></span><i class="status-dot"></i></button>
+      </div>
+      <div class="rail-spacer"></div>
+      <div class="rail-meta"><strong>4 / 4 markets healthy</strong>Last full sync<br>08 Sep · 04:20 UTC</div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <nav class="primary-nav" aria-label="Primary navigation"><a class="active" href="index.html">Overview</a><a href="browse.html">Browse</a><a href="product.html">Tracked</a></nav>
+        <div class="top-actions"><button class="mobile-market-trigger"><span data-active-flag>🇨🇦</span><span data-active-code>CA · CAD</span>⌄</button><span class="sync-chip"><i class="status-dot"></i> All sources live</span><button class="icon-btn" aria-label="Notifications">⌁</button></div>
+      </header>
+
+      <div class="page">
+        <header class="page-heading">
+          <div><p class="eyebrow">One catalogue · four local storefronts</p><h1>The same essentials.<br><span class="accent">Very different prices.</span></h1><p class="lede">Track products by their shared style code, then compare each market in its real currency—with local stock, tax rules, and history kept intact.</p></div>
+          <div class="market-context"><div class="context-cell"><span class="context-label">Browsing as</span><span class="context-value"><span data-active-flag>🇨🇦</span> <span data-active-market>Canada</span></span></div><div class="context-cell"><span class="context-label">Price basis</span><span class="context-value" data-tax-basis>Before tax</span></div></div>
+        </header>
+
+        <section class="ticker" aria-label="Live market signals"><div class="ticker-title">Market signals</div><div class="ticker-track"><span class="ticker-item">HEATTECH Crew Neck <b>−41% in CA</b></span><span class="ticker-item">FX rate <b>1 CAD = 109.2 JPY</b></span><span class="ticker-item">4 new cross-market lows</span><span class="ticker-item">Japan sync <b>2 min ago</b></span></div></section>
+
+        <div class="section-head"><h2>Market passport</h2><span>Choose a local shopping context</span></div>
+        <section class="market-grid" aria-label="Market summaries">
+          <button class="market-card current" data-market="CA"><div class="market-top"><span class="market-flag">🇨🇦</span><span class="tag red">Selected</span></div><h3>Canada</h3><div class="currency">CAD · before tax</div><div class="market-stat"><span>38</span> price drops</div><div class="market-stat-label">across 1,204 matched products</div><div class="stamp">CA</div></button>
+          <button class="market-card" data-market="US"><div class="market-top"><span class="market-flag">🇺🇸</span><span class="tag">Live</span></div><h3>United States</h3><div class="currency">USD · before tax</div><div class="market-stat"><span>24</span> price drops</div><div class="market-stat-label">across 1,186 matched products</div><div class="stamp">US</div></button>
+          <button class="market-card" data-market="GB"><div class="market-top"><span class="market-flag">🇬🇧</span><span class="tag">Live</span></div><h3>United Kingdom</h3><div class="currency">GBP · VAT included</div><div class="market-stat"><span>17</span> price drops</div><div class="market-stat-label">across 1,031 matched products</div><div class="stamp">GB</div></button>
+          <button class="market-card" data-market="JP"><div class="market-top"><span class="market-flag">🇯🇵</span><span class="tag">Live</span></div><h3>Japan</h3><div class="currency">JPY · tax included</div><div class="market-stat"><span>51</span> price drops</div><div class="market-stat-label">across 1,342 matched products</div><div class="stamp">JP</div></button>
+        </section>
+
+        <div class="section-head"><h2>Today across markets</h2><a href="browse.html">Compare all products →</a></div>
+        <section class="signal-grid">
+          <div class="signal-panel"><div class="panel-heading"><h3>Best relative prices</h3><span>Converted to CAD</span></div><div class="deal-list">
+            <a class="deal-row" href="product.html"><span class="product-swatch" style="--swatch:#9ab0ac"></span><span class="product-title"><strong>PUFFTECH Compact Jacket</strong><span>WOMEN · 469869</span></span><span class="price-cell"><span>Canada</span><strong>C$89.90</strong></span><span class="price-cell best"><span>Japan</span><strong>C$57.16</strong></span><span class="price-cell"><span>UK</span><strong>C$83.70</strong></span><span class="arrow">→</span></a>
+            <a class="deal-row" href="product.html"><span class="product-swatch" style="--swatch:#7f8ea4"></span><span class="product-title"><strong>Wide Straight Jeans</strong><span>UNISEX · 479000</span></span><span class="price-cell"><span>Canada</span><strong>C$59.90</strong></span><span class="price-cell best"><span>USA</span><strong>C$48.21</strong></span><span class="price-cell"><span>UK</span><strong>C$64.40</strong></span><span class="arrow">→</span></a>
+            <a class="deal-row" href="product.html"><span class="product-swatch" style="--swatch:#d2baa1"></span><span class="product-title"><strong>Merino Crew Neck Sweater</strong><span>MEN · 477198</span></span><span class="price-cell best"><span>Canada</span><strong>C$39.90</strong></span><span class="price-cell"><span>Japan</span><strong>C$45.75</strong></span><span class="price-cell"><span>UK</span><strong>C$55.31</strong></span><span class="arrow">→</span></a>
+          </div></div>
+          <div class="signal-panel"><div class="panel-heading"><h3>Catalogue coverage</h3><span>Shared style codes</span></div><div class="coverage"><div class="coverage-row"><span>🇨🇦 Canada</span><div class="bar"><i style="--fill:91%"></i></div><b>91%</b></div><div class="coverage-row"><span>🇺🇸 USA</span><div class="bar"><i style="--fill:89%"></i></div><b>89%</b></div><div class="coverage-row"><span>🇬🇧 UK</span><div class="bar"><i style="--fill:78%"></i></div><b>78%</b></div><div class="coverage-row"><span>🇯🇵 Japan</span><div class="bar"><i style="--fill:96%"></i></div><b>96%</b></div></div><p class="coverage-note">A product only compares when its global style code matches. Region-only colours and cuts stay visible, but are clearly marked.</p></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="mobile-market-picker" aria-label="Choose market"><div class="mobile-sheet"><div class="mobile-sheet-head"><strong>Choose a market</strong><button class="icon-btn" data-close-picker aria-label="Close">×</button></div><div class="market-list"><button class="market-button" data-market="CA"><span class="flag">🇨🇦</span><span><span class="market-name">Canada</span><span class="market-code">CA · CAD</span></span></button><button class="market-button" data-market="US"><span class="flag">🇺🇸</span><span><span class="market-name">United States</span><span class="market-code">US · USD</span></span></button><button class="market-button" data-market="GB"><span class="flag">🇬🇧</span><span><span class="market-name">United Kingdom</span><span class="market-code">GB · GBP</span></span></button><button class="market-button" data-market="JP"><span class="flag">🇯🇵</span><span><span class="market-name">Japan</span><span class="market-code">JP · JPY</span></span></button></div></div></div>
+  <script src="app.js"></script>
+</body>
+</html>

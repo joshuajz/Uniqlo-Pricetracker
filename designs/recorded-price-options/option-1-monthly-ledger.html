@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Option 1 · Monthly ledger</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="prices.js" defer></script>
+</head>
+<body data-option="ledger">
+  <header class="site-nav"><a class="brand" href="index.html">UNIQLO <span>PRICE TRACKER</span></a><span>E488280-000</span></header>
+  <main class="mock-page">
+    <section class="product-context" aria-label="Product summary">
+      <div><a href="#">← All products</a><p>E488280-000</p><h1>Striped Mini<br>Polo Shirt</h1></div>
+      <div class="current-price"><strong>$9.90</strong><span>CAD</span><del>$39.90</del></div>
+    </section>
+    <section class="history-context" aria-labelledby="history-title">
+      <header class="section-heading"><h2 id="history-title">Price history</h2><span>Jun 5 – Sep 10, 2026</span></header>
+      <div class="chart-shell" aria-label="Price decreased from $39.90 to $9.90">
+        <svg viewBox="0 0 900 190" preserveAspectRatio="none" role="img"><path class="grid" d="M0 35H900M0 95H900M0 155H900"/><path class="typical" d="M0 35H900"/><path class="area" d="M0 35H310V72H455V108H610V136H755V164H900V190H0Z"/><path class="line" d="M0 35H310V72H455V108H610V136H755V164H900"/><circle cx="900" cy="164" r="5"/></svg>
+      </div>
+    </section>
+    <section class="records-panel ledger-panel" aria-labelledby="records-title">
+      <header class="records-heading"><div><h2 id="records-title">87 recorded prices</h2><span>Most recent first</span></div><button type="button" data-close>Close</button></header>
+      <div class="monthly-ledger" data-ledger></div>
+    </section>
+  </main>
+  <nav class="option-switcher" aria-label="Recorded price design options"><a class="selected" href="option-1-monthly-ledger.html">1</a><a href="option-2-price-runs.html">2</a><a href="option-3-calendar-scan.html">3</a><a href="index.html" aria-label="All options">×</a></nav>
+</body>
+</html>
