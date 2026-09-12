@@ -50,6 +50,11 @@ Deploy the API to a Go-compatible service such as Railway with a PostgreSQL data
 
 Run the scraper on a schedule, such as a daily GitHub Actions job. It needs `API_URL`, `AUTH_USER`, and `AUTH_PASS` to upload the latest prices to the API.
 
-The scheduled GitHub workflow downloads product images every day, so newly
-tracked products do not wait for a monthly refresh. Manual runs can opt into
-image downloads with `include_images`.
+The scheduled GitHub workflow records prices daily and downloads product images
+on the first day of each month (UTC). New products may have no photo until the
+next monthly refresh. Manual runs can opt into image downloads with
+`include_images`.
+
+The Go API compresses incoming photos to JPEG quality 80 before database storage,
+preserving their pixel dimensions and keeping already smaller JPEGs unchanged.
+Existing stored photos are replaced when a later image upload includes them.

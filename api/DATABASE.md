@@ -53,6 +53,35 @@ serializes uploads; a timestamp older than the stored snapshot returns HTTP 409.
 Replaying the same archive does not add observations. Backfills retain their
 original recording dates and cannot replace newer images.
 
+## Image storage
+
+Incoming JPEG and PNG photos are validated and compressed in Go before the
+ingestion transaction begins. Photos retain their original pixel dimensions and
+are encoded as JPEG at quality 80; an already smaller JPEG is retained unchanged.
+PNG transparency is composited onto white. Invalid photos, photos larger than
+20 MiB, and images exceeding 25 million pixels reject the archive before any
+database writes. The image endpoint continues to return `image/jpeg`.
+
+The scheduled scraper includes photos on the first day of each month (UTC),
+while prices continue to update daily. Manual runs can use `include_images`.
+Price-only uploads preserve existing photos. Existing database images are not
+recompressed at startup; they are replaced when a subsequent image upload
+includes them. This also means photos for products absent from future scrapes
+are not automatically recompressed.
+
+To measure the same compressor against local downloads without changing the
+files or connecting to PostgreSQL, run from `api/`:
+
+```sh
+go run ./cmd/image-audit ../scraper/canada/images
+```
+
+The command reports byte totals and savings as CSV and decodes every compressed
+result to verify its format and dimensions. Multiple country directories can be
+passed in one invocation. These are image payload savings, not an estimate of
+immediately reclaimable volume space: PostgreSQL also stores table/index
+overhead, reusable space from replaced rows, and WAL.
+
 Run database regression tests against a disposable PostgreSQL instance:
 
 ```sh

@@ -1,0 +1,5 @@
+directory,images,original_bytes,compressed_bytes,saved_bytes,saved_percent,unchanged_images
+../scraper/canada/images,1085,330215425,244947121,85268304,25.82,86
+../scraper/uk/images,1411,437917639,323011321,114906318,26.24,78
+../scraper/japan/images,1663,478095379,355556277,122539102,25.63,128
+../scraper/us/images,1226,382403038,281900955,100502083,26.28,66

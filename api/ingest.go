@@ -1,6 +1,7 @@
 package main
 
 import (
+	"api/internal/productimage"
 	"archive/zip"
 	"context"
 	"database/sql"
@@ -75,10 +76,14 @@ func prepareIngest(output ScraperOutput, images map[string]*zip.File) (preparedI
 				if err != nil {
 					return prepared, err
 				}
-				item.image, err = io.ReadAll(r)
+				original, err := io.ReadAll(io.LimitReader(r, productimage.MaxInputBytes+1))
 				r.Close()
 				if err != nil {
 					return prepared, err
+				}
+				item.image, err = productimage.Compress(original)
+				if err != nil {
+					return prepared, fmt.Errorf("Invalid image for product %q: %w", product.ProductID, err)
 				}
 			}
 			byID[product.ProductID] = item

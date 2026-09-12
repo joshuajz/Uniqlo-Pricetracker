@@ -1,16 +1,106 @@
 package main
 
 import (
+	"api/internal/productimage"
+	"archive/zip"
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/jpeg"
+	"image/png"
 	"net/url"
 	"os"
 	"sync"
 	"testing"
 	"time"
 )
+
+func imageArchive(t *testing.T, data []byte) map[string]*zip.File {
+	t.Helper()
+	var buffer bytes.Buffer
+	w := zip.NewWriter(&buffer)
+	f, err := w.Create("images/E1.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.Write(data); err != nil {
+		t.Fatal(err)
+	}
+	if err = w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	r, err := zip.NewReader(bytes.NewReader(buffer.Bytes()), int64(buffer.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return map[string]*zip.File{"images/E1.jpg": r.File[0]}
+}
+
+func fixtureWithImage() ScraperOutput {
+	output := fixture("2026-09-12T03:00:00Z", "CA $ 19.90")
+	output.Products["men/tops"][0].Image = "images/E1.jpg"
+	return output
+}
+
+func TestPrepareIngestCompressesImageAndRejectsInvalidData(t *testing.T) {
+	var original bytes.Buffer
+	im := image.NewRGBA(image.Rect(0, 0, 80, 120))
+	for y := 0; y < 120; y++ {
+		for x := 0; x < 80; x++ {
+			im.SetRGBA(x, y, color.RGBA{uint8(x * y), uint8(x), uint8(y), 255})
+		}
+	}
+	if err := jpeg.Encode(&original, im, &jpeg.Options{Quality: 98}); err != nil {
+		t.Fatal(err)
+	}
+	want, err := productimage.Compress(original.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	prepared, err := prepareIngest(fixtureWithImage(), imageArchive(t, original.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(prepared.products[0].image, want) || len(want) >= original.Len() {
+		t.Fatal("archive preparation did not compress the image")
+	}
+	for _, data := range [][]byte{[]byte("invalid image"), make([]byte, productimage.MaxInputBytes+1)} {
+		if _, err := prepareIngest(fixtureWithImage(), imageArchive(t, data)); err == nil {
+			t.Fatal("accepted invalid or oversized image from archive")
+		}
+	}
+}
+
+func TestCompressedImageIsStoredAndSurvivesPriceOnlyIngest(t *testing.T) {
+	database := testDatabase(t)
+	var original bytes.Buffer
+	if err := png.Encode(&original, image.NewNRGBA(image.Rect(0, 0, 80, 120))); err != nil {
+		t.Fatal(err)
+	}
+	prepared, err := prepareIngest(fixtureWithImage(), imageArchive(t, original.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = persistIngest(context.Background(), database, prepared); err != nil {
+		t.Fatal(err)
+	}
+	ingestFixture(t, database, "2026-09-13T03:00:00Z", "CA $ 9.90")
+	var stored []byte
+	var updated string
+	if err = database.QueryRow(`SELECT image,last_updated::text FROM images WHERE product_id='E1'`).Scan(&stored, &updated); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(stored, prepared.products[0].image) || updated != "2026-09-12" {
+		t.Fatal("price-only ingest changed the stored photo")
+	}
+	if _, err = jpeg.Decode(bytes.NewReader(stored)); err != nil {
+		t.Fatalf("stored photo is not a JPEG: %v", err)
+	}
+}
 
 func fixture(date, price string) ScraperOutput {
 	var output ScraperOutput
