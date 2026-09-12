@@ -51,10 +51,10 @@ python smoke_test.py japan
 python smoke_test.py us
 ```
 
-## Current ingestion limitation
+## Regional ingestion
 
-The application API currently validates Canadian price strings and stores no
-market or currency column. Canada archives remain compatible with that endpoint.
-The new regional archives include `metadata.market` and `metadata.currency`, but
-UK, Japan, and US output must not be sent to the existing ingestion endpoint
-until the database/API are made market-aware; product IDs overlap across regions.
+The application API validates each archive's `metadata.market`, currency, and
+market-specific price format. Canada, UK, Japan, and US archives can all use the
+same ingestion endpoint; their product histories, statistics, categories, run
+metadata, and image mappings are isolated by market. Public read endpoints still
+return Canada until the frontend market selector is connected to the API.

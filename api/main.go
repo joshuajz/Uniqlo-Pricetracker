@@ -40,9 +40,9 @@ type productCacheEntry struct {
 // Cache duration
 const cacheDuration = 1 * time.Hour
 
-// The public API remains Canada-only until the rest of the database and
-// frontend become market-aware. Image ownership is market-scoped now so the
-// blob schema will not need another destructive migration for that rollout.
+// The public read API remains Canada-only until the frontend becomes
+// market-aware. Ingest and storage are market-aware so regional scraper
+// archives can safely coexist without product ID collisions.
 const (
 	currentMarketCode   = "CA"
 	currentCurrencyCode = "CAD"
@@ -131,43 +131,7 @@ func initDB() error {
 }
 
 func initializeSchema(database *sql.DB) error {
-	queries := []string{
-		`CREATE TABLE IF NOT EXISTS products (
-			product_id TEXT NOT NULL,
-			name TEXT NOT NULL,
-			price NUMERIC(10,2) NOT NULL,
-			url TEXT NOT NULL,
-			category JSONB NOT NULL,
-			datetime DATE NOT NULL
-		)`,
-		`CREATE TABLE IF NOT EXISTS scraper (
-			datetime DATE NOT NULL,
-			scraper_version TEXT NOT NULL,
-			total_products INTEGER NOT NULL,
-			total_failed INTEGER NOT NULL,
-			categories_scraped INTEGER NOT NULL,
-			categories TEXT NOT NULL
-		)`,
-		`CREATE TABLE IF NOT EXISTS stats (
-			product_id TEXT NOT NULL UNIQUE,
-			lowest_price NUMERIC(10,2) NOT NULL,
-			lowest_price_datetime DATE NOT NULL,
-			highest_price NUMERIC(10,2) NOT NULL,
-			highest_price_datetime DATE NOT NULL,
-			regular_price NUMERIC(10,2) NOT NULL
-		)`,
-		`CREATE TABLE IF NOT EXISTS categories (
-			category TEXT NOT NULL UNIQUE
-		)`,
-	}
-
-	for _, q := range queries {
-		if _, err := database.Exec(q); err != nil {
-			return fmt.Errorf("failed to create table: %w", err)
-		}
-	}
-
-	if err := migrateObservations(database); err != nil {
+	if err := initializeMarketSchema(database); err != nil {
 		return err
 	}
 	if err := initializeImageSchema(database); err != nil {
@@ -280,7 +244,7 @@ func getProducts(c *gin.Context) {
 
 	// Get the newest datetime from products table
 	var newestDatetime sql.NullTime
-	err := db.QueryRow("SELECT MAX(datetime) FROM products").Scan(&newestDatetime)
+	err := db.QueryRow("SELECT MAX(datetime) FROM products WHERE market_code=$1", currentMarketCode).Scan(&newestDatetime)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get newest datetime"})
 		return
@@ -303,11 +267,11 @@ func getProducts(c *gin.Context) {
 			COALESCE(s.lowest_price, p.price) as lowest_price,
 			COALESCE(s.regular_price, p.price) as regular_price
 		FROM products p
-		LEFT JOIN stats s ON p.product_id = s.product_id
-		WHERE p.datetime = $1
+		LEFT JOIN stats s ON s.market_code = p.market_code AND s.product_id = p.product_id
+		WHERE p.market_code = $1 AND p.datetime = $2
 	`
 
-	rows, err := db.Query(query, newestDatetime.Time)
+	rows, err := db.Query(query, currentMarketCode, newestDatetime.Time)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query products"})
 		return
@@ -402,11 +366,11 @@ func getProduct(c *gin.Context) {
 	query := `
 		SELECT price, category, datetime
 		FROM products
-		WHERE product_id = $1
+		WHERE market_code = $1 AND product_id = $2
 		ORDER BY datetime ASC
 	`
 
-	rows, err := db.Query(query, productID)
+	rows, err := db.Query(query, currentMarketCode, productID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query product datapoints"})
 		return
@@ -443,7 +407,7 @@ func getProduct(c *gin.Context) {
 	}
 
 	// Get product name and URL from the most recent entry
-	err = db.QueryRow("SELECT name, url FROM products WHERE product_id = $1 ORDER BY datetime DESC LIMIT 1", productID).Scan(&name, &url)
+	err = db.QueryRow("SELECT name, url FROM products WHERE market_code = $1 AND product_id = $2 ORDER BY datetime DESC LIMIT 1", currentMarketCode, productID).Scan(&name, &url)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get product details"})
 		return
@@ -455,8 +419,8 @@ func getProduct(c *gin.Context) {
 	var regularPrice float64
 	var lowestDatetime, highestDatetime sql.NullTime
 	err = db.QueryRow(
-		"SELECT lowest_price, lowest_price_datetime, highest_price, highest_price_datetime, regular_price FROM stats WHERE product_id = $1",
-		productID,
+		"SELECT lowest_price, lowest_price_datetime, highest_price, highest_price_datetime, regular_price FROM stats WHERE market_code = $1 AND product_id = $2",
+		currentMarketCode, productID,
 	).Scan(&lowestPriceInfo.LowestPrice, &lowestDatetime, &highestPriceInfo.HighestPrice, &highestDatetime, &regularPrice)
 	if err == nil {
 		if lowestDatetime.Valid {
@@ -529,7 +493,7 @@ func getProduct(c *gin.Context) {
 }
 
 func getCategories(c *gin.Context) {
-	rows, err := db.Query("SELECT category FROM categories")
+	rows, err := db.Query("SELECT category FROM categories WHERE market_code=$1", currentMarketCode)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get categories"})
 		return
@@ -568,7 +532,7 @@ func getProductsByCategory(c *gin.Context) {
 
 	// Get the newest datetime from products table
 	var newestDatetime sql.NullTime
-	err := db.QueryRow("SELECT MAX(datetime) FROM products").Scan(&newestDatetime)
+	err := db.QueryRow("SELECT MAX(datetime) FROM products WHERE market_code=$1", currentMarketCode).Scan(&newestDatetime)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get newest datetime"})
 		return
@@ -593,11 +557,11 @@ func getProductsByCategory(c *gin.Context) {
 			COALESCE(s.lowest_price, p.price) as lowest_price,
 			COALESCE(s.regular_price, p.price) as regular_price
 		FROM products p
-		LEFT JOIN stats s ON p.product_id = s.product_id
-		WHERE p.datetime = $1 AND p.category @> $2::jsonb
+		LEFT JOIN stats s ON s.market_code = p.market_code AND s.product_id = p.product_id
+		WHERE p.market_code = $1 AND p.datetime = $2 AND p.category @> $3::jsonb
 	`
 
-	rows, err := db.Query(query, newestDatetime.Time, string(categoryFilter))
+	rows, err := db.Query(query, currentMarketCode, newestDatetime.Time, string(categoryFilter))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query products"})
 		return

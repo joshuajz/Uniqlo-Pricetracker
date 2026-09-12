@@ -4,30 +4,50 @@
 
 ```sql
 CREATE TABLE products (
+    market_code TEXT NOT NULL,
     product_id TEXT NOT NULL,
     name TEXT NOT NULL,
     price NUMERIC(10,2) NOT NULL,
+    currency_code TEXT NOT NULL,
     url TEXT NOT NULL,
     category JSONB NOT NULL,
-    datetime DATE NOT NULL
-);
+    datetime DATE NOT NULL,
+    PRIMARY KEY (market_code, product_id, datetime)
+) PARTITION BY LIST (market_code);
+
+CREATE TABLE products_ca PARTITION OF products FOR VALUES IN ('CA');
+CREATE TABLE products_us PARTITION OF products FOR VALUES IN ('US');
+CREATE TABLE products_gb PARTITION OF products FOR VALUES IN ('GB');
+CREATE TABLE products_jp PARTITION OF products FOR VALUES IN ('JP');
 
 CREATE TABLE scraper (
+    market_code TEXT NOT NULL,
+    currency_code TEXT NOT NULL,
     datetime DATE NOT NULL,
     scraper_version TEXT NOT NULL,
     total_products INTEGER NOT NULL,
     total_failed INTEGER NOT NULL,
     categories_scraped INTEGER NOT NULL,
-    categories TEXT NOT NULL
+    categories TEXT NOT NULL,
+    observed_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (market_code, datetime)
 );
 
 CREATE TABLE stats (
-    product_id TEXT NOT NULL UNIQUE,
+    market_code TEXT NOT NULL,
+    product_id TEXT NOT NULL,
     lowest_price NUMERIC(10,2) NOT NULL,
     lowest_price_datetime DATE NOT NULL,
     highest_price NUMERIC(10,2) NOT NULL,
     highest_price_datetime DATE NOT NULL,
-    regular_price NUMERIC(10,2) NOT NULL
+    regular_price NUMERIC(10,2) NOT NULL,
+    PRIMARY KEY (market_code, product_id)
+);
+
+CREATE TABLE categories (
+    market_code TEXT NOT NULL,
+    category TEXT NOT NULL,
+    PRIMARY KEY (market_code, category)
 );
 
 CREATE TABLE images (
@@ -49,20 +69,31 @@ CREATE TABLE product_images (
 
 ## Connection
 
-At startup, the API migrates observations to a unique `(product_id, datetime)`
-index and adds `scraper.observed_at` (UTC timestamp). Legacy duplicate rows are
-copied to `products_duplicate_archive` before removal from active history. Since
-legacy rows have no within-day timestamp, the last physical row is retained;
-the archive preserves the alternatives for inspection. The migration is atomic
-and safe to rerun. Price statistics are recalculated from retained observations.
+At startup, the API atomically migrates the Canada-only schema to a partitioned
+`products` table. Existing rows are assigned `CA`/`CAD` and copied to
+`products_ca`; empty `products_us`, `products_gb`, and `products_jp` partitions
+are created for new regional observations. Legacy duplicates remain in
+`products_duplicate_archive`, while the retained source tables are renamed to
+`products_legacy_ca`, `stats_legacy_ca`, `scraper_legacy_ca`, and
+`categories_legacy_ca` for rollback and verification. The migration uses the
+same advisory lock as ingestion, runs in one transaction, and is safe to rerun.
+Price statistics are recalculated from the migrated observations.
 
 Each ingest is one complete UTC daily snapshot. The current API requires the
-archive metadata to identify the `CA` market and `CAD` currency. A transaction replaces that
-day's products and run metadata, updates supplied images and categories, and
-recomputes statistics. Any write failure rolls everything back. An advisory lock
-serializes uploads; a timestamp older than the stored snapshot returns HTTP 409.
-Replaying the same archive does not add observations. Backfills retain their
-original recording dates and cannot replace newer images.
+archive metadata to identify one supported market/currency pair: `CA`/`CAD`,
+`US`/`USD`, `GB`/`GBP`, or `JP`/`JPY`. PostgreSQL routes product rows into the
+matching country partition. A transaction replaces only that market's products
+and run metadata for the day, updates supplied images and categories, and
+recomputes that market's statistics. Any write failure rolls everything back.
+An advisory lock serializes uploads; a timestamp older than the stored snapshot
+for the same market and date returns HTTP 409. Replaying the same archive does
+not add observations. Backfills retain their original recording dates and
+cannot replace newer images.
+
+The public read endpoints remain scoped to Canada until the frontend market
+selector is connected to the API. Other market archives can be ingested safely,
+but they are not returned by the current public product, category, detail, or
+image routes.
 
 ## Image storage
 

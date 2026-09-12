@@ -50,8 +50,10 @@ Deploy the API to a Go-compatible service such as Railway with a PostgreSQL data
 
 Run the Canada scraper on a schedule, such as the included daily GitHub Actions
 job. It needs `API_URL`, `AUTH_USER`, and `AUTH_PASS` to upload the latest prices
-to the API. The UK, Japan, and US scraper output is exploratory until the API and
-database are updated to store market and currency alongside each observation.
+to the API. The ingestion endpoint also accepts the UK, Japan, and US archives
+and routes their observations into separate PostgreSQL product partitions. The
+public read API remains Canada-only until the frontend market selector is wired
+to regional endpoints.
 
 The scheduled GitHub workflow records prices daily and downloads product images
 on the first day of each month (UTC). New products may have no photo until the

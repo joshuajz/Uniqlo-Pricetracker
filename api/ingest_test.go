@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -227,15 +228,19 @@ func TestLegacyImagesAreDiscardedOnce(t *testing.T) {
 }
 
 func fixture(date, price string) ScraperOutput {
+	return marketFixture(date, currentMarketCode, currentCurrencyCode, price)
+}
+
+func marketFixture(date, market, currency, price string) ScraperOutput {
 	var output ScraperOutput
 	output.Metadata.Datetime = date
 	output.Metadata.ScraperVersion = "test"
-	output.Metadata.Market = currentMarketCode
-	output.Metadata.Currency = currentCurrencyCode
+	output.Metadata.Market = market
+	output.Metadata.Currency = currency
 	output.Metadata.TotalProducts = 1
 	output.Metadata.CategoriesScraped = 1
 	output.Metadata.Categories = []string{"men/tops"}
-	output.Products = map[string][]Product{"men/tops": {{ProductID: "E1", Name: "Shirt", URL: "https://www.uniqlo.com/ca/en/products/E1/00", Price: price}}}
+	output.Products = map[string][]Product{"men/tops": {{ProductID: "E1", Name: "Shirt", URL: "https://www.uniqlo.com/products/E1", Price: price}}}
 	return output
 }
 
@@ -258,16 +263,163 @@ func TestArchiveValidation(t *testing.T) {
 		t.Fatal("accepted incomplete archive")
 	}
 	unsupported := fixture("2026-09-10T12:00:00Z", "CA $ 19.90")
-	unsupported.Metadata.Market = "US"
-	unsupported.Metadata.Currency = "USD"
+	unsupported.Metadata.Market = "AU"
+	unsupported.Metadata.Currency = "AUD"
 	if _, err := prepareIngest(unsupported, nil); err == nil {
-		t.Fatal("accepted a non-Canadian archive")
+		t.Fatal("accepted an unsupported market")
+	}
+	wrongCurrency := fixture("2026-09-10T12:00:00Z", "CA $ 19.90")
+	wrongCurrency.Metadata.Currency = "USD"
+	if _, err := prepareIngest(wrongCurrency, nil); err == nil {
+		t.Fatal("accepted a market/currency mismatch")
+	}
+
+	for _, tc := range []struct {
+		market, currency, price, normalized string
+	}{
+		{"CA", "CAD", "CA $ 1,299.90", "1299.90"},
+		{"US", "USD", "$24.90", "24.90"},
+		{"GB", "GBP", "£19.90", "19.90"},
+		{"JP", "JPY", "¥1,990", "1990"},
+	} {
+		prepared, err := prepareIngest(marketFixture("2026-09-10T12:00:00Z", tc.market, tc.currency, tc.price), nil)
+		if err != nil {
+			t.Fatalf("rejected %s archive: %v", tc.market, err)
+		}
+		if prepared.products[0].price != tc.normalized {
+			t.Fatalf("%s price normalized to %q", tc.market, prepared.products[0].price)
+		}
+	}
+}
+
+func TestMarketsRouteToPartitionsAndCanadaAPIStaysScoped(t *testing.T) {
+	database := testDatabase(t)
+	for _, tc := range []struct {
+		market, currency, price string
+	}{
+		{"CA", "CAD", "CA $ 19.90"},
+		{"US", "USD", "$24.90"},
+		{"GB", "GBP", "£14.90"},
+		{"JP", "JPY", "¥1,990"},
+	} {
+		prepared, err := prepareIngest(marketFixture("2026-09-15T03:00:00Z", tc.market, tc.currency, tc.price), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = persistIngest(context.Background(), database, prepared); err != nil {
+			t.Fatalf("persist %s: %v", tc.market, err)
+		}
+	}
+
+	for _, table := range []string{"products_ca", "products_us", "products_gb", "products_jp"} {
+		var count int
+		if err := database.QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count != 1 {
+			t.Fatalf("%s has %d rows", table, count)
+		}
+	}
+	var products, stats, runs, categories int
+	if err := database.QueryRow(`SELECT COUNT(*) FROM products`).Scan(&products); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.QueryRow(`SELECT COUNT(*) FROM stats`).Scan(&stats); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.QueryRow(`SELECT COUNT(*) FROM scraper`).Scan(&runs); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.QueryRow(`SELECT COUNT(*) FROM categories`).Scan(&categories); err != nil {
+		t.Fatal(err)
+	}
+	if products != 4 || stats != 4 || runs != 4 || categories != 4 {
+		t.Fatalf("market isolation: products=%d stats=%d runs=%d categories=%d", products, stats, runs, categories)
+	}
+
+	previousDB := db
+	db = database
+	defer func() { db = previousDB }()
+	productsCache = &ProductsCache{}
+	productDetailCache = &ProductDetailCache{cache: make(map[string]productCacheEntry)}
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/api/products", getProducts)
+	router.GET("/api/category/*category", getProductsByCategory)
+	router.GET("/api/product/:id", getProduct)
+	router.GET("/api/categories", getCategories)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/products", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("Canada API returned %d: %s", recorder.Code, recorder.Body.String())
+	}
+	var response struct {
+		Products []ProductResponse `json:"products"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Products) != 1 || response.Products[0].Price != 19.9 {
+		t.Fatalf("Canada API leaked another market: %+v", response.Products)
+	}
+
+	recorder = httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/category/men/tops", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("Canada category API returned %d: %s", recorder.Code, recorder.Body.String())
+	}
+	response.Products = nil
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Products) != 1 || response.Products[0].Price != 19.9 {
+		t.Fatalf("Canada category API leaked another market: %+v", response.Products)
+	}
+
+	recorder = httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/product/E1", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("Canada detail API returned %d: %s", recorder.Code, recorder.Body.String())
+	}
+	var detail struct {
+		CurrentPrice float64            `json:"current_price"`
+		Datapoints   []ProductDatapoint `json:"datapoints"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &detail); err != nil {
+		t.Fatal(err)
+	}
+	if detail.CurrentPrice != 19.9 || len(detail.Datapoints) != 1 {
+		t.Fatalf("Canada detail API leaked another market: %+v", detail)
+	}
+
+	recorder = httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/categories", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("Canada categories API returned %d: %s", recorder.Code, recorder.Body.String())
+	}
+	var categoryResponse struct {
+		Categories []string `json:"categories"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &categoryResponse); err != nil {
+		t.Fatal(err)
+	}
+	if len(categoryResponse.Categories) != 1 || categoryResponse.Categories[0] != "men/tops" {
+		t.Fatalf("Canada categories API leaked another market: %+v", categoryResponse.Categories)
 	}
 }
 
 // TEST_DATABASE_URL must point at a disposable Postgres instance. Each test uses
 // a distinct schema; neither the application's DATABASE_URL nor its data is used.
 func testDatabase(t *testing.T) *sql.DB {
+	t.Helper()
+	database := uninitializedTestDatabase(t)
+	if err := initializeSchema(database); err != nil {
+		t.Fatal(err)
+	}
+	return database
+}
+
+func uninitializedTestDatabase(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
@@ -293,9 +445,6 @@ func testDatabase(t *testing.T) *sql.DB {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { database.Close(); admin.Exec("DROP SCHEMA " + schema + " CASCADE"); admin.Close() })
-	if err = initializeSchema(database); err != nil {
-		t.Fatal(err)
-	}
 	return database
 }
 
@@ -398,32 +547,117 @@ func TestConcurrentSnapshotsKeepNewest(t *testing.T) {
 	}
 }
 
-func TestMigrationPreservesDuplicatesAndEnforcesUniqueDays(t *testing.T) {
-	database := testDatabase(t)
-	ingestFixture(t, database, "2026-09-11T12:00:00Z", "CA $ 19.90")
-	if _, err := database.Exec(`DROP INDEX products_daily_unique; INSERT INTO products SELECT product_id,name,9.90,url,category,datetime FROM products`); err != nil {
+func TestLegacyCanadaMigrationCreatesPartitionsAndPreservesRollbackTables(t *testing.T) {
+	database := uninitializedTestDatabase(t)
+	if _, err := database.Exec(`
+		CREATE TABLE products (
+			product_id TEXT NOT NULL,name TEXT NOT NULL,price NUMERIC(10,2) NOT NULL,
+			url TEXT NOT NULL,category JSONB NOT NULL,datetime DATE NOT NULL
+		);
+		INSERT INTO products VALUES
+			('E1','Shirt',19.90,'https://example.test/E1','["men/tops"]','2026-09-11'),
+			('E1','Shirt',9.90,'https://example.test/E1','["men/tops"]','2026-09-11');
+		CREATE TABLE stats (
+			product_id TEXT NOT NULL UNIQUE,lowest_price NUMERIC(10,2) NOT NULL,
+			lowest_price_datetime DATE NOT NULL,highest_price NUMERIC(10,2) NOT NULL,
+			highest_price_datetime DATE NOT NULL,regular_price NUMERIC(10,2) NOT NULL
+		);
+		INSERT INTO stats VALUES ('E1',19.90,'2026-09-11',19.90,'2026-09-11',19.90);
+		CREATE TABLE scraper (
+			datetime DATE NOT NULL,scraper_version TEXT NOT NULL,total_products INTEGER NOT NULL,
+			total_failed INTEGER NOT NULL,categories_scraped INTEGER NOT NULL,categories TEXT NOT NULL,
+			observed_at TIMESTAMPTZ
+		);
+		INSERT INTO scraper VALUES
+			('2026-09-11','older',1,0,1,'men/tops',NULL),
+			('2026-09-11','newer',1,0,1,'men/tops','2026-09-11T04:00:00Z');
+		CREATE TABLE categories (category TEXT NOT NULL UNIQUE);
+		INSERT INTO categories VALUES ('men/tops');
+	`); err != nil {
 		t.Fatal(err)
 	}
-	if err := migrateObservations(database); err != nil {
+
+	if err := initializeSchema(database); err != nil {
 		t.Fatal(err)
 	}
-	if err := migrateObservations(database); err != nil {
+	if err := initializeSchema(database); err != nil {
+		t.Fatalf("market migration is not idempotent: %v", err)
+	}
+
+	var partitioned bool
+	if err := database.QueryRow(`SELECT EXISTS (
+		SELECT 1 FROM pg_partitioned_table WHERE partrelid='products'::regclass
+	)`).Scan(&partitioned); err != nil {
 		t.Fatal(err)
 	}
-	var active, archived int
-	database.QueryRow(`SELECT COUNT(*) FROM products`).Scan(&active)
-	database.QueryRow(`SELECT COUNT(*) FROM products_duplicate_archive`).Scan(&archived)
-	if active != 1 || archived != 1 {
-		t.Fatalf("migration: active=%d archived=%d", active, archived)
+	if !partitioned {
+		t.Fatal("products was not converted to a partitioned table")
 	}
+	for _, table := range []string{"products_ca", "products_us", "products_gb", "products_jp"} {
+		var exists bool
+		if err := database.QueryRow(`SELECT to_regclass($1) IS NOT NULL`, table).Scan(&exists); err != nil {
+			t.Fatal(err)
+		}
+		if !exists {
+			t.Fatalf("partition %s was not created", table)
+		}
+	}
+
+	var active, canadian, archived, legacy int
+	if err := database.QueryRow(`SELECT COUNT(*) FROM products`).Scan(&active); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.QueryRow(`SELECT COUNT(*) FROM products_ca`).Scan(&canadian); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.QueryRow(`SELECT COUNT(*) FROM products_duplicate_archive`).Scan(&archived); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.QueryRow(`SELECT COUNT(*) FROM products_legacy_ca`).Scan(&legacy); err != nil {
+		t.Fatal(err)
+	}
+	if active != 1 || canadian != 1 || archived != 1 || legacy != 1 {
+		t.Fatalf("migration counts: active=%d CA=%d duplicate archive=%d legacy=%d", active, canadian, archived, legacy)
+	}
+
+	var market, currency, scraperVersion string
 	var low float64
-	if err := database.QueryRow(`SELECT lowest_price FROM stats WHERE product_id='E1'`).Scan(&low); err != nil {
+	var observedAt time.Time
+	if err := database.QueryRow(`SELECT market_code,currency_code,price FROM products`).Scan(&market, &currency, &low); err != nil {
 		t.Fatal(err)
 	}
-	if low != 9.9 {
-		t.Fatalf("migration did not rebuild stats: %v", low)
+	if market != "CA" || currency != "CAD" || low != 9.9 {
+		t.Fatalf("Canadian product migration: market=%s currency=%s price=%v", market, currency, low)
 	}
-	if _, err := database.Exec(`INSERT INTO products SELECT * FROM products`); err == nil {
-		t.Fatal("duplicate allowed")
+	if err := database.QueryRow(`SELECT market_code,lowest_price FROM stats WHERE product_id='E1'`).Scan(&market, &low); err != nil {
+		t.Fatal(err)
+	}
+	if market != "CA" || low != 9.9 {
+		t.Fatalf("stats migration: market=%s low=%v", market, low)
+	}
+	if err := database.QueryRow(`SELECT market_code,currency_code,scraper_version,observed_at FROM scraper`).Scan(&market, &currency, &scraperVersion, &observedAt); err != nil {
+		t.Fatal(err)
+	}
+	if market != "CA" || currency != "CAD" || scraperVersion != "newer" || observedAt.IsZero() {
+		t.Fatalf("scraper migration: market=%s currency=%s version=%s observed=%s", market, currency, scraperVersion, observedAt)
+	}
+
+	if _, err := database.Exec(`INSERT INTO products (market_code,product_id,name,price,currency_code,url,category,datetime)
+		VALUES ('US','E1','US Shirt',24.90,'USD','https://example.test/us/E1','["men/tops"]','2026-09-11')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.QueryRow(`SELECT COUNT(*) FROM products_us`).Scan(&active); err != nil {
+		t.Fatal(err)
+	}
+	if active != 1 {
+		t.Fatalf("US row was not routed to products_us: %d", active)
+	}
+	if _, err := database.Exec(`INSERT INTO products (market_code,product_id,name,price,currency_code,url,category,datetime)
+		VALUES ('CA','E1','Duplicate',1.00,'CAD','https://example.test/E1','[]','2026-09-11')`); err == nil {
+		t.Fatal("same-market daily duplicate was allowed")
+	}
+	if _, err := database.Exec(`INSERT INTO products (market_code,product_id,name,price,currency_code,url,category,datetime)
+		VALUES ('GB','E2','Wrong Currency',1.00,'USD','https://example.test/E2','[]','2026-09-11')`); err == nil {
+		t.Fatal("market/currency mismatch was allowed")
 	}
 }
