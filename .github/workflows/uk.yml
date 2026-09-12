@@ -1,0 +1,51 @@
+name: Uniqlo United Kingdom Price API Scraper
+
+on:
+  schedule:
+    - cron: "15 2 * * *"
+  workflow_dispatch:
+    inputs:
+      include_images:
+        description: Download and ingest product images
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: uniqlo-uk-scraper
+  cancel-in-progress: false
+
+jobs:
+  scrape-latest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: scraper
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Run scraper tests
+        run: python -m unittest discover -s tests
+      - name: Configure scrape mode
+        run: |
+          if [[ "${{ github.event_name }}" == "schedule" && "$(date -u +%d)" == "01" ]]; then
+            echo "SAVE_PHOTO=true" >> "$GITHUB_ENV"
+          elif [[ "${{ inputs.include_images }}" == "true" ]]; then
+            echo "SAVE_PHOTO=true" >> "$GITHUB_ENV"
+          else
+            echo "SAVE_PHOTO=false" >> "$GITHUB_ENV"
+          fi
+      - name: Run United Kingdom scraper
+        env:
+          PYTHONUNBUFFERED: 1
+        run: python uk/main.py
+      - name: Upload results to the API
+        run: |
+          curl --fail-with-body --show-error -X POST -F "file=@uk/output.zip" -u "${{ secrets.AUTH_USER }}:${{ secrets.AUTH_PASS }}" https://api.uniqlotracker.com/api/products/injest

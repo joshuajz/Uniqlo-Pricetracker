@@ -42,6 +42,18 @@ the first day of each month (UTC). Manual workflow runs can request photos with
 `include_images`. The Go API compresses uploaded photos before storage; local
 scraper downloads remain at their original quality.
 
+Regional workflows run once per UTC day without overlapping:
+
+| Market | Daily start time (UTC) |
+| --- | --- |
+| Canada | 00:00 |
+| United Kingdom | 02:15 |
+| Japan | 04:30 |
+| United States | 06:45 |
+
+Every market includes photos on the first UTC day of the month. Each workflow
+also supports a manual run with the `include_images` option.
+
 For a small live API check that fetches only two products:
 
 ```bash
