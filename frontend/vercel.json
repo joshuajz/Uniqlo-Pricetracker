@@ -2,10 +2,25 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": { "api/page.ts": { "includeFiles": "dist/index.html" } },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "base-uri 'self'; frame-ancestors 'none'; object-src 'none'" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Strict-Transport-Security", "value": "max-age=31536000" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/", "destination": "/api/page?path=/" },
     { "source": "/categories", "destination": "/api/page?path=/categories" },
     { "source": "/faq", "destination": "/api/page?path=/faq" },
+    { "source": "/terms", "destination": "/api/page?path=/terms" },
+    { "source": "/privacy", "destination": "/api/page?path=/privacy" },
     { "source": "/products/:id", "destination": "/api/page?path=/products/:id" },
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ]

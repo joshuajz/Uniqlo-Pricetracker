@@ -1,7 +1,5 @@
 import { useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
-import { PostHogProvider } from '@posthog/react'
-import posthog from 'posthog-js'
 import { track } from './lib/analytics'
 import { applyMetadata, pageMetadata } from './lib/metadata'
 import Navbar from './components/Navbar'
@@ -13,6 +11,8 @@ import CategoriesPage from './pages/CategoriesPage'
 import FAQPage from './pages/FAQPage'
 import ProductPage from './pages/ProductPage'
 import NotFoundPage from './pages/NotFoundPage'
+import PrivacyConsent from './components/PrivacyConsent'
+import LegalPage from './pages/LegalPage'
 
 function PageviewTracker() {
   const location = useLocation()
@@ -30,7 +30,7 @@ function PageviewTracker() {
 }
 
 export default function App() {
-  return <PostHogProvider client={posthog}><BrowserRouter>
+  return <BrowserRouter>
     <ScrollManager /><PageviewTracker />
     <div className="app-shell"><a className="skip-link" href="#main-content">Skip to products and content</a><Navbar />
       <main id="main-content" tabIndex={-1}><Routes>
@@ -39,8 +39,10 @@ export default function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/products/:productId" element={<ProductPage />} />
         <Route path="/faq" element={<FAQPage />} />
+        <Route path="/terms" element={<LegalPage document="terms" />} />
+        <Route path="/privacy" element={<LegalPage document="privacy" />} />
         <Route path="*" element={<NotFoundPage />} />
-      </Routes></main><Footer />
+      </Routes></main><Footer /><PrivacyConsent />
     </div>
-  </BrowserRouter></PostHogProvider>
+  </BrowserRouter>
 }

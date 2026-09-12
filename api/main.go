@@ -624,6 +624,9 @@ func getProductsByCategory(c *gin.Context) {
 
 func corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("Referrer-Policy", "no-referrer")
+		c.Header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		origin := c.Request.Header.Get("Origin")
 		allowedOrigins := os.Getenv("CORS_ORIGINS") // comma-separated list, e.g. "https://uniqlotracker.com,http://localhost:5173"
 		if allowedOrigins == "" {

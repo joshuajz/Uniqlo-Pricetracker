@@ -31,3 +31,13 @@ test('static route metadata does not depend on API availability', async () => {
   assert.equal(page.status, 200)
   assert.ok(page.html.includes('href="https://www.uniqlotracker.com/faq"'))
 })
+
+test('legal routes return indexable document-specific metadata', async () => {
+  for (const [path, title] of [['/terms', 'Terms of service'], ['/privacy', 'Privacy policy']]) {
+    const page = await renderPage(path, template, undefined, async () => { throw new Error('must not fetch') })
+    assert.equal(page.status, 200)
+    assert.ok(page.html.includes(`<title>${title} |`))
+    assert.ok(page.html.includes(`href="https://www.uniqlotracker.com${path}"`))
+    assert.ok(page.html.includes('content="index,follow"'))
+  }
+})

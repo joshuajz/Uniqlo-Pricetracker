@@ -10,6 +10,7 @@ const FAQS = [
   { id: 'all-products', q: 'Can I search products that aren’t discounted?', a: 'Yes. Choose All products to search the whole current catalog, including products at or above their typical price. Deals shows only products below their typical tracked price. Search and filters carry over when switching between these views.' },
   { id: 'availability', q: 'Are all sizes and colours available at the recorded price?', a: 'We track the product’s displayed price. We do not track availability for every size or colour. Choose “Check sizes on Uniqlo” to confirm availability and the final price.' },
   { id: 'affiliation', q: 'Is this affiliated with Uniqlo?', a: 'No. This is an independent price tracker and is not affiliated with Uniqlo Co., Ltd.' },
+  { id: 'affiliate-links', q: 'Are product links affiliate links?', a: 'No. We do not receive a commission when you follow a product link or make a purchase.' },
   { id: 'alerts', q: 'Can I receive price-drop notifications?', a: 'Notifications are not available yet. You can bookmark a product’s price-history link and check back for daily updates.' },
   { id: 'free', q: 'Is it free to use?', a: 'Yes. No account, sign-up or subscription is required.' },
 ]

@@ -5,9 +5,12 @@ export interface MetadataProduct { product_id: string; name: string; price: numb
 export function pageMetadata(pathname: string, product?: MetadataProduct, missing = false): PageMetadata {
   const path = pathname === '/dashboard' ? '/' : pathname
   const productRoute = /^\/products\/[^/]+$/.test(path)
-  let title = path === '/' ? 'Deals' : path === '/categories' ? 'All products' : path === '/faq' ? 'FAQ' : productRoute ? 'Product price history' : 'Page not found'
+  let title = path === '/' ? 'Deals' : path === '/categories' ? 'All products' : path === '/faq' ? 'FAQ'
+    : path === '/terms' ? 'Terms of service' : path === '/privacy' ? 'Privacy policy' : productRoute ? 'Product price history' : 'Page not found'
   let description = path === '/categories' ? 'Browse the current Uniqlo Canada catalogue and compare daily recorded prices in CAD.'
     : path === '/faq' ? 'How Uniqlo Price Tracker records Canadian prices, calculates deals, and compares price history.'
+    : path === '/terms' ? 'Terms governing use of the independent Uniqlo Price Tracker service.'
+    : path === '/privacy' ? 'How Uniqlo Price Tracker handles browser preferences, hosting data, and optional PostHog analytics.'
     : 'Track Uniqlo Canada prices, browse deals, and compare daily recorded price history in CAD.'
   if (productRoute && product) {
     title = product.name
@@ -16,7 +19,7 @@ export function pageMetadata(pathname: string, product?: MetadataProduct, missin
   }
   if (missing) { title = 'Product not found'; description = 'This product has no recorded price history.' }
   return { title: `${title} | Uniqlo Price Tracker Canada`, description, url: SITE_URL + path,
-    image: `${SITE_URL}/social-card.png`, noindex: missing || (!productRoute && !['/', '/categories', '/faq'].includes(path)) }
+    image: `${SITE_URL}/social-card.png`, noindex: missing || (!productRoute && !['/', '/categories', '/faq', '/terms', '/privacy'].includes(path)) }
 }
 
 export function applyMetadata(metadata: PageMetadata) {
