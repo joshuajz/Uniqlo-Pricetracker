@@ -4,6 +4,7 @@ import (
 	"api/internal/productimage"
 	"archive/zip"
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -23,11 +24,13 @@ type ingestProduct struct {
 	price      string
 	categories []string
 	image      []byte
+	imageHash  [sha256.Size]byte
 }
 type preparedIngest struct {
 	output     ScraperOutput
 	observedAt time.Time
 	date       string
+	market     string
 	products   []ingestProduct
 }
 
@@ -35,6 +38,10 @@ type preparedIngest struct {
 // calendar dates, matching the frontend and the direct scraper.
 func prepareIngest(output ScraperOutput, images map[string]*zip.File) (preparedIngest, error) {
 	prepared := preparedIngest{output: output}
+	if output.Metadata.Market != currentMarketCode || output.Metadata.Currency != currentCurrencyCode {
+		return prepared, fmt.Errorf("Only %s/%s scraper archives are currently supported", currentMarketCode, currentCurrencyCode)
+	}
+	prepared.market = output.Metadata.Market
 	observedAt, err := time.Parse(time.RFC3339Nano, output.Metadata.Datetime)
 	if err != nil {
 		return prepared, fmt.Errorf("metadata.datetime must be an RFC3339 timestamp")
@@ -85,6 +92,7 @@ func prepareIngest(output ScraperOutput, images map[string]*zip.File) (preparedI
 				if err != nil {
 					return prepared, fmt.Errorf("Invalid image for product %q: %w", product.ProductID, err)
 				}
+				item.imageHash = sha256.Sum256(item.image)
 			}
 			byID[product.ProductID] = item
 		}
@@ -154,12 +162,17 @@ func persistIngest(ctx context.Context, database *sql.DB, prepared preparedInges
 			return err
 		}
 		if len(item.image) > 0 {
-			if _, err = tx.ExecContext(ctx, `INSERT INTO images (product_id,image,last_updated) VALUES ($1,$2,$3)
-			ON CONFLICT (product_id) DO UPDATE SET image=EXCLUDED.image,last_updated=EXCLUDED.last_updated
-			WHERE images.last_updated <= EXCLUDED.last_updated`, item.ProductID, item.image, prepared.date); err != nil {
+			if err = persistProductImage(ctx, tx, prepared.market, prepared.date, item); err != nil {
 				return err
 			}
 		}
+	}
+	// A changed product photo may leave its previous blob unreferenced. The
+	// ingest lock makes it safe to reclaim only blobs with no remaining owner.
+	if _, err = tx.ExecContext(ctx, `DELETE FROM images i WHERE NOT EXISTS (
+		SELECT 1 FROM product_images pi WHERE pi.image_id=i.image_id
+	)`); err != nil {
+		return err
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM stats WHERE NOT EXISTS (SELECT 1 FROM products p WHERE p.product_id=stats.product_id)`); err != nil {
 		return err
@@ -178,6 +191,93 @@ func persistIngest(ctx context.Context, database *sql.DB, prepared preparedInges
 	for _, category := range m.Categories {
 		if _, err = tx.ExecContext(ctx, `INSERT INTO categories (category) VALUES ($1) ON CONFLICT DO NOTHING`, category); err != nil {
 			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// persistProductImage stores final JPEG bytes once and maps the market-scoped
+// product to that shared blob. Older backfills cannot replace a newer mapping.
+func persistProductImage(ctx context.Context, tx *sql.Tx, market, date string, item ingestProduct) error {
+	var newerMapping bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS (
+		SELECT 1 FROM product_images
+		WHERE market_code=$1 AND product_id=$2 AND last_updated > $3
+	)`, market, item.ProductID, date).Scan(&newerMapping); err != nil {
+		return err
+	}
+	if newerMapping {
+		return nil
+	}
+
+	var imageID int64
+	err := tx.QueryRowContext(ctx, `SELECT image_id FROM images WHERE content_sha256=$1 AND image=$2`,
+		item.imageHash[:], item.image).Scan(&imageID)
+	if errors.Is(err, sql.ErrNoRows) {
+		err = tx.QueryRowContext(ctx, `INSERT INTO images (content_sha256,image,byte_size)
+			VALUES ($1,$2,$3) RETURNING image_id`, item.imageHash[:], item.image, len(item.image)).Scan(&imageID)
+	}
+	if err != nil {
+		return fmt.Errorf("store image for product %q: %w", item.ProductID, err)
+	}
+
+	_, err = tx.ExecContext(ctx, `INSERT INTO product_images (market_code,product_id,image_id,last_updated)
+		VALUES ($1,$2,$3,$4)
+		ON CONFLICT (market_code,product_id) DO UPDATE SET
+		image_id=EXCLUDED.image_id,last_updated=EXCLUDED.last_updated
+		WHERE product_images.last_updated <= EXCLUDED.last_updated`,
+		market, item.ProductID, imageID, date)
+	return err
+}
+
+// initializeImageSchema intentionally discards the legacy product-keyed image
+// table. Images are recoverable from the scraper, and avoiding a blob copy keeps
+// this migration small. The column check makes the reset safe to rerun.
+func initializeImageSchema(database *sql.DB) error {
+	tx, err := database.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err = tx.Exec(`SELECT pg_advisory_xact_lock(817423)`); err != nil {
+		return err
+	}
+
+	var legacyImages bool
+	if err = tx.QueryRow(`SELECT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_schema=current_schema() AND table_name='images' AND column_name='product_id'
+	)`).Scan(&legacyImages); err != nil {
+		return err
+	}
+	if legacyImages {
+		if _, err = tx.Exec(`DROP TABLE IF EXISTS product_images`); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(`DROP TABLE images`); err != nil {
+			return err
+		}
+	}
+
+	for _, query := range []string{
+		`CREATE TABLE IF NOT EXISTS images (
+			image_id BIGSERIAL PRIMARY KEY,
+			content_sha256 BYTEA NOT NULL UNIQUE CHECK (octet_length(content_sha256)=32),
+			image BYTEA NOT NULL,
+			byte_size INTEGER NOT NULL CHECK (byte_size=octet_length(image)),
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE TABLE IF NOT EXISTS product_images (
+			market_code TEXT NOT NULL CHECK (market_code IN ('CA','US','GB','JP')),
+			product_id TEXT NOT NULL,
+			image_id BIGINT NOT NULL REFERENCES images(image_id) ON DELETE RESTRICT,
+			last_updated DATE NOT NULL,
+			PRIMARY KEY (market_code,product_id)
+		)`,
+		`CREATE INDEX IF NOT EXISTS product_images_image_id ON product_images (image_id)`,
+	} {
+		if _, err = tx.Exec(query); err != nil {
+			return fmt.Errorf("initialize image schema: %w", err)
 		}
 	}
 	return tx.Commit()

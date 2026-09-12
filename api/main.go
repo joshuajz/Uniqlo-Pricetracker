@@ -40,6 +40,14 @@ type productCacheEntry struct {
 // Cache duration
 const cacheDuration = 1 * time.Hour
 
+// The public API remains Canada-only until the rest of the database and
+// frontend become market-aware. Image ownership is market-scoped now so the
+// blob schema will not need another destructive migration for that rollout.
+const (
+	currentMarketCode   = "CA"
+	currentCurrencyCode = "CAD"
+)
+
 var productsCache = &ProductsCache{}
 var productDetailCache = &ProductDetailCache{cache: make(map[string]productCacheEntry)}
 
@@ -89,6 +97,8 @@ type ScraperOutput struct {
 	Metadata struct {
 		Datetime          string   `json:"datetime"`
 		ScraperVersion    string   `json:"scraper_version"`
+		Market            string   `json:"market"`
+		Currency          string   `json:"currency"`
 		DurationSeconds   float64  `json:"duration_seconds"`
 		TotalProducts     int      `json:"total_products"`
 		TotalFailed       int      `json:"total_failed"`
@@ -146,11 +156,6 @@ func initializeSchema(database *sql.DB) error {
 			highest_price_datetime DATE NOT NULL,
 			regular_price NUMERIC(10,2) NOT NULL
 		)`,
-		`CREATE TABLE IF NOT EXISTS images (
-			product_id TEXT NOT NULL UNIQUE,
-			image BYTEA NOT NULL,
-			last_updated DATE DEFAULT NOW()
-		)`,
 		`CREATE TABLE IF NOT EXISTS categories (
 			category TEXT NOT NULL UNIQUE
 		)`,
@@ -163,6 +168,9 @@ func initializeSchema(database *sql.DB) error {
 	}
 
 	if err := migrateObservations(database); err != nil {
+		return err
+	}
+	if err := initializeImageSchema(database); err != nil {
 		return err
 	}
 	fmt.Println("Database initialized successfully")
@@ -353,7 +361,12 @@ func getProductImage(c *gin.Context) {
 	}
 
 	var imageBytes []byte
-	err := db.QueryRow("SELECT image FROM images WHERE product_id = $1", productID).Scan(&imageBytes)
+	err := db.QueryRow(`
+		SELECT i.image
+		FROM product_images pi
+		JOIN images i ON i.image_id = pi.image_id
+		WHERE pi.market_code = $1 AND pi.product_id = $2
+	`, currentMarketCode, productID).Scan(&imageBytes)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
 		return

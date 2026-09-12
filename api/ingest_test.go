@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -12,11 +13,15 @@ import (
 	"image/color"
 	"image/jpeg"
 	"image/png"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 func imageArchive(t *testing.T, data []byte) map[string]*zip.File {
@@ -68,6 +73,9 @@ func TestPrepareIngestCompressesImageAndRejectsInvalidData(t *testing.T) {
 	if !bytes.Equal(prepared.products[0].image, want) || len(want) >= original.Len() {
 		t.Fatal("archive preparation did not compress the image")
 	}
+	if prepared.products[0].imageHash != sha256.Sum256(want) {
+		t.Fatal("archive preparation did not hash the stored image bytes")
+	}
 	for _, data := range [][]byte{[]byte("invalid image"), make([]byte, productimage.MaxInputBytes+1)} {
 		if _, err := prepareIngest(fixtureWithImage(), imageArchive(t, data)); err == nil {
 			t.Fatal("accepted invalid or oversized image from archive")
@@ -91,7 +99,9 @@ func TestCompressedImageIsStoredAndSurvivesPriceOnlyIngest(t *testing.T) {
 	ingestFixture(t, database, "2026-09-13T03:00:00Z", "CA $ 9.90")
 	var stored []byte
 	var updated string
-	if err = database.QueryRow(`SELECT image,last_updated::text FROM images WHERE product_id='E1'`).Scan(&stored, &updated); err != nil {
+	if err = database.QueryRow(`SELECT i.image,pi.last_updated::text
+		FROM product_images pi JOIN images i ON i.image_id=pi.image_id
+		WHERE pi.market_code='CA' AND pi.product_id='E1'`).Scan(&stored, &updated); err != nil {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(stored, prepared.products[0].image) || updated != "2026-09-12" {
@@ -100,12 +110,128 @@ func TestCompressedImageIsStoredAndSurvivesPriceOnlyIngest(t *testing.T) {
 	if _, err = jpeg.Decode(bytes.NewReader(stored)); err != nil {
 		t.Fatalf("stored photo is not a JPEG: %v", err)
 	}
+
+	previousDB := db
+	db = database
+	defer func() { db = previousDB }()
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/api/product/:id/image", getProductImage)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/product/E1/image", nil))
+	if recorder.Code != http.StatusOK || !bytes.Equal(recorder.Body.Bytes(), stored) {
+		t.Fatalf("image endpoint returned status %d with %d bytes", recorder.Code, recorder.Body.Len())
+	}
+}
+
+func TestIdenticalImagesShareOneBlob(t *testing.T) {
+	database := testDatabase(t)
+	var original bytes.Buffer
+	if err := png.Encode(&original, image.NewNRGBA(image.Rect(0, 0, 80, 120))); err != nil {
+		t.Fatal(err)
+	}
+	output := fixtureWithImage()
+	second := output.Products["men/tops"][0]
+	second.ProductID = "E2"
+	second.Name = "Second shirt"
+	second.URL = "https://www.uniqlo.com/ca/en/products/E2/00"
+	output.Products["men/tops"] = append(output.Products["men/tops"], second)
+	output.Metadata.TotalProducts = 2
+	prepared, err := prepareIngest(output, imageArchive(t, original.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = persistIngest(context.Background(), database, prepared); err != nil {
+		t.Fatal(err)
+	}
+
+	var blobs, mappings, distinctImageIDs int
+	if err = database.QueryRow(`SELECT COUNT(*) FROM images`).Scan(&blobs); err != nil {
+		t.Fatal(err)
+	}
+	if err = database.QueryRow(`SELECT COUNT(*),COUNT(DISTINCT image_id) FROM product_images`).Scan(&mappings, &distinctImageIDs); err != nil {
+		t.Fatal(err)
+	}
+	if blobs != 1 || mappings != 2 || distinctImageIDs != 1 {
+		t.Fatalf("deduplication: blobs=%d mappings=%d distinct image IDs=%d", blobs, mappings, distinctImageIDs)
+	}
+}
+
+func TestImageReplacementReclaimsOrphanAndRejectsOlderBackfill(t *testing.T) {
+	database := testDatabase(t)
+	imageBytes := func(marker byte) []byte {
+		im := image.NewNRGBA(image.Rect(0, 0, 80, 120))
+		im.SetNRGBA(0, 0, color.NRGBA{R: marker, G: 50, B: 100, A: 255})
+		var output bytes.Buffer
+		if err := png.Encode(&output, im); err != nil {
+			t.Fatal(err)
+		}
+		return output.Bytes()
+	}
+	ingestImage := func(date string, data []byte) preparedIngest {
+		output := fixtureWithImage()
+		output.Metadata.Datetime = date
+		prepared, err := prepareIngest(output, imageArchive(t, data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = persistIngest(context.Background(), database, prepared); err != nil {
+			t.Fatal(err)
+		}
+		return prepared
+	}
+
+	ingestImage("2026-09-13T03:00:00Z", imageBytes(10))
+	newest := ingestImage("2026-09-14T03:00:00Z", imageBytes(20))
+	ingestImage("2026-09-12T03:00:00Z", imageBytes(30))
+
+	var blobs int
+	var stored []byte
+	var updated string
+	if err := database.QueryRow(`SELECT COUNT(*) FROM images`).Scan(&blobs); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.QueryRow(`SELECT i.image,pi.last_updated::text
+		FROM product_images pi JOIN images i ON i.image_id=pi.image_id
+		WHERE pi.market_code='CA' AND pi.product_id='E1'`).Scan(&stored, &updated); err != nil {
+		t.Fatal(err)
+	}
+	if blobs != 1 || updated != "2026-09-14" || !bytes.Equal(stored, newest.products[0].image) {
+		t.Fatalf("image lifecycle: blobs=%d updated=%s newest retained=%t", blobs, updated, bytes.Equal(stored, newest.products[0].image))
+	}
+}
+
+func TestLegacyImagesAreDiscardedOnce(t *testing.T) {
+	database := testDatabase(t)
+	if _, err := database.Exec(`DROP TABLE product_images; DROP TABLE images;
+		CREATE TABLE images (product_id TEXT NOT NULL UNIQUE,image BYTEA NOT NULL,last_updated DATE DEFAULT NOW());
+		INSERT INTO images (product_id,image) VALUES ('legacy','old')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := initializeImageSchema(database); err != nil {
+		t.Fatal(err)
+	}
+	if err := initializeImageSchema(database); err != nil {
+		t.Fatalf("image migration is not idempotent: %v", err)
+	}
+	var blobs, mappings int
+	if err := database.QueryRow(`SELECT COUNT(*) FROM images`).Scan(&blobs); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.QueryRow(`SELECT COUNT(*) FROM product_images`).Scan(&mappings); err != nil {
+		t.Fatal(err)
+	}
+	if blobs != 0 || mappings != 0 {
+		t.Fatalf("legacy images survived reset: blobs=%d mappings=%d", blobs, mappings)
+	}
 }
 
 func fixture(date, price string) ScraperOutput {
 	var output ScraperOutput
 	output.Metadata.Datetime = date
 	output.Metadata.ScraperVersion = "test"
+	output.Metadata.Market = currentMarketCode
+	output.Metadata.Currency = currentCurrencyCode
 	output.Metadata.TotalProducts = 1
 	output.Metadata.CategoriesScraped = 1
 	output.Metadata.Categories = []string{"men/tops"}
@@ -130,6 +256,12 @@ func TestArchiveValidation(t *testing.T) {
 	bad.Metadata.TotalProducts++
 	if _, err := prepareIngest(bad, nil); err == nil {
 		t.Fatal("accepted incomplete archive")
+	}
+	unsupported := fixture("2026-09-10T12:00:00Z", "CA $ 19.90")
+	unsupported.Metadata.Market = "US"
+	unsupported.Metadata.Currency = "USD"
+	if _, err := prepareIngest(unsupported, nil); err == nil {
+		t.Fatal("accepted a non-Canadian archive")
 	}
 }
 
@@ -209,7 +341,7 @@ func TestDailyReplacementAndBackfill(t *testing.T) {
 }
 
 func TestFailuresRollBackEntireSnapshot(t *testing.T) {
-	for _, table := range []string{"products", "stats", "scraper", "categories", "images"} {
+	for _, table := range []string{"products", "stats", "scraper", "categories", "images", "product_images"} {
 		t.Run(table, func(t *testing.T) {
 			database := testDatabase(t)
 			ingestFixture(t, database, "2026-09-10T12:00:00Z", "CA $ 19.90")
@@ -224,6 +356,7 @@ func TestFailuresRollBackEntireSnapshot(t *testing.T) {
 			}
 			p, _ := prepareIngest(fixture("2026-09-10T13:00:00Z", "CA $ 9.90"), nil)
 			p.products[0].image = []byte("test-image")
+			p.products[0].imageHash = sha256.Sum256(p.products[0].image)
 			if err = persistIngest(context.Background(), database, p); err == nil {
 				t.Fatal("failure was swallowed")
 			}

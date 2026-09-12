@@ -31,9 +31,19 @@ CREATE TABLE stats (
 );
 
 CREATE TABLE images (
-    product_id TEXT NOT NULL UNIQUE,
+    image_id BIGSERIAL PRIMARY KEY,
+    content_sha256 BYTEA NOT NULL UNIQUE,
     image BYTEA NOT NULL,
-    last_updated DATE DEFAULT NOW()
+    byte_size INTEGER NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE product_images (
+    market_code TEXT NOT NULL,
+    product_id TEXT NOT NULL,
+    image_id BIGINT NOT NULL REFERENCES images(image_id),
+    last_updated DATE NOT NULL,
+    PRIMARY KEY (market_code, product_id)
 );
 ```
 
@@ -46,7 +56,8 @@ legacy rows have no within-day timestamp, the last physical row is retained;
 the archive preserves the alternatives for inspection. The migration is atomic
 and safe to rerun. Price statistics are recalculated from retained observations.
 
-Each ingest is one complete UTC daily snapshot. A transaction replaces that
+Each ingest is one complete UTC daily snapshot. The current API requires the
+archive metadata to identify the `CA` market and `CAD` currency. A transaction replaces that
 day's products and run metadata, updates supplied images and categories, and
 recomputes statistics. Any write failure rolls everything back. An advisory lock
 serializes uploads; a timestamp older than the stored snapshot returns HTTP 409.
@@ -61,6 +72,14 @@ are encoded as JPEG at quality 80; an already smaller JPEG is retained unchanged
 PNG transparency is composited onto white. Invalid photos, photos larger than
 20 MiB, and images exceeding 25 million pixels reject the archive before any
 database writes. The image endpoint continues to return `image/jpeg`.
+
+The SHA-256 digest is calculated from the final compressed JPEG. `images` stores
+each byte-identical blob once, while `product_images` maps the current market and
+product to that blob. Price-only uploads preserve mappings, and older backfills
+cannot replace a newer mapping. When a mapping changes, an old blob is removed
+only if no other product still references it. The first deployment of this schema
+deliberately drops the legacy product-keyed `images` table; those photos are
+restored by the next image-enabled scrape.
 
 The scheduled scraper includes photos on the first day of each month (UTC),
 while prices continue to update daily. Manual runs can use `include_images`.
