@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef } from 'react'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { ApiError, getProductDetail, getProducts } from '../data/api'
+import { ApiError, useProductDetail, useProducts } from '../data/api'
 import { track } from '../lib/analytics'
 import { applyMetadata, pageMetadata } from '../lib/metadata'
 import {
@@ -22,8 +22,8 @@ export default function ProductPage() {
   const { productId = '' } = useParams()
   const location = useLocation()
   const state = (location.state ?? {}) as ProductLocationState
-  const productsQuery = getProducts()
-  const detailQuery = getProductDetail(productId)
+  const productsQuery = useProducts()
+  const detailQuery = useProductDetail(productId)
   const tracked = useRef('')
   const product = useMemo(() => {
     const listed = productsQuery.data?.products.find(item => item.product_id === productId) ?? state.product

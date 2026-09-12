@@ -2,7 +2,7 @@ import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState
 import { ArrowRight, Grid2X2, List, Search, SlidersHorizontal, X } from 'lucide-react'
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { getProducts, productDetailOptions } from '../data/api'
+import { useProducts, productDetailOptions } from '../data/api'
 import { track } from '../lib/analytics'
 import {
   PAGE_SIZE, categoryFilterPresentation, categoryLabel, departmentHasCategory, departmentsLabel, discountPct,
@@ -51,7 +51,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
   const firstNewResult = useRef<number | null>(null)
   const filterScroll = useRef<number | null>(null)
   const resultsRef = useRef<HTMLUListElement>(null)
-  const query = getProducts()
+  const query = useProducts()
   const queryClient = useQueryClient()
   const location = useLocation()
   const products = query.data?.products ?? []

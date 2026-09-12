@@ -4,7 +4,7 @@ import { requestJSON, shouldRetryRequest } from '../lib/api-client'
 export { ApiError } from '../lib/api-client'
 
 const API_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
-export const getProducts = () => useQuery({
+export const useProducts = () => useQuery({
   queryKey: ['products'],
   queryFn: ({ signal }) => requestJSON<ProductsAPI>(`${API_URL}/products`, signal),
   staleTime: 5 * 60 * 1000,
@@ -18,6 +18,6 @@ export const productDetailOptions = (productId: string) => queryOptions({
   retry: shouldRetryRequest,
   retryDelay: attempt => Math.min(1000 * 2 ** attempt, 4000),
 })
-export const getProductDetail = (productId: string) => useQuery(productDetailOptions(productId))
+export const useProductDetail = (productId: string) => useQuery(productDetailOptions(productId))
 // Native lazy-loaded images use browser caching and avoid retaining blob URLs.
 export const productImageUrl = (productId: string) => `${API_URL}/product/${encodeURIComponent(productId)}/image`

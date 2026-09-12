@@ -14,8 +14,6 @@ export interface Product {
   lowest_price: number
   regular_price: number
   is_all_time_low: boolean
-
-  gender?: 'M' | 'W' | 'U'
 }
 
 export interface ProductDatapoint {
@@ -36,7 +34,3 @@ export interface ProductDetail {
   on_sale: boolean
   is_all_time_low: boolean
 }
-
-export type SortKey = 'discount' | 'price' | 'name' | 'atl'
-
-export type TabKey = 'all' | 'sale' | 'atl'

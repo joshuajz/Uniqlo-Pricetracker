@@ -17,7 +17,7 @@ npm install
 npm run dev
 ```
 
-The app opens at `http://localhost:5173`.
+The app opens at `http://localhost:5174`.
 
 ## Run the API
 
@@ -35,6 +35,23 @@ To point the frontend at it, start the frontend with:
 ```bash
 VITE_API_URL=http://localhost:8080/api npm run dev
 ```
+
+## Checks
+
+Run the frontend tests and production build:
+
+```bash
+cd frontend
+npm test
+npm run build
+```
+
+Run the API checks from `api/` with `go test -race ./...` and `go vet ./...`.
+Database tests require `TEST_DATABASE_URL` pointing to a disposable PostgreSQL
+database; otherwise they skip. See [database testing](api/DATABASE.md).
+
+Run the scraper tests from `scraper/` with `python -m unittest discover -s tests`.
+CI runs all three suites and provides PostgreSQL for the API tests.
 
 ## Deployment
 
