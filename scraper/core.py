@@ -1,4 +1,4 @@
-"""Uniqlo Canada price scraper backed by the public storefront JSON API."""
+"""Shared low-traffic Uniqlo storefront API scraper."""
 
 from __future__ import annotations
 
@@ -17,60 +17,63 @@ from pathlib import Path
 from typing import Any, Callable
 
 
-SITE_BASE_URL = "https://www.uniqlo.com/ca/en"
-API_BASE_URL = "https://www.uniqlo.com/ca/api/commerce/v5/en"
-PRODUCTS_API_URL = f"{API_BASE_URL}/products"
-TAXONOMY_API_URL = f"{PRODUCTS_API_URL}/taxonomies"
-CLIENT_ID = "uq.ca.web-spa"
-SCRAPER_VERSION = "3.0.0-api"
+SCRAPER_VERSION = "4.0.0-multimarket-api"
 
-# These are the same top-level category routes queried by scraper/main.py.
-CATEGORY_ROUTES = (
-    "men/tops",
-    "men/outerwear",
-    "men/sweaters-and-knitwear",
-    "men/shirts-and-polo-shirts",
-    "men/bottoms",
-    "men/innerwear-and-base-layers",
-    "men/loungewear",
-    "men/accessories-and-home",
-    "women/outerwear",
-    "women/tops",
-    "women/sweaters-and-knitwear",
-    "women/shirts-and-blouses",
-    "women/bottoms",
-    "women/innerwear",
-    "women/loungewear-and-homeware",
-    "women/accessories-and-home",
-    "kids/tops",
-    "kids/bottoms",
-    "kids/shirts-and-knitwear",
-    "kids/outerwear",
-    "kids/dresses-and-jumpsuits",
-    "kids/innerwear-and-base-layers",
-    "kids/accessories",
-)
 
-PAGE_SIZE = min(100, max(1, int(os.getenv("API_PAGE_SIZE", "100"))))
-MAX_WORKERS = max(1, int(os.getenv("MAX_WORKERS", "4")))
-REQUEST_TIMEOUT_SECONDS = max(1, int(os.getenv("REQUEST_TIMEOUT_SECONDS", "30")))
-REQUEST_MAX_ATTEMPTS = max(1, int(os.getenv("REQUEST_MAX_ATTEMPTS", "4")))
-RETRY_BASE_SECONDS = max(0.0, float(os.getenv("RETRY_BASE_SECONDS", "1")))
-CATEGORY_MAX_ATTEMPTS = max(1, int(os.getenv("CATEGORY_MAX_ATTEMPTS", "2")))
-IMAGE_WORKERS = max(1, int(os.getenv("IMAGE_WORKERS", "8")))
-IMAGE_DOWNLOAD_TIMEOUT = max(1, int(os.getenv("IMAGE_DOWNLOAD_TIMEOUT", "30")))
-DEFAULT_MIN_PRODUCTS = 500
-SAVE_PHOTO = os.getenv("SAVE_PHOTO", "false").lower() == "true"
+@dataclass(frozen=True)
+class MarketConfig:
+    """Storefront-specific details that cannot safely be inferred."""
 
-REQUEST_HEADERS = {
-    "Accept": "application/json",
-    "Accept-Language": "en-CA,en;q=0.9",
-    "User-Agent": (
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"
-    ),
-    "x-fr-clientid": CLIENT_ID,
-}
+    name: str
+    market_code: str
+    site_base_url: str
+    api_base_url: str
+    client_id: str
+    accept_language: str
+    currency_code: str
+    price_prefix: str
+    price_decimals: int
+    category_routes: tuple[str, ...]
+    default_min_products: int = 500
+
+    @property
+    def products_api_url(self) -> str:
+        return f"{self.api_base_url}/products"
+
+    @property
+    def taxonomy_api_url(self) -> str:
+        return f"{self.products_api_url}/taxonomies"
+
+
+@dataclass(frozen=True)
+class ScraperSettings:
+    page_size: int
+    max_workers: int
+    request_timeout_seconds: int
+    request_max_attempts: int
+    retry_base_seconds: float
+    category_max_attempts: int
+    image_workers: int
+    image_download_timeout: int
+    min_products: int
+    save_photo: bool
+
+    @classmethod
+    def from_env(cls, default_min_products: int) -> ScraperSettings:
+        return cls(
+            page_size=min(100, _positive_int_env("API_PAGE_SIZE", 100)),
+            max_workers=_positive_int_env("MAX_WORKERS", 4),
+            request_timeout_seconds=_positive_int_env(
+                "REQUEST_TIMEOUT_SECONDS", 30
+            ),
+            request_max_attempts=_positive_int_env("REQUEST_MAX_ATTEMPTS", 4),
+            retry_base_seconds=_non_negative_float_env("RETRY_BASE_SECONDS", 1),
+            category_max_attempts=_positive_int_env("CATEGORY_MAX_ATTEMPTS", 2),
+            image_workers=_positive_int_env("IMAGE_WORKERS", 8),
+            image_download_timeout=_positive_int_env("IMAGE_DOWNLOAD_TIMEOUT", 30),
+            min_products=_positive_int_env("MIN_PRODUCTS", default_min_products),
+            save_photo=os.getenv("SAVE_PHOTO", "false").lower() == "true",
+        )
 
 
 @dataclass(frozen=True)
@@ -88,35 +91,64 @@ class CategoryResult:
     api_total: int
 
 
-def get_min_products() -> int:
-    """Return the minimum acceptable output count for a complete scrape."""
-    raw_value = os.getenv("MIN_PRODUCTS", str(DEFAULT_MIN_PRODUCTS))
+def _positive_int_env(name: str, default: int) -> int:
+    raw_value = os.getenv(name, str(default))
     try:
-        minimum = int(raw_value)
+        value = int(raw_value)
     except ValueError as exc:
-        raise ValueError(f"MIN_PRODUCTS must be an integer, got {raw_value!r}") from exc
-    if minimum < 1:
-        raise ValueError("MIN_PRODUCTS must be at least 1")
-    return minimum
+        raise ValueError(f"{name} must be an integer, got {raw_value!r}") from exc
+    if value < 1:
+        raise ValueError(f"{name} must be at least 1")
+    return value
+
+
+def _non_negative_float_env(name: str, default: float) -> float:
+    raw_value = os.getenv(name, str(default))
+    try:
+        value = float(raw_value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a number, got {raw_value!r}") from exc
+    if value < 0:
+        raise ValueError(f"{name} cannot be negative")
+    return value
+
+
+def request_headers(config: MarketConfig) -> dict[str, str]:
+    return {
+        "Accept": "application/json",
+        "Accept-Language": config.accept_language,
+        "User-Agent": (
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"
+        ),
+        "x-fr-clientid": config.client_id,
+    }
 
 
 def response_excerpt(body: bytes, limit: int = 500) -> str:
     return " ".join(body.decode("utf-8", errors="replace").split())[:limit]
 
 
-def request_json(url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+def request_json(
+    config: MarketConfig,
+    settings: ScraperSettings,
+    url: str,
+    params: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """GET JSON directly, with bounded retries and no configured proxy."""
     if params:
         url = f"{url}?{urllib.parse.urlencode(params)}"
 
     last_error: Exception | None = None
-    for attempt in range(1, REQUEST_MAX_ATTEMPTS + 1):
-        request = urllib.request.Request(url, headers=REQUEST_HEADERS)
-        # Explicitly ignore proxy-related environment variables. This scraper is
-        # intended to work directly from GitHub-hosted runners.
+    for attempt in range(1, settings.request_max_attempts + 1):
+        request = urllib.request.Request(url, headers=request_headers(config))
+        # Ignore proxy-related environment variables. The API scraper is designed
+        # to run directly from a CI runner and should not inherit a developer proxy.
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         try:
-            with opener.open(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+            with opener.open(
+                request, timeout=settings.request_timeout_seconds
+            ) as response:
                 content_type = response.headers.get("Content-Type", "")
                 body = response.read()
                 if response.status != 200:
@@ -138,19 +170,26 @@ def request_json(url: str, params: dict[str, Any] | None = None) -> dict[str, An
             retryable = exc.code == 429 or exc.code >= 500
             if not retryable:
                 raise last_error from exc
-        except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+        except (
+            urllib.error.URLError,
+            TimeoutError,
+            OSError,
+            json.JSONDecodeError,
+        ) as exc:
             last_error = exc
 
-        if attempt < REQUEST_MAX_ATTEMPTS:
-            delay = RETRY_BASE_SECONDS * (2 ** (attempt - 1))
+        if attempt < settings.request_max_attempts:
+            delay = settings.retry_base_seconds * (2 ** (attempt - 1))
             print(
                 f"WARNING: API request failed (attempt {attempt}/"
-                f"{REQUEST_MAX_ATTEMPTS}); retrying in {delay:g}s: {last_error}"
+                f"{settings.request_max_attempts}); retrying in {delay:g}s: "
+                f"{last_error}"
             )
             time.sleep(delay)
 
     raise RuntimeError(
-        f"Uniqlo API request failed after {REQUEST_MAX_ATTEMPTS} attempts: {last_error}"
+        f"Uniqlo API request failed after {settings.request_max_attempts} "
+        f"attempts: {last_error}"
     ) from last_error
 
 
@@ -165,8 +204,10 @@ def require_ok_result(payload: dict[str, Any], endpoint_name: str) -> dict[str, 
     return result
 
 
-def resolve_categories(taxonomy_payload: dict[str, Any]) -> list[Category]:
-    """Resolve every legacy route to the API's current gender/class IDs."""
+def resolve_categories(
+    config: MarketConfig, taxonomy_payload: dict[str, Any]
+) -> list[Category]:
+    """Resolve configured routes to the storefront's current taxonomy IDs."""
     result = require_ok_result(taxonomy_payload, "taxonomy")
     genders = result.get("genders")
     classes = result.get("classes")
@@ -179,7 +220,7 @@ def resolve_categories(taxonomy_payload: dict[str, Any]) -> list[Category]:
         if isinstance(gender, dict) and gender.get("genderKey")
     }
     resolved = []
-    for route in CATEGORY_ROUTES:
+    for route in config.category_routes:
         gender_key, class_key = route.split("/", 1)
         gender = gender_by_key.get(gender_key)
         if not gender or not isinstance(gender.get("id"), int):
@@ -217,21 +258,33 @@ def resolve_categories(taxonomy_payload: dict[str, Any]) -> list[Category]:
     return resolved
 
 
-def product_query(category: Category, offset: int) -> dict[str, Any]:
+def product_query(
+    category: Category, offset: int, page_size: int
+) -> dict[str, Any]:
     return {
         "path": f"{category.gender_id},{category.class_id},,",
         "genderId": category.gender_id,
         "offset": offset,
-        "limit": PAGE_SIZE,
+        "limit": page_size,
         "rankingGender": category.gender_key,
         "rankingClassId": category.class_id,
         "httpFailure": "true",
     }
 
 
-def fetch_product_page(category: Category, offset: int) -> tuple[list[dict[str, Any]], int]:
+def fetch_product_page(
+    config: MarketConfig,
+    settings: ScraperSettings,
+    category: Category,
+    offset: int,
+) -> tuple[list[dict[str, Any]], int]:
     result = require_ok_result(
-        request_json(PRODUCTS_API_URL, product_query(category, offset)),
+        request_json(
+            config,
+            settings,
+            config.products_api_url,
+            product_query(category, offset, settings.page_size),
+        ),
         f"products ({category.route})",
     )
     items = result.get("items")
@@ -256,18 +309,26 @@ def fetch_product_page(category: Category, offset: int) -> tuple[list[dict[str, 
     return items, total
 
 
-def current_price(item: dict[str, Any]) -> str:
+def current_price(config: MarketConfig, item: dict[str, Any]) -> str:
     prices = item.get("prices")
     if not isinstance(prices, dict):
         raise ValueError("product is missing prices")
     price = prices.get("promo") or prices.get("base")
-    if not isinstance(price, dict) or not isinstance(price.get("value"), (int, float)):
+    value = price.get("value") if isinstance(price, dict) else None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError("product is missing a numeric current price")
     currency = price.get("currency")
     code = currency.get("code") if isinstance(currency, dict) else None
-    if code != "CAD":
-        raise ValueError(f"expected CAD price, received {code!r}")
-    return f"CA $ {price['value']:.2f}"
+    if code != config.currency_code:
+        raise ValueError(
+            f"expected {config.currency_code} price, received {code!r}"
+        )
+    if config.price_decimals == 0 and not float(value).is_integer():
+        raise ValueError(f"expected a whole-number {config.currency_code} price")
+    return (
+        f"{config.price_prefix}"
+        f"{value:,.{config.price_decimals}f}"
+    )
 
 
 def product_image_url(item: dict[str, Any]) -> str | None:
@@ -292,7 +353,9 @@ def product_image_url(item: dict[str, Any]) -> str | None:
     return None
 
 
-def parse_product(item: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+def parse_product(
+    config: MarketConfig, item: dict[str, Any]
+) -> tuple[dict[str, Any], str | None]:
     product_id = item.get("productId")
     name = item.get("name")
     if not isinstance(product_id, str) or not product_id:
@@ -305,8 +368,8 @@ def parse_product(item: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
     product = {
         "product_id": product_id,
         "name": name.strip(),
-        "price": current_price(item),
-        "url": f"{SITE_BASE_URL}/products/{product_id}/{price_group}",
+        "price": current_price(config, item),
+        "url": f"{config.site_base_url}/products/{product_id}/{price_group}",
         "image": None,
     }
     return product, product_image_url(item)
@@ -316,12 +379,21 @@ PageFetcher = Callable[[Category, int], tuple[list[dict[str, Any]], int]]
 
 
 def scrape_category(
+    config: MarketConfig,
     category: Category,
     worker_id: int = 0,
     page_fetcher: PageFetcher | None = None,
+    settings: ScraperSettings | None = None,
 ) -> tuple[CategoryResult, dict[str, str]]:
     """Fetch and validate every API page for one category."""
-    fetch_page = page_fetcher or fetch_product_page
+    active_settings = settings or ScraperSettings.from_env(
+        config.default_min_products
+    )
+    fetch_page = page_fetcher or (
+        lambda selected_category, selected_offset: fetch_product_page(
+            config, active_settings, selected_category, selected_offset
+        )
+    )
     print(f"[Worker {worker_id}] Starting: {category.route}")
     offset = 0
     expected_total: int | None = None
@@ -354,7 +426,7 @@ def scrape_category(
                     "across API pages"
                 )
             listing_keys.add(listing_key)
-            product, image_url = parse_product(item)
+            product, image_url = parse_product(config, item)
             if product["product_id"] not in products_by_id:
                 products_by_id[product["product_id"]] = product
                 if image_url:
@@ -376,56 +448,80 @@ def scrape_category(
 
 
 def scrape_category_with_retries(
-    category: Category, worker_id: int
+    config: MarketConfig,
+    settings: ScraperSettings,
+    category: Category,
+    worker_id: int,
 ) -> tuple[CategoryResult, dict[str, str]]:
     last_error: Exception | None = None
-    for attempt in range(1, CATEGORY_MAX_ATTEMPTS + 1):
+    for attempt in range(1, settings.category_max_attempts + 1):
         try:
-            return scrape_category(category, worker_id)
+            return scrape_category(config, category, worker_id, settings=settings)
         except Exception as exc:
             last_error = exc
             print(
                 f"[Worker {worker_id}] ERROR: {category.route} attempt "
-                f"{attempt}/{CATEGORY_MAX_ATTEMPTS} failed: {exc}"
+                f"{attempt}/{settings.category_max_attempts} failed: {exc}"
             )
-            if attempt < CATEGORY_MAX_ATTEMPTS:
-                time.sleep(RETRY_BASE_SECONDS * attempt)
+            if attempt < settings.category_max_attempts:
+                time.sleep(settings.retry_base_seconds * attempt)
     raise RuntimeError(
-        f"{category.route} failed after {CATEGORY_MAX_ATTEMPTS} attempts: {last_error}"
+        f"{category.route} failed after {settings.category_max_attempts} attempts: "
+        f"{last_error}"
     ) from last_error
 
 
-def download_product_image(product_id: str, image_url: str) -> str:
-    image_path = Path("images") / f"{product_id}.jpg"
+def download_product_image(
+    config: MarketConfig,
+    settings: ScraperSettings,
+    output_dir: Path,
+    product_id: str,
+    image_url: str,
+) -> str:
+    relative_path = Path("images") / f"{product_id}.jpg"
+    image_path = output_dir / relative_path
     image_path.parent.mkdir(parents=True, exist_ok=True)
     request = urllib.request.Request(
         image_url,
         headers={
             "Accept": "image/jpeg,image/*;q=0.8,*/*;q=0.5",
-            "User-Agent": REQUEST_HEADERS["User-Agent"],
+            "User-Agent": request_headers(config)["User-Agent"],
         },
     )
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    with opener.open(request, timeout=IMAGE_DOWNLOAD_TIMEOUT) as response:
+    with opener.open(request, timeout=settings.image_download_timeout) as response:
         image_path.write_bytes(response.read())
-    return image_path.as_posix()
+    return relative_path.as_posix()
 
 
 def add_images(
-    prices: dict[str, list[dict[str, Any]]], images_by_id: dict[str, str]
+    config: MarketConfig,
+    settings: ScraperSettings,
+    output_dir: Path,
+    prices: dict[str, list[dict[str, Any]]],
+    images_by_id: dict[str, str],
 ) -> int:
     """Download unique images and attach paths to every category occurrence."""
-    if not SAVE_PHOTO:
+    if not settings.save_photo:
         return 0
     if not images_by_id:
         print("WARNING: The API returned no product image URLs")
         return 0
-    Path("images").mkdir(parents=True, exist_ok=True)
+    (output_dir / "images").mkdir(parents=True, exist_ok=True)
     paths: dict[str, str] = {}
     failures = 0
-    with ThreadPoolExecutor(max_workers=min(IMAGE_WORKERS, len(images_by_id))) as pool:
+    with ThreadPoolExecutor(
+        max_workers=min(settings.image_workers, len(images_by_id))
+    ) as pool:
         futures = {
-            pool.submit(download_product_image, product_id, image_url): product_id
+            pool.submit(
+                download_product_image,
+                config,
+                settings,
+                output_dir,
+                product_id,
+                image_url,
+            ): product_id
             for product_id, image_url in images_by_id.items()
         }
         for future in as_completed(futures):
@@ -444,6 +540,8 @@ def add_images(
 
 
 def create_archive(
+    config: MarketConfig,
+    output_dir: Path,
     prices: dict[str, list[dict[str, Any]]],
     total_failed: int,
     duration_seconds: float,
@@ -454,6 +552,8 @@ def create_archive(
         "metadata": {
             "datetime": datetime.now(timezone.utc).isoformat(),
             "scraper_version": SCRAPER_VERSION,
+            "market": config.market_code,
+            "currency": config.currency_code,
             "duration_seconds": duration_seconds,
             "total_products": total_products,
             "total_failed": total_failed,
@@ -462,41 +562,60 @@ def create_archive(
         },
         "products": prices,
     }
-    with open("prices.json", "w", encoding="utf-8") as output_file:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    prices_path = output_dir / "prices.json"
+    archive_path = output_dir / "output.zip"
+    with prices_path.open("w", encoding="utf-8") as output_file:
         json.dump(output, output_file, indent=2, ensure_ascii=False)
-    with zipfile.ZipFile("output.zip", "w", zipfile.ZIP_DEFLATED) as archive:
-        archive.write("prices.json")
-        images_path = Path("images")
+    with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.write(prices_path, "prices.json")
+        images_path = output_dir / "images"
         if images_path.exists():
             for image_file in images_path.rglob("*"):
                 if image_file.is_file():
-                    archive.write(image_file)
+                    archive.write(image_file, image_file.relative_to(output_dir))
     print(
-        f"INFO: Created output.zip with {total_products} products across "
+        f"INFO: Created {archive_path} with {total_products} products across "
         f"{len(categories)} categories"
     )
 
 
-def main() -> None:
-    for old_output in (Path("prices.json"), Path("output.zip")):
+def run(config: MarketConfig, output_dir: Path) -> None:
+    """Run one complete regional scrape and create its ingest archive."""
+    settings = ScraperSettings.from_env(config.default_min_products)
+    output_dir = output_dir.resolve()
+    for old_output in (output_dir / "prices.json", output_dir / "output.zip"):
         old_output.unlink(missing_ok=True)
-    images_path = Path("images")
+    images_path = output_dir / "images"
     if images_path.exists():
         shutil.rmtree(images_path)
 
-    print("INFO: Resolving 23 configured routes against Uniqlo's live taxonomy")
-    categories = resolve_categories(request_json(TAXONOMY_API_URL))
+    route_count = len(config.category_routes)
+    print(
+        f"INFO: Resolving {route_count} configured {config.name} routes against "
+        "Uniqlo's live taxonomy"
+    )
+    categories = resolve_categories(
+        config,
+        request_json(config, settings, config.taxonomy_api_url),
+    )
     print(f"INFO: Resolved all {len(categories)} category routes")
-    print(f"INFO: Product image downloads enabled: {SAVE_PHOTO}")
+    print(f"INFO: Product image downloads enabled: {settings.save_photo}")
 
     start_time = time.time()
     results_by_route: dict[str, CategoryResult] = {}
     all_images: dict[str, str] = {}
     failures: dict[str, str] = {}
-    worker_count = min(MAX_WORKERS, len(categories))
+    worker_count = min(settings.max_workers, len(categories))
     with ThreadPoolExecutor(max_workers=worker_count) as pool:
         futures = {
-            pool.submit(scrape_category_with_retries, category, worker_id): category
+            pool.submit(
+                scrape_category_with_retries,
+                config,
+                settings,
+                category,
+                worker_id,
+            ): category
             for worker_id, category in enumerate(categories, start=1)
         }
         for future in as_completed(futures):
@@ -511,28 +630,31 @@ def main() -> None:
     if failures:
         print(
             f"ERROR: Completed {len(results_by_route)}/{len(categories)} categories. "
-            "Refusing to create a partial ingest archive."
+            "Refusing to create a partial archive."
         )
         for route, error in failures.items():
             print(f"ERROR: {route}: {error}")
         raise SystemExit(1)
 
     prices = {
-        route: results_by_route[route].products for route in CATEGORY_ROUTES
+        route: results_by_route[route].products for route in config.category_routes
     }
     total_products = sum(len(products) for products in prices.values())
-    minimum = get_min_products()
-    if total_products < minimum:
+    if total_products < settings.min_products:
         print(
             f"ERROR: Scrape produced {total_products} products; required minimum is "
-            f"{minimum}. Refusing to create an ingest archive."
+            f"{settings.min_products}. Refusing to create an archive."
         )
         raise SystemExit(1)
 
-    image_failures = add_images(prices, all_images)
+    image_failures = add_images(
+        config, settings, output_dir, prices, all_images
+    )
     duration_seconds = round(time.time() - start_time, 2)
-    create_archive(prices, image_failures, duration_seconds)
-
-
-if __name__ == "__main__":
-    main()
+    create_archive(
+        config,
+        output_dir,
+        prices,
+        image_failures,
+        duration_seconds,
+    )

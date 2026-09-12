@@ -1,4 +1,4 @@
-name: Uniqlo Price API Scraper
+name: Uniqlo Canada Price API Scraper
 
 on:
   schedule:
@@ -19,7 +19,7 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: scraper-api
+        working-directory: scraper
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -41,7 +41,7 @@ jobs:
       - name: Run scraper
         env:
           PYTHONUNBUFFERED: 1
-        run: python main.py
+        run: python canada/main.py
       - name: Make an API Request to store the scraped results
         run: |
-          curl --fail-with-body --show-error -X POST -F "file=@output.zip" -u "${{secrets.AUTH_USER}}:${{secrets.AUTH_PASS}}" https://api.uniqlotracker.com/api/products/injest
+          curl --fail-with-body --show-error -X POST -F "file=@canada/output.zip" -u "${{secrets.AUTH_USER}}:${{secrets.AUTH_PASS}}" https://api.uniqlotracker.com/api/products/injest

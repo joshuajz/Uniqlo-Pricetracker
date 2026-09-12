@@ -31,10 +31,8 @@ __pycache__/
 !frontend/public/favicon-32x32.png
 !frontend/public/apple-touch-icon.png
 *.jpg
-scraper/images/*
-scraper/prices.json
-scraper-api/images/*
-scraper-api/prices.json
+scraper/*/images/*
+scraper/*/prices.json
 *.zip
 
 # Design explorations live on the design branch only

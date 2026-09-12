@@ -5,11 +5,21 @@ set -eu
 : "${AUTH_USER:?AUTH_USER must be set}"
 : "${AUTH_PASS:?AUTH_PASS must be set}"
 
-uv run --no-sync main.py
+SCRAPER_MARKET="${SCRAPER_MARKET:-canada}"
+
+case "${SCRAPER_MARKET}" in
+    canada|uk|japan|us) ;;
+    *)
+        echo "Unsupported SCRAPER_MARKET: ${SCRAPER_MARKET}" >&2
+        exit 2
+        ;;
+esac
+
+python "${SCRAPER_MARKET}/main.py"
 
 curl --fail-with-body \
     --show-error \
     --request POST \
-    --form "file=@output.zip" \
+    --form "file=@${SCRAPER_MARKET}/output.zip" \
     --user "${AUTH_USER}:${AUTH_PASS}" \
     "${API_URL%/}/api/products/injest"

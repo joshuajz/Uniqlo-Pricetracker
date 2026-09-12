@@ -1,4 +1,4 @@
-name: Uniqlo API Smoke Test
+name: Uniqlo Regional API Smoke Test
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   api-smoke-test:
-    name: API smoke test (${{ matrix.os }})
+    name: API smoke test (${{ matrix.market }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     strategy:
@@ -17,6 +17,11 @@ jobs:
         os:
           - ubuntu-latest
           - macos-15
+        market:
+          - canada
+          - uk
+          - japan
+          - us
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,5 +29,6 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - name: Test Uniqlo product API
-        run: python scraper/api_smoke_test.py
+      - name: Test Uniqlo product API (${{ matrix.market }})
+        working-directory: scraper
+        run: python smoke_test.py "${{ matrix.market }}"

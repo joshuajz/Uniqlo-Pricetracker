@@ -1,29 +1,23 @@
-FROM ghcr.io/astral-sh/uv:0.9.11 AS uv
+FROM python:3.13-slim-bookworm
 
-FROM python:3.10-slim-bookworm
+ARG SCRAPER_MARKET=canada
 
 ENV PYTHONUNBUFFERED=1 \
-    UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy \
-    CHROME_BINARY=/usr/bin/chromium \
+    SCRAPER_MARKET=${SCRAPER_MARKET} \
     MIN_PRODUCTS=500 \
     SAVE_PHOTO=false
 
 RUN apt-get update \
-    && apt-get install --yes --no-install-recommends \
-        ca-certificates \
-        chromium \
-        curl \
+    && apt-get install --yes --no-install-recommends ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
-
-COPY --from=uv /uv /uvx /usr/local/bin/
 
 WORKDIR /app
 
-COPY pyproject.toml uv.lock README.md ./
-RUN uv sync --locked --no-dev
-
-COPY main.py entrypoint.sh ./
+COPY core.py smoke_test.py entrypoint.sh README.md ./
+COPY canada ./canada
+COPY uk ./uk
+COPY japan ./japan
+COPY us ./us
 RUN chmod +x /app/entrypoint.sh
 
 CMD ["/app/entrypoint.sh"]

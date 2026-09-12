@@ -6,8 +6,8 @@ A simple web app for following Uniqlo Canada product prices and viewing their pr
 
 - `frontend/` — React and Vite web app
 - `api/` — Go API backed by PostgreSQL
-- `scraper/` — legacy Playwright scraper
-- `scraper-api/` — direct storefront API scraper used by GitHub Actions
+- `scraper/` — low-traffic storefront API scrapers for Canada, the UK, Japan,
+  and the US
 
 ## Run the frontend
 
@@ -48,7 +48,10 @@ also updates metadata during client-side navigation. A missing product returns
 
 Deploy the API to a Go-compatible service such as Railway with a PostgreSQL database. Set `DATABASE_URL`, `AUTH_USER`, `AUTH_PASS`, and `CORS_ORIGINS` (your frontend URL).
 
-Run the scraper on a schedule, such as a daily GitHub Actions job. It needs `API_URL`, `AUTH_USER`, and `AUTH_PASS` to upload the latest prices to the API.
+Run the Canada scraper on a schedule, such as the included daily GitHub Actions
+job. It needs `API_URL`, `AUTH_USER`, and `AUTH_PASS` to upload the latest prices
+to the API. The UK, Japan, and US scraper output is exploratory until the API and
+database are updated to store market and currency alongside each observation.
 
 The scheduled GitHub workflow records prices daily and downloads product images
 on the first day of each month (UTC). New products may have no photo until the

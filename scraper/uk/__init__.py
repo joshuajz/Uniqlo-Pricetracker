@@ -1,0 +1,1 @@
+"""Uniqlo UK scraper configuration."""
