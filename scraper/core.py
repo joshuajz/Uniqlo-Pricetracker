@@ -411,7 +411,11 @@ def scrape_category(
                 f"({expected_total} -> {page_total})"
             )
         if expected_total == 0:
-            raise RuntimeError(f"{category.route} returned no products")
+            if items:
+                raise RuntimeError(
+                    f"{category.route} returned products with a zero total"
+                )
+            break
         if not items:
             raise RuntimeError(
                 f"{category.route} returned an empty page at {offset}/"

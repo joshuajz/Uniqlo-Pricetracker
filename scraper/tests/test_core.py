@@ -163,6 +163,33 @@ class ApiScraperTests(unittest.TestCase):
                 page_fetcher=lambda _category, offset: pages[offset],
             )
 
+    def test_scrape_category_accepts_empty_category(self):
+        category = Category("kids/dresses", "kids", 22212, 23314)
+
+        result, images = scrape_category(
+            US,
+            category,
+            page_fetcher=lambda _category, _offset: ([], 0),
+        )
+
+        self.assertEqual(result.route, "kids/dresses")
+        self.assertEqual(result.products, [])
+        self.assertEqual(result.api_total, 0)
+        self.assertEqual(images, {})
+
+    def test_scrape_category_rejects_products_with_zero_total(self):
+        category = Category("kids/dresses", "kids", 22212, 23314)
+
+        with self.assertRaisesRegex(RuntimeError, "products with a zero total"):
+            scrape_category(
+                US,
+                category,
+                page_fetcher=lambda _category, _offset: (
+                    [product_item(US, "E1")],
+                    0,
+                ),
+            )
+
     def test_archive_records_market_and_currency(self):
         prices = {
             "men/tops": [
