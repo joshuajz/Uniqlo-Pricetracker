@@ -65,6 +65,21 @@ test('cross-listed products appear once and department/category must match the s
 test('department labels use one stable customer-facing order', () => {
   assert.equal(departmentsLabel(product('cross', { categories: ['men/tops', 'women/tops', 'kids/tops'] })), 'Women & Men & Kids')
   assert.equal(departmentsLabel(product('cross', { categories: ['kids/tops', 'men/tops', 'women/tops'] })), 'Women & Men & Kids')
+  assert.equal(departmentsLabel(product('cross', { categories: ['baby/toddler', 'kids/tops', 'baby/newborn'] })), 'Kids & Baby')
+})
+
+test('baby department links filter newborn and toddler products without duplicate listings', () => {
+  const newborn = product('newborn', { categories: ['baby/baby-6-18-months'] })
+  const shared = product('shared', { categories: ['baby/baby-6-18-months', 'baby/toddler', 'kids/bottoms'] })
+  const kids = product('kids', { categories: ['kids/bottoms'] })
+  const data = [newborn, shared, shared, kids]
+  const babyFilters = readBrowseFilters(new URLSearchParams('department=baby'))
+  assert.equal(babyFilters.department, 'baby')
+  assert.deepEqual(filterProducts(data, babyFilters, false).map(p => p.product_id), ['newborn', 'shared'])
+  const toddlerFilters = readBrowseFilters(new URLSearchParams('open=baby%2Ftoddler'))
+  assert.equal(toddlerFilters.department, 'baby')
+  assert.deepEqual(filterProducts(data, toddlerFilters, false).map(p => p.product_id), ['shared'])
+  assert.equal(departmentHasCategory(data, 'baby', ['bottoms']), false)
 })
 
 test('a category selection can carry between departments only when it exists there', () => {
@@ -81,6 +96,11 @@ test('category presentation combines and renames filters without changing stored
   assert.equal(categoryFilterPresentation('shirts-and-polo-shirts').label, 'Formal and polo shirts')
   assert.deepEqual(categoryFilterPresentation('sweaters-and-knitwear').values,
     ['shirts-and-knitwear', 'shirts-and-knitware', 'sweaters-and-knitwear', 'sweaters-and-knitware'])
+  for (const category of ['baby-6-18-months', 'newborn', 'newborn2']) {
+    const presentation = categoryFilterPresentation(category)
+    assert.equal(presentation.label, 'Newborn')
+    assert.equal(presentation.values.includes(category), true)
+  }
 })
 
 test('lowest-recorded eligibility excludes a new full-price observation everywhere', () => {

@@ -5,11 +5,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useProducts, productDetailOptions } from '../data/api'
 import { track } from '../lib/analytics'
 import {
-  PAGE_SIZE, categoryFilterPresentation, categoryLabel, departmentHasCategory, departmentsLabel, discountPct,
+  DEPARTMENTS, PAGE_SIZE, categoryFilterPresentation, categoryLabel, departmentHasCategory, departmentsLabel, discountPct,
   filterProducts, formatRecordingDate, isLowestRecorded, isOnSale, money, productCategory, productFacets,
   readBrowseFilters, recordingAge, recordingStatus,
 } from '../lib/products'
-import type { BrowseFilters, Department, ProductSort } from '../lib/products'
+import type { BrowseFilters, ProductSort } from '../lib/products'
 import type { Product } from '../types/types'
 import ProductImage from '../components/ProductImage'
 import PageLoader from '../components/PageLoader'
@@ -263,7 +263,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
               onClick={() => { updateFilters({ query: '' }, true); document.getElementById('product-search')?.focus() }}><X size={18} aria-hidden="true" /></button>}
           </div>
           <div className="department-options" role="group" aria-label="Department">
-            {(['all', 'women', 'men', 'kids'] as Department[]).map(department => (
+            {DEPARTMENTS.map(department => (
               <button key={department} type="button" aria-pressed={filters.department === department}
                 onClick={() => {
                   updateFilters({ department, categories: departmentHasCategory(products, department, filters.categories) ? filters.categories : [] })

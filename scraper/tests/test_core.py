@@ -25,7 +25,7 @@ MARKETS = (CANADA, UK, JAPAN, US)
 def taxonomy_fixture(config):
     genders = []
     classes = []
-    gender_ids = {"men": 10, "women": 20, "kids": 30}
+    gender_ids = {"men": 10, "women": 20, "kids": 30, "baby": 40}
     next_class_id = 1000
     for gender_key, gender_id in gender_ids.items():
         genders.append({"id": gender_id, "genderKey": gender_key})
@@ -78,7 +78,7 @@ class MarketConfigTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     {route.split("/", 1)[0] for route in config.category_routes},
-                    {"men", "women", "kids"},
+                    {"men", "women", "kids", "baby"},
                 )
                 categories = resolve_categories(config, taxonomy_fixture(config))
                 self.assertEqual(

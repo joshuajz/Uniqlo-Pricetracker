@@ -2,7 +2,8 @@ import type { Product, ProductDatapoint, ProductDetail } from '../types/types.ts
 
 export const DAY = 86_400_000
 export const PAGE_SIZE = 24
-export type Department = 'all' | 'women' | 'men' | 'kids'
+export const DEPARTMENTS = ['all', 'women', 'men', 'kids', 'baby'] as const
+export type Department = typeof DEPARTMENTS[number]
 export type ProductSort = 'discount' | 'price' | 'name'
 export interface BrowseFilters {
   query: string
@@ -23,7 +24,14 @@ export const isOnSale = (p: Product) => p.price < p.regular_price
 export const isLowestRecorded = (p: Product) => p.price <= p.lowest_price && p.lowest_price < p.regular_price
 export const discountPct = (p: Product) => p.regular_price > 0
   ? Math.max(0, Math.round((1 - p.price / p.regular_price) * 100)) : 0
-export const categoryLabel = (slug: string) => slug.replace(/-/g, ' ').replace(/^./, s => s.toUpperCase())
+const CATEGORY_LABELS: Record<string, string> = {
+  'baby-6-18-months': 'Newborn',
+  newborn2: 'Newborn',
+  flower: 'Flowers',
+  'uv-protection': 'UV protection',
+}
+export const categoryLabel = (slug: string) => CATEGORY_LABELS[slug]
+  ?? slug.replace(/-/g, ' ').replace(/^./, s => s.toUpperCase())
 export type ProductFacetGroup = 'Material' | 'Feature'
 export interface ProductFacet { group: ProductFacetGroup; label: string }
 
@@ -56,6 +64,7 @@ export const productCategory = (product: Product) => {
 }
 export interface CategoryFilterPresentation { key: string; label: string; values: string[] }
 const CATEGORY_FILTER_PRESENTATIONS: CategoryFilterPresentation[] = [
+  { key: 'newborn', label: 'Newborn', values: ['baby-6-18-months', 'newborn', 'newborn2'] },
   { key: 'accessories-and-home', label: 'Accessories and home', values: ['accessories', 'accessories-and-home'] },
   { key: 'formal-and-polo-shirts', label: 'Formal and polo shirts', values: ['shirts-and-polo-shirts'] },
   { key: 'knitwear', label: 'Knitwear', values: [
@@ -66,7 +75,7 @@ export function categoryFilterPresentation(category: string): CategoryFilterPres
   return CATEGORY_FILTER_PRESENTATIONS.find(option => option.values.includes(category))
     ?? { key: category, label: categoryLabel(category), values: [category] }
 }
-const DEPARTMENT_ORDER: Record<string, number> = { women: 0, men: 1, kids: 2 }
+const DEPARTMENT_ORDER: Record<string, number> = { women: 0, men: 1, kids: 2, baby: 3 }
 export const departmentsLabel = (p: Product) => [...new Set(p.categories.map(c => c.split('/')[0]))]
   .sort((a, b) => (DEPARTMENT_ORDER[a] ?? 99) - (DEPARTMENT_ORDER[b] ?? 99) || a.localeCompare(b))
   .map(categoryLabel).join(' & ') || 'Uncategorized'
@@ -106,7 +115,7 @@ export function readBrowseFilters(params: URLSearchParams, defaultSort: ProductS
   if (categories.length === 0 && legacy.length > 1) categories.push(legacy.slice(1).join('/'))
   return {
     query: params.get('q') ?? '',
-    department: (['all', 'women', 'men', 'kids'].includes(department) ? department : 'all') as Department,
+    department: DEPARTMENTS.find(option => option === department) ?? 'all',
     categories: [...new Set(categories)],
     tags: [...new Set(params.getAll('tag').filter(value => value && value !== 'all'))],
     lowestOnly: params.get('lowest') === '1' || sort === 'atl',

@@ -1,6 +1,6 @@
 # US scraper
 
-Uses Uniqlo's US English storefront API with 25 men, women, and kids categories.
+Uses Uniqlo's US English storefront API with 29 men, women, kids, and baby categories.
 Prices are emitted in USD, such as `$24.90`.
 
 From the parent `scraper` directory, run:

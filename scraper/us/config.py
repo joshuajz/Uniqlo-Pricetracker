@@ -29,6 +29,7 @@ CONFIG = MarketConfig(
         "women/innerwear",
         "women/loungewear-and-home",
         "women/accessories-and-shoes",
+        "women/linen",
         "kids/outerwear-and-blazers",
         "kids/tops",
         "kids/sweaters",
@@ -37,5 +38,8 @@ CONFIG = MarketConfig(
         "kids/dresses",
         "kids/innerwear",
         "kids/accessories",
+        "kids/girls",
+        "baby/newborn",
+        "baby/toddler",
     ),
 )

@@ -35,5 +35,7 @@ CONFIG = MarketConfig(
         "kids/dresses-and-jumpsuits",
         "kids/innerwear",
         "kids/accessories",
+        "baby/newborn",
+        "baby/toddler",
     ),
 )

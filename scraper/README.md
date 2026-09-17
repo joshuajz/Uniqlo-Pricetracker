@@ -10,10 +10,15 @@ default to keep network traffic low.
 
 | Folder | Storefront | Currency | Categories |
 | --- | --- | --- | ---: |
-| `canada/` | Canada (English) | CAD | 23 |
-| `uk/` | United Kingdom | GBP | 23 |
-| `japan/` | Japan (Japanese) | JPY | 25 |
-| `us/` | United States | USD | 25 |
+| `canada/` | Canada (English) | CAD | 27 |
+| `uk/` | United Kingdom | GBP | 25 |
+| `japan/` | Japan (Japanese) | JPY | 28 |
+| `us/` | United States | USD | 29 |
+
+All markets cover men, women, kids, and baby, including newborn and toddler
+listings. Canada also includes women's dresses and skirts and men's UV
+protection; Japan includes flowers; the US includes women's linen and kids'
+girls collections to capture products missing from its standard categories.
 
 The shared implementation lives in `core.py`; each market folder contains only
 the routes and storefront settings that differ. This keeps retry, pagination,
