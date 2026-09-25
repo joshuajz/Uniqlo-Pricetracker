@@ -1,3 +1,5 @@
+import { useMarket } from '../context/MarketContext'
+import { marketPath, type Market } from '../lib/markets'
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Grid2X2, List, Search, SlidersHorizontal, X } from 'lucide-react'
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom'
@@ -22,22 +24,25 @@ function toggleValues(current: string[], values: string[]) {
   return active ? current.filter(value => !values.includes(value)) : [...new Set([...current, ...values])]
 }
 
-function productButtonLabel(product: Product) {
+function productButtonLabel(product: Product, market: Market) {
+  const formatMoney = (value: number) => money(value, market)
   const details = [
     `View price history for ${product.name}`,
     departmentsLabel(product),
-    `Current price ${money(product.price)} CAD`,
+    `Current price ${formatMoney(product.price)} ${market.currency}`,
   ]
   if (isOnSale(product)) {
-    details.push(`Typical tracked price ${money(product.regular_price)} CAD`, `${discountPct(product)}% off`)
+    details.push(`Typical tracked price ${formatMoney(product.regular_price)} ${market.currency}`, `${discountPct(product)}% off`)
   } else {
     details.push(product.price === product.regular_price ? 'At the typical tracked price' : 'Above the typical tracked price')
   }
-  details.push(isLowestRecorded(product) ? 'Lowest recorded price' : `Lowest recorded price ${money(product.lowest_price)} CAD`)
+  details.push(isLowestRecorded(product) ? 'Lowest recorded price' : `Lowest recorded price ${formatMoney(product.lowest_price)} ${market.currency}`)
   return details.join('. ')
 }
 
 export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
+  const market = useMarket()
+  const formatMoney = (value: number) => money(value, market)
   const [params, setParams] = useSearchParams()
   const defaultSort: ProductSort = dealsOnly ? 'discount' : 'name'
   const filters = useMemo(() => readBrowseFilters(params, defaultSort), [params, defaultSort])
@@ -220,7 +225,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
   }
 
   function prepareProduct(productId: string) {
-    void queryClient.prefetchQuery(productDetailOptions(productId))
+    void queryClient.prefetchQuery(productDetailOptions(productId, market))
   }
 
   const allSearch = new URLSearchParams(params)
@@ -232,7 +237,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
     const legacySearch = new URLSearchParams(params)
     legacySearch.delete('modal')
     const legacyOrigin = location.pathname + (legacySearch.size ? `?${legacySearch}` : '')
-    return <Navigate replace to={`/products/${encodeURIComponent(legacyProductId)}`}
+    return <Navigate replace to={marketPath(market, `/products/${encodeURIComponent(legacyProductId)}`)}
       state={{ productPageOrigin: legacyOrigin }} />
   }
 
@@ -240,11 +245,11 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
     <div className="browse-page page-container">
       <header className="browse-heading volume-heading" inert={filterModalActive}>
         <div className="volume-copy">
-          <p className="browse-eyebrow">Uniqlo Canada price tracker</p>
+          <p className="browse-eyebrow">Uniqlo {market.name} price tracker</p>
           <h1 tabIndex={-1}>{dealsOnly ? 'Deals, within reach.' : 'All tracked products.'}</h1>
           <p className="browse-intro">{dealsOnly
-            ? 'Independent tracker for Uniqlo Canada price drops'
-            : 'Search the current Uniqlo Canada catalogue and price history'}
+            ? `Independent tracker for Uniqlo ${market.name} price drops`
+            : `Search the current Uniqlo ${market.name} catalogue and price history`}
             {query.data?.datetime && <> · Updated <time dateTime={query.data.datetime.slice(0, 10)}>{formatRecordingDate(query.data.datetime, false)}</time></>}</p>
         </div>
         <p className="volume-status"><span aria-hidden="true" />{query.isPending ? 'Loading prices' : query.isError ? 'Update unavailable' : recordingStatus(query.data?.datetime)}</p>
@@ -356,7 +361,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
           </p>
           <span className="results-freshness">{query.data?.datetime
             ? <>Checked <time dateTime={query.data.datetime.slice(0, 10)}>{formatRecordingDate(query.data.datetime, false)}</time></>
-            : 'Canada · CAD'}</span>
+            : `${market.name} · ${market.currency}`}</span>
           {hasFilters && <button type="button" className="text-button clear-filters" onClick={() => updateFilters({
             query: '', department: 'all', categories: [], tags: [], lowestOnly: false,
           })}>Clear filters</button>}
@@ -382,7 +387,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
             <p>{products.length === 0 ? 'Check back after the next daily update.' : dealsOnly
               ? 'This item may still be available at its typical price.' : 'Try a shorter name or remove a filter.'}</p>
             <div className="empty-actions">
-              {dealsOnly && products.length > 0 && <Link className="primary-button" to={{ pathname: '/categories', search: allSearch.toString() }}>Search all products</Link>}
+              {dealsOnly && products.length > 0 && <Link className="primary-button" to={{ pathname: marketPath(market, '/categories'), search: allSearch.toString() }}>Search all products</Link>}
               {hasFilters && <button className="secondary-button" type="button" onClick={() => updateFilters({
                 query: '', department: 'all', categories: [], tags: [], lowestOnly: false,
               })}>Clear search and filters</button>}
@@ -390,11 +395,11 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
           </div> : <>
             <ul ref={resultsRef} className={`product-results ${filters.view === 'grid' ? 'product-grid' : 'product-list'}`} aria-busy={filters.query !== deferredQuery}>
               {filtered.slice(0, filters.limit).map(p => <li key={p.product_id}>
-                <Link className="product-row" to={`/products/${encodeURIComponent(p.product_id)}`}
+                <Link className="product-row" to={marketPath(market, `/products/${encodeURIComponent(p.product_id)}`)}
                   state={{ product: p, productPageOrigin: location.pathname + location.search }} onClick={() => selectProduct(p)}
                   onPointerEnter={event => { if (event.pointerType === 'mouse') prepareProduct(p.product_id) }}
                   onFocus={() => prepareProduct(p.product_id)}
-                  aria-label={productButtonLabel(p)}>
+                  aria-label={productButtonLabel(p, market)}>
                   <ProductImage id={p.product_id} />
                   <span className="product-info"><span className="product-copy">
                     <span className="product-name">{p.name}</span>
@@ -402,11 +407,11 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
                     {productFacets(p)[0] && <span className="product-tag">{productFacets(p)[0].label}</span>}
                   </span>
                     {isLowestRecorded(p) ? <span className="low-badge">Lowest recorded</span>
-                      : <span className="product-meta">Lowest recorded: {money(p.lowest_price)}</span>}
+                      : <span className="product-meta">Lowest recorded: {formatMoney(p.lowest_price)}</span>}
                   </span>
-                  <span className="product-price"><strong>{money(p.price)}</strong>
+                  <span className="product-price"><strong>{formatMoney(p.price)}</strong>
                     {isOnSale(p) ? <><span className="typical-price"><span>Typical</span>
-                      <del aria-label={`Typical tracked price ${money(p.regular_price)}`}>{money(p.regular_price)}</del></span>
+                      <del aria-label={`Typical tracked price ${formatMoney(p.regular_price)}`}>{formatMoney(p.regular_price)}</del></span>
                       <span className="discount">{discountPct(p)}% off</span></> : <span className="product-meta">{p.price === p.regular_price ? 'Typical price' : 'Above typical'}</span>}
                   </span><ArrowRight className="product-arrow" size={18} aria-hidden="true" />
                 </Link>
@@ -424,7 +429,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
           <p className="price-basis">{dealsOnly
             ? 'Deals are below the most frequently recorded price. '
             : 'Price comparisons use the most frequently recorded price. '}
-            <Link to="/faq#price-comparisons">How price comparisons work</Link>
+            <Link to={marketPath(market, "/faq#price-comparisons")}>How price comparisons work</Link>
           </p>
         </>}
       </section>

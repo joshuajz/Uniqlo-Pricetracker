@@ -21,15 +21,16 @@ import (
 
 // ProductsCache holds cached products response with expiration
 type ProductsCache struct {
-	mu        sync.RWMutex
-	data      gin.H
-	expiresAt time.Time
+	mu         sync.RWMutex
+	cache      map[string]productCacheEntry
+	generation uint64
 }
 
 // ProductDetailCache holds cached product detail responses keyed by product ID
 type ProductDetailCache struct {
-	mu    sync.RWMutex
-	cache map[string]productCacheEntry
+	mu         sync.RWMutex
+	cache      map[string]productCacheEntry
+	generation uint64
 }
 
 type productCacheEntry struct {
@@ -40,12 +41,10 @@ type productCacheEntry struct {
 // Cache duration
 const cacheDuration = 1 * time.Hour
 
-// The public read API remains Canada-only until the frontend becomes
-// market-aware. Ingest and storage are market-aware so regional scraper
-// archives can safely coexist without product ID collisions.
+// Unprefixed endpoints remain Canadian for backwards compatibility.
 const (
-	currentMarketCode   = "CA"
-	currentCurrencyCode = "CAD"
+	defaultMarketCode   = "CA"
+	defaultCurrencyCode = "CAD"
 )
 
 var productsCache = &ProductsCache{}
@@ -214,12 +213,13 @@ func injestProducts(c *gin.Context) {
 
 	// Invalidate caches after ingesting new data
 	productsCache.mu.Lock()
-	productsCache.data = nil
-	productsCache.expiresAt = time.Time{}
+	productsCache.cache = nil
+	productsCache.generation++
 	productsCache.mu.Unlock()
 
 	productDetailCache.mu.Lock()
 	productDetailCache.cache = make(map[string]productCacheEntry)
+	productDetailCache.generation++
 	productDetailCache.mu.Unlock()
 
 	c.JSON(http.StatusOK, gin.H{
@@ -232,10 +232,12 @@ func injestProducts(c *gin.Context) {
 
 // getProducts returns all products from the most recent scrape with their lowest prices
 func getProducts(c *gin.Context) {
+	market := requestMarket(c)
 	// Check cache first
 	productsCache.mu.RLock()
-	if productsCache.data != nil && time.Now().Before(productsCache.expiresAt) {
-		cachedData := productsCache.data
+	generation := productsCache.generation
+	if entry, ok := productsCache.cache[market]; ok && time.Now().Before(entry.expiresAt) {
+		cachedData := entry.data
 		productsCache.mu.RUnlock()
 		c.JSON(http.StatusOK, cachedData)
 		return
@@ -244,14 +246,14 @@ func getProducts(c *gin.Context) {
 
 	// Get the newest datetime from products table
 	var newestDatetime sql.NullTime
-	err := db.QueryRow("SELECT MAX(datetime) FROM products WHERE market_code=$1", currentMarketCode).Scan(&newestDatetime)
+	err := db.QueryRow("SELECT MAX(datetime) FROM products WHERE market_code=$1", market).Scan(&newestDatetime)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get newest datetime"})
 		return
 	}
 
 	if !newestDatetime.Valid {
-		c.JSON(http.StatusOK, gin.H{"products": []ProductResponse{}, "datetime": nil})
+		c.JSON(http.StatusOK, gin.H{"market": market, "currency": supportedMarkets[market].currency, "count": 0, "products": []ProductResponse{}, "datetime": nil})
 		return
 	}
 
@@ -271,14 +273,14 @@ func getProducts(c *gin.Context) {
 		WHERE p.market_code = $1 AND p.datetime = $2
 	`
 
-	rows, err := db.Query(query, currentMarketCode, newestDatetime.Time)
+	rows, err := db.Query(query, market, newestDatetime.Time)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query products"})
 		return
 	}
 	defer rows.Close()
 
-	var products []ProductResponse
+	products := []ProductResponse{}
 	for rows.Next() {
 		var p ProductResponse
 		var categoryJSON string
@@ -303,14 +305,20 @@ func getProducts(c *gin.Context) {
 
 	// Build response and cache it
 	response := gin.H{
+		"market":   market,
+		"currency": supportedMarkets[market].currency,
 		"datetime": newestDatetime.Time.Format(time.RFC3339),
 		"count":    len(products),
 		"products": products,
 	}
 
 	productsCache.mu.Lock()
-	productsCache.data = response
-	productsCache.expiresAt = time.Now().Add(cacheDuration)
+	if generation == productsCache.generation {
+		if productsCache.cache == nil {
+			productsCache.cache = make(map[string]productCacheEntry)
+		}
+		productsCache.cache[market] = productCacheEntry{data: response, expiresAt: time.Now().Add(cacheDuration)}
+	}
 	productsCache.mu.Unlock()
 
 	c.JSON(http.StatusOK, response)
@@ -318,6 +326,7 @@ func getProducts(c *gin.Context) {
 
 // getProductImage returns the product image as JPEG from the database
 func getProductImage(c *gin.Context) {
+	market := requestMarket(c)
 	productID := c.Param("id")
 	if productID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Product ID is required"})
@@ -330,7 +339,7 @@ func getProductImage(c *gin.Context) {
 		FROM product_images pi
 		JOIN images i ON i.image_id = pi.image_id
 		WHERE pi.market_code = $1 AND pi.product_id = $2
-	`, currentMarketCode, productID).Scan(&imageBytes)
+	`, market, productID).Scan(&imageBytes)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
 		return
@@ -346,15 +355,18 @@ func getProductImage(c *gin.Context) {
 
 // getProduct returns all datapoints and lowest price info for a specific product ID
 func getProduct(c *gin.Context) {
+	market := requestMarket(c)
 	productID := c.Param("id")
 	if productID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Product ID is required"})
 		return
 	}
 
-	// Check cache first
+	// Cache keys include the market because product IDs can overlap.
+	cacheKey := market + ":" + productID
 	productDetailCache.mu.RLock()
-	if entry, ok := productDetailCache.cache[productID]; ok && time.Now().Before(entry.expiresAt) {
+	generation := productDetailCache.generation
+	if entry, ok := productDetailCache.cache[cacheKey]; ok && time.Now().Before(entry.expiresAt) {
 		cachedData := entry.data
 		productDetailCache.mu.RUnlock()
 		c.JSON(http.StatusOK, cachedData)
@@ -370,7 +382,7 @@ func getProduct(c *gin.Context) {
 		ORDER BY datetime ASC
 	`
 
-	rows, err := db.Query(query, currentMarketCode, productID)
+	rows, err := db.Query(query, market, productID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query product datapoints"})
 		return
@@ -407,7 +419,7 @@ func getProduct(c *gin.Context) {
 	}
 
 	// Get product name and URL from the most recent entry
-	err = db.QueryRow("SELECT name, url FROM products WHERE market_code = $1 AND product_id = $2 ORDER BY datetime DESC LIMIT 1", currentMarketCode, productID).Scan(&name, &url)
+	err = db.QueryRow("SELECT name, url FROM products WHERE market_code = $1 AND product_id = $2 ORDER BY datetime DESC LIMIT 1", market, productID).Scan(&name, &url)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get product details"})
 		return
@@ -420,7 +432,7 @@ func getProduct(c *gin.Context) {
 	var lowestDatetime, highestDatetime sql.NullTime
 	err = db.QueryRow(
 		"SELECT lowest_price, lowest_price_datetime, highest_price, highest_price_datetime, regular_price FROM stats WHERE market_code = $1 AND product_id = $2",
-		currentMarketCode, productID,
+		market, productID,
 	).Scan(&lowestPriceInfo.LowestPrice, &lowestDatetime, &highestPriceInfo.HighestPrice, &highestDatetime, &regularPrice)
 	if err == nil {
 		if lowestDatetime.Valid {
@@ -470,6 +482,8 @@ func getProduct(c *gin.Context) {
 
 	// Build response and cache it
 	response := gin.H{
+		"market":          market,
+		"currency":        supportedMarkets[market].currency,
 		"product_id":      productID,
 		"name":            name,
 		"url":             url,
@@ -483,9 +497,8 @@ func getProduct(c *gin.Context) {
 	}
 
 	productDetailCache.mu.Lock()
-	productDetailCache.cache[productID] = productCacheEntry{
-		data:      response,
-		expiresAt: time.Now().Add(cacheDuration),
+	if generation == productDetailCache.generation {
+		productDetailCache.cache[cacheKey] = productCacheEntry{data: response, expiresAt: time.Now().Add(cacheDuration)}
 	}
 	productDetailCache.mu.Unlock()
 
@@ -493,7 +506,8 @@ func getProduct(c *gin.Context) {
 }
 
 func getCategories(c *gin.Context) {
-	rows, err := db.Query("SELECT category FROM categories WHERE market_code=$1", currentMarketCode)
+	market := requestMarket(c)
+	rows, err := db.Query("SELECT category FROM categories WHERE market_code=$1", market)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get categories"})
 		return
@@ -519,11 +533,12 @@ func getCategories(c *gin.Context) {
 		categories = []string{}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"categories": categories})
+	c.JSON(http.StatusOK, gin.H{"market": market, "currency": supportedMarkets[market].currency, "categories": categories})
 }
 
 // getProductsByCategory returns all products from the most recent scrape filtered by category
 func getProductsByCategory(c *gin.Context) {
+	market := requestMarket(c)
 	category := strings.TrimPrefix(c.Param("category"), "/")
 	if category == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Category is required"})
@@ -532,14 +547,14 @@ func getProductsByCategory(c *gin.Context) {
 
 	// Get the newest datetime from products table
 	var newestDatetime sql.NullTime
-	err := db.QueryRow("SELECT MAX(datetime) FROM products WHERE market_code=$1", currentMarketCode).Scan(&newestDatetime)
+	err := db.QueryRow("SELECT MAX(datetime) FROM products WHERE market_code=$1", market).Scan(&newestDatetime)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get newest datetime"})
 		return
 	}
 
 	if !newestDatetime.Valid {
-		c.JSON(http.StatusOK, gin.H{"products": []ProductResponse{}, "datetime": nil, "category": category})
+		c.JSON(http.StatusOK, gin.H{"market": market, "currency": supportedMarkets[market].currency, "count": 0, "products": []ProductResponse{}, "datetime": nil, "category": category})
 		return
 	}
 
@@ -561,14 +576,14 @@ func getProductsByCategory(c *gin.Context) {
 		WHERE p.market_code = $1 AND p.datetime = $2 AND p.category @> $3::jsonb
 	`
 
-	rows, err := db.Query(query, currentMarketCode, newestDatetime.Time, string(categoryFilter))
+	rows, err := db.Query(query, market, newestDatetime.Time, string(categoryFilter))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query products"})
 		return
 	}
 	defer rows.Close()
 
-	var products []ProductResponse
+	products := []ProductResponse{}
 	for rows.Next() {
 		var p ProductResponse
 		var categoryJSON string
@@ -592,6 +607,8 @@ func getProductsByCategory(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
+		"market":   market,
+		"currency": supportedMarkets[market].currency,
 		"datetime": newestDatetime.Time.Format(time.RFC3339),
 		"category": category,
 		"count":    len(products),
@@ -630,6 +647,37 @@ func corsMiddleware() gin.HandlerFunc {
 	}
 }
 
+// Validate regional routes before a handler can read a cache or query the database.
+func marketMiddleware(c *gin.Context) {
+	market := strings.ToUpper(c.Param("market"))
+	if market == "UK" {
+		market = "GB"
+	}
+	if _, ok := supportedMarkets[market]; !ok {
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "Unsupported market"})
+		return
+	}
+	c.Set("market", market)
+	c.Next()
+}
+
+func requestMarket(c *gin.Context) string {
+	if market := c.GetString("market"); market != "" {
+		return market
+	}
+	return defaultMarketCode
+}
+
+func registerReadRoutes(router *gin.Engine) {
+	for _, group := range []*gin.RouterGroup{router.Group("/api"), router.Group("/api/:market", marketMiddleware)} {
+		group.GET("/products", getProducts)
+		group.GET("/category/*category", getProductsByCategory)
+		group.GET("/product/:id", getProduct)
+		group.GET("/product/:id/image", getProductImage)
+		group.GET("/categories", getCategories)
+	}
+}
+
 func main() {
 	// Initialize database on startup
 	if err := initDB(); err != nil {
@@ -640,19 +688,7 @@ func main() {
 	router := gin.Default()
 	router.Use(corsMiddleware())
 
-	// Public endpoint to get products
-	router.GET("/api/products", getProducts)
-
-	// Public endpoint to get products by category
-	router.GET("/api/category/*category", getProductsByCategory)
-
-	// Public endpoint to get single product with all datapoints
-	router.GET("/api/product/:id", getProduct)
-
-	// Public endpoint to get product image
-	router.GET("/api/product/:id/image", getProductImage)
-
-	router.GET("/api/categories", getCategories)
+	registerReadRoutes(router)
 
 	// Protected endpoint to ingest scraped data
 	authUser := os.Getenv("AUTH_USER")

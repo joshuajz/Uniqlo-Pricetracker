@@ -228,7 +228,7 @@ func TestLegacyImagesAreDiscardedOnce(t *testing.T) {
 }
 
 func fixture(date, price string) ScraperOutput {
-	return marketFixture(date, currentMarketCode, currentCurrencyCode, price)
+	return marketFixture(date, defaultMarketCode, defaultCurrencyCode, price)
 }
 
 func marketFixture(date, market, currency, price string) ScraperOutput {

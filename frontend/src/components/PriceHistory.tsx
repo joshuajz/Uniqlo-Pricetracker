@@ -1,3 +1,4 @@
+import { useMarket } from '../context/MarketContext'
 import { useMemo } from 'react'
 import { Area, AreaChart, CartesianGrid, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { ProductDatapoint } from '../types/types'
@@ -38,6 +39,8 @@ function priceCalendar(observations: Observation[]): CalendarMonth[] {
 }
 
 export default function PriceHistory({ datapoints, typicalPrice }: { datapoints: ProductDatapoint[]; typicalPrice: number }) {
+  const market = useMarket()
+  const formatMoney = (value: number) => money(value, market)
   const observations = useMemo(() => recordedHistory(datapoints), [datapoints])
   const series = useMemo(() => chartHistory(datapoints), [datapoints])
   const calendarMonths = useMemo(() => priceCalendar(observations), [observations])
@@ -61,9 +64,9 @@ export default function PriceHistory({ datapoints, typicalPrice }: { datapoints:
       <div className="chart-heading"><h3 id="history-heading">Price history</h3>
         <span>{dateLabel(first.time, true)} – {dateLabel(last.time, true)}</span>
       </div>
-      {observations.length === 1 ? <p className="notice">Tracking started {dateLabel(first.time, true)} at {money(first.price)} CAD. More daily observations are needed to show a trend.</p>
+      {observations.length === 1 ? <p className="notice">Tracking started {dateLabel(first.time, true)} at {formatMoney(first.price)} {market.currency}. More daily observations are needed to show a trend.</p>
         : <>
-          <div className="history-chart" role="img" aria-label={`Daily recorded prices in CAD. First ${money(first.price)} on ${dateLabel(first.time, true)}; latest ${money(last.price)} on ${dateLabel(last.time, true)}. A date and price table follows.`}>
+          <div className="history-chart" role="img" aria-label={`Daily recorded prices in ${market.currency}. First ${formatMoney(first.price)} on ${dateLabel(first.time, true)}; latest ${formatMoney(last.price)} on ${dateLabel(last.time, true)}. A date and price table follows.`}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={series} margin={{ top: 14, right: 26, left: 0, bottom: 6 }}>
                 <CartesianGrid vertical={false} stroke="var(--border)" />
@@ -71,10 +74,10 @@ export default function PriceHistory({ datapoints, typicalPrice }: { datapoints:
                   tickFormatter={time => dateLabel(Number(time))} tick={{ fontSize: 11, fill: 'var(--muted)' }}
                   axisLine={false} tickLine={false} minTickGap={22} />
                 <YAxis domain={[Math.max(0, min - pad), max + pad]} width={65} tickCount={3}
-                  tickFormatter={value => money(Number(value))} tick={{ fontSize: 11, fill: 'var(--muted)' }}
+                  tickFormatter={value => formatMoney(Number(value))} tick={{ fontSize: 11, fill: 'var(--muted)' }}
                   axisLine={false} tickLine={false} />
                 <Tooltip labelFormatter={value => dateLabel(Number(value), true)}
-                  formatter={value => [money(Number(value)), 'Recorded price']}
+                  formatter={value => [formatMoney(Number(value)), 'Recorded price']}
                   contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 0, color: 'var(--ink)', fontSize: 12 }}
                   labelStyle={{ color: 'var(--muted)' }} itemStyle={{ color: 'var(--ink)' }}
                   cursor={{ stroke: 'var(--muted)' }} />
@@ -86,7 +89,7 @@ export default function PriceHistory({ datapoints, typicalPrice }: { datapoints:
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <p className="chart-caption">Dashed line: typical tracked price ({money(typicalPrice)}).{hasGaps && ' Gaps indicate days without a recorded price.'}</p>
+          <p className="chart-caption">Dashed line: typical tracked price ({formatMoney(typicalPrice)}).{hasGaps && ' Gaps indicate days without a recorded price.'}</p>
         </>}
       <details className="history-calendar">
         <summary>View all {observations.length} recorded {observations.length === 1 ? 'price' : 'prices'}</summary>
@@ -100,9 +103,9 @@ export default function PriceHistory({ datapoints, typicalPrice }: { datapoints:
                 ? <span className="price-calendar-day is-empty" aria-hidden="true" key={day} />
                 : observation ? <time className="price-calendar-day has-price" data-level={priceLevel(observation.price)}
                     dateTime={new Date(observation.time).toISOString().slice(0, 10)}
-                    title={`${dateLabel(observation.time, true)}: ${money(observation.price)}`}
-                    aria-label={`${dateLabel(observation.time, true)}: ${money(observation.price)}`} key={day}>
-                    <span>{day}</span><strong>{money(observation.price)}</strong>
+                    title={`${dateLabel(observation.time, true)}: ${formatMoney(observation.price)}`}
+                    aria-label={`${dateLabel(observation.time, true)}: ${formatMoney(observation.price)}`} key={day}>
+                    <span>{day}</span><strong>{formatMoney(observation.price)}</strong>
                   </time>
                 : <span className="price-calendar-day is-missing" aria-label={`${month.label} ${day}: no recorded price`} key={day}><span>{day}</span></span>)}
             </div>
@@ -110,9 +113,9 @@ export default function PriceHistory({ datapoints, typicalPrice }: { datapoints:
         </div>
         <table className="sr-only">
           <caption>Daily recorded prices, most recent first</caption>
-          <thead><tr><th scope="col">Recording date</th><th scope="col">Price (CAD)</th></tr></thead>
+          <thead><tr><th scope="col">Recording date</th><th scope="col">Price ({market.currency})</th></tr></thead>
           <tbody>{[...observations].reverse().map(point => <tr key={point.time}>
-            <td>{dateLabel(point.time, true)}</td><td>{money(point.price)}</td>
+            <td>{dateLabel(point.time, true)}</td><td>{formatMoney(point.price)}</td>
           </tr>)}</tbody>
         </table>
       </details>

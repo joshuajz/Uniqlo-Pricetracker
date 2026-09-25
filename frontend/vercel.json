@@ -16,12 +16,11 @@
     }
   ],
   "rewrites": [
-    { "source": "/", "destination": "/api/page?path=/" },
-    { "source": "/categories", "destination": "/api/page?path=/categories" },
-    { "source": "/faq", "destination": "/api/page?path=/faq" },
-    { "source": "/terms", "destination": "/api/page?path=/terms" },
-    { "source": "/privacy", "destination": "/api/page?path=/privacy" },
-    { "source": "/products/:id", "destination": "/api/page?path=/products/:id" },
-    { "source": "/((?!assets/).*)", "destination": "/index.html" }
+    {"source": "/", "destination": "/api/page?path=/"},
+    {"source": "/:page(categories|dashboard|faq|terms|privacy)", "destination": "/api/page?path=/:page"},
+    {"source": "/products/:id", "destination": "/api/page?path=/products/:id"},
+    {"source": "/:market(ca|us|uk|jp|gb)", "destination": "/api/page?path=/:market"},
+    {"source": "/:market(ca|us|uk|jp|gb)/:path*", "destination": "/api/page?path=/:market/:path*"},
+    {"source": "/:path((?!assets/|api/|flags/|.*\\.[^/]+$).*)", "destination": "/api/page?path=/:path"}
   ]
 }

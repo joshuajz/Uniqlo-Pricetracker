@@ -16,9 +16,7 @@ export interface BrowseFilters {
   limit: number
 }
 
-export const money = (value: number) => new Intl.NumberFormat('en-CA', {
-  style: 'currency', currency: 'CAD',
-}).format(value)
+export { money } from './markets.ts'
 export const isOnSale = (p: Product) => p.price < p.regular_price
 // Match the API: a new product at its typical price is not a historical-low deal.
 export const isLowestRecorded = (p: Product) => p.price <= p.lowest_price && p.lowest_price < p.regular_price

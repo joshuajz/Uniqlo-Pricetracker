@@ -1,4 +1,8 @@
+import type { Market } from '../lib/markets'
+
 export interface ProductsAPI {
+  market: Market['code']
+  currency: Market['currency']
   count: number,
   datetime: string | null,
   products: Product[]
@@ -23,6 +27,8 @@ export interface ProductDatapoint {
 }
 
 export interface ProductDetail {
+  market: Market['code']
+  currency: Market['currency']
   product_id: string
   name: string
   url: string

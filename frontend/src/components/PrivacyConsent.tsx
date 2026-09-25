@@ -1,9 +1,12 @@
+import { useMarket } from '../context/MarketContext'
+import { marketPath } from '../lib/markets'
 import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getAnalyticsConsent, PRIVACY_SETTINGS_EVENT, setAnalyticsConsent, type AnalyticsConsent } from '../lib/analytics'
 
 export default function PrivacyConsent() {
+  const market = useMarket()
   const [choice, setChoice] = useState<AnalyticsConsent>(getAnalyticsConsent)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -32,7 +35,7 @@ export default function PrivacyConsent() {
 
   const copy = <>
     <p>With your permission, we use US-based PostHog to collect pseudonymous page views and interactions, along with browser, device and approximate-location data. We do not record sessions or form text. Declining does not affect the price tracker.</p>
-    <Link to="/privacy">Read the privacy policy</Link>
+    <Link to={marketPath(market, '/privacy')}>Read the privacy policy</Link>
   </>
 
   if (settingsOpen) return <div className="privacy-backdrop" role="presentation" onClick={(event) => {

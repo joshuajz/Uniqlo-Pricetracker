@@ -1,3 +1,5 @@
+import { marketPath } from '../lib/markets'
+import { useMarket } from '../context/MarketContext'
 import { lazy, Suspense, useEffect, useMemo, useRef } from 'react'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { Link, useLocation, useParams } from 'react-router-dom'
@@ -19,6 +21,8 @@ interface ProductLocationState {
 }
 
 export default function ProductPage() {
+  const market = useMarket()
+  const formatMoney = (value: number) => money(value, market)
   const { productId = '' } = useParams()
   const location = useLocation()
   const state = (location.state ?? {}) as ProductLocationState
@@ -39,9 +43,9 @@ export default function ProductPage() {
   const firstDate = observations[0] ? new Date(observations[0].time).toISOString() : null
   const archived = !!productsQuery.data && !productsQuery.data.products.some(item => item.product_id === productId)
   const notFound = detailQuery.error instanceof ApiError && detailQuery.error.status === 404
-  const origin = typeof state.productPageOrigin === 'string' && state.productPageOrigin.startsWith('/')
-    ? state.productPageOrigin : '/categories'
-  const backLabel = origin.startsWith('/categories') ? 'All products' : 'Back to deals'
+  const origin = typeof state.productPageOrigin === 'string' && (state.productPageOrigin === marketPath(market) || state.productPageOrigin.startsWith(marketPath(market) + '/') || state.productPageOrigin.startsWith(marketPath(market) + '?'))
+    ? state.productPageOrigin : marketPath(market, '/categories')
+  const backLabel = origin.startsWith(marketPath(market, '/categories')) ? 'All products' : 'Back to deals'
 
   useEffect(() => {
     applyMetadata(pageMetadata(location.pathname, product, notFound))
@@ -79,9 +83,9 @@ export default function ProductPage() {
   const saving = product.regular_price - product.price
   const priceStatus = isLowestRecorded(product) ? 'Lowest recorded'
     : isOnSale(product) ? 'Below typical'
-      : product.price > product.lowest_price ? `Lowest recorded: ${money(product.lowest_price)}` : 'No lower price recorded'
-  const priceContext = isOnSale(product) ? `Save ${money(saving)} · ${discountPct(product)}%`
-    : product.price > product.lowest_price ? `${money(product.price - product.lowest_price)} above the low` : ''
+      : product.price > product.lowest_price ? `Lowest recorded: ${formatMoney(product.lowest_price)}` : 'No lower price recorded'
+  const priceContext = isOnSale(product) ? `Save ${formatMoney(saving)} · ${discountPct(product)}%`
+    : product.price > product.lowest_price ? `${formatMoney(product.price - product.lowest_price)} above the low` : ''
 
   return <div className="product-detail-page page-container">
     <nav className="product-page-path" aria-label="Breadcrumb">
@@ -99,9 +103,9 @@ export default function ProductPage() {
           <h1 tabIndex={-1}>{product.name}</h1>
         </header>
         <div className="product-page-buy">
-          <div className="product-page-price"><strong>{money(product.price)}</strong><span>CAD</span>
+          <div className="product-page-price"><strong>{formatMoney(product.price)}</strong><span>{market.currency}</span>
             {isOnSale(product) && <span className="product-page-typical"><span>Typical</span>
-              <del aria-label={`Typical tracked price ${money(product.regular_price)}`}>{money(product.regular_price)}</del></span>}
+              <del aria-label={`Typical tracked price ${formatMoney(product.regular_price)}`}>{formatMoney(product.regular_price)}</del></span>}
           </div>
           <div className={`product-page-verdict ${isLowestRecorded(product) ? 'at-lowest' : ''}`}>
             <strong>{priceStatus}</strong>{priceContext && <span>{priceContext}</span>}
@@ -135,7 +139,7 @@ export default function ProductPage() {
       <Suspense fallback={<div className="product-page-chart-loading" role="status"><div className="skeleton chart-skeleton" aria-hidden="true" /><p>Loading price chart…</p></div>}>
         <PriceHistory datapoints={detailQuery.data.datapoints} typicalPrice={detailQuery.data.regular_price} />
       </Suspense>
-      <Link className="product-comparison-link" to="/faq#price-comparisons">How prices are compared</Link>
+      <Link className="product-comparison-link" to={marketPath(market, "/faq#price-comparisons")}>How prices are compared</Link>
     </section>}
   </div>
 }

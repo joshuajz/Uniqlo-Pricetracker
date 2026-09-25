@@ -1,8 +1,11 @@
+import { useMarket } from '../context/MarketContext'
+import { marketPath } from '../lib/markets'
 import { Link } from 'react-router-dom'
 
-const EFFECTIVE_DATE = 'September 11, 2026'
+const EFFECTIVE_DATE = 'September 25, 2026'
 
 function PrivacyPolicy() {
+  const market = useMarket()
   return <article className="legal-page page-container">
     <header>
       <p className="legal-eyebrow">Legal</p>
@@ -25,7 +28,7 @@ function PrivacyPolicy() {
       <h3>Basic request information</h3>
       <p>Like most websites, our website and API hosting providers receive information needed to deliver and secure the Service. This may include your IP address, requested page or file, date and time, referring page, browser and device type, and diagnostic or security logs.</p>
       <h3>Device-only preferences</h3>
-      <p>Your browser may store your light or dark theme, search and filter state, scroll position, and analytics choice. These settings support the features you request and normally stay on your device. You can remove them through your browser settings, although doing so may reset your preferences and ask for your analytics choice again.</p>
+      <p>Your browser may store your light or dark theme, selected country, search and filter state, scroll position, and analytics choice. These settings support the features you request and normally stay on your device. You can remove them through your browser settings, although doing so may reset your preferences and ask for your analytics choice again.</p>
       <h3>Optional PostHog analytics</h3>
       <p>If you select “Allow analytics”, we use PostHog to measure pseudonymous page views and feature interactions. The data may include a random browser identifier, pages viewed, buttons or filters used, timestamps, referring page, browser and device details, and approximate location derived from an IP address.</p>
       <p>PostHog is a US-based service provider. Analytics information may be processed and stored in the United States and may be available to US authorities under applicable US law. We have configured PostHog not to use session replay, automatic click or form capture, heatmaps, performance monitoring, exception capture, surveys, or person profiles.</p>
@@ -56,7 +59,7 @@ function PrivacyPolicy() {
     <section>
       <h2>Your privacy rights</h2>
       <p>Depending on the law that applies to you, you may have rights to ask whether we hold personal information about you and to request access, correction, deletion, or withdrawal of consent. Because the Service has no accounts and analytics are pseudonymous, we may be unable to connect a record to you without additional information from your browser.</p>
-      <p>For now, use the <Link to="/faq">issue-reporting option on the FAQ page</Link> to request a private contact method. Do not place personal or sensitive information in a public GitHub issue.</p>
+      <p>For now, use the <Link to={marketPath(market, '/faq')}>issue-reporting option on the FAQ page</Link> to request a private contact method. Do not place personal or sensitive information in a public GitHub issue.</p>
     </section>
 
     <section>
@@ -69,11 +72,12 @@ function PrivacyPolicy() {
       <p>We may update this policy as the Service or applicable requirements change. We will post the revised policy here and update the effective date. If a change materially affects optional analytics, we will request consent again where required.</p>
     </section>
 
-    <p className="legal-related">Also read our <Link to="/terms">Terms of Service</Link>.</p>
+    <p className="legal-related">Also read our <Link to={marketPath(market, '/terms')}>Terms of Service</Link>.</p>
   </article>
 }
 
 function TermsOfService() {
+  const market = useMarket()
   return <article className="legal-page page-container">
     <header>
       <p className="legal-eyebrow">Legal</p>
@@ -88,12 +92,12 @@ function TermsOfService() {
 
     <section>
       <h2>Acceptance</h2>
-      <p>These Terms govern your use of Uniqlo Price Tracker (the “Service”). By accessing or using the Service, you agree to these Terms and the <Link to="/privacy">Privacy Policy</Link>. If you do not agree, do not use the Service.</p>
+      <p>These Terms govern your use of Uniqlo Price Tracker (the “Service”). By accessing or using the Service, you agree to these Terms and the <Link to={marketPath(market, '/privacy')}>Privacy Policy</Link>. If you do not agree, do not use the Service.</p>
     </section>
 
     <section>
       <h2>What the Service provides</h2>
-      <p>The Service records publicly displayed UNIQLO Canada prices and presents historical comparisons. “Typical tracked price”, “lowest recorded” and discount labels refer only to observations collected by the Service after tracking began. They are not necessarily UNIQLO’s list price, ordinary selling price, advertised discount, or the lowest price available from any seller.</p>
+      <p>The Service records publicly displayed UNIQLO prices in Canada, the United States, the United Kingdom, and Japan and presents historical comparisons. “Typical tracked price”, “lowest recorded” and discount labels refer only to observations collected by the Service after tracking began. They are not necessarily UNIQLO’s list price, ordinary selling price, advertised discount, or the lowest price available from any seller.</p>
       <p>The Service does not sell products, process payments, guarantee inventory, track every size or colour, or form part of any purchase contract. Your purchase, delivery, return, warranty and account relationship is solely with the retailer.</p>
     </section>
 
@@ -129,7 +133,7 @@ function TermsOfService() {
       <p>We may update these Terms by posting a revised version and changing the effective date. Your continued use after a change means the revised Terms apply from that point forward. If any provision is found unenforceable, the remaining provisions continue to apply to the fullest extent permitted by law. A failure to enforce a provision is not a waiver.</p>
     </section>
 
-    <p className="legal-related">Also read our <Link to="/privacy">Privacy Policy</Link>.</p>
+    <p className="legal-related">Also read our <Link to={marketPath(market, '/privacy')}>Privacy Policy</Link>.</p>
   </article>
 }
 

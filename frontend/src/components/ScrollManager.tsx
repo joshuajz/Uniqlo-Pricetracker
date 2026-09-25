@@ -1,3 +1,4 @@
+import { splitMarketPath } from '../lib/markets'
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 
@@ -23,8 +24,8 @@ export default function ScrollManager() {
   params.sort()
   // Filters change the result set in place; they should not trigger a scroll restoration.
   // Deals and All products also share one continuous browsing position.
-  const browsing = pathname === '/' || pathname === '/categories'
-  const page = browsing ? 'browse' : pathname + '?' + params.toString()
+  const browsing = ['/', '/categories'].includes(splitMarketPath(pathname).path)
+  const page = browsing ? `${splitMarketPath(pathname).market?.code}:browse` : pathname + '?' + params.toString()
   useEffect(() => {
     const previous = history.scrollRestoration
     history.scrollRestoration = 'manual'
@@ -33,7 +34,7 @@ export default function ScrollManager() {
   useLayoutEffect(() => {
     const previous = previousPath.current
     previousPath.current = pathname
-    const isBrowse = (path: string) => path === '/' || path === '/categories'
+    const isBrowse = (path: string) => ['/', '/categories'].includes(splitMarketPath(path).path)
     let frame = 0
     if (previous !== pathname && isBrowse(previous) && isBrowse(pathname)) {
       const target = browseScroll.current

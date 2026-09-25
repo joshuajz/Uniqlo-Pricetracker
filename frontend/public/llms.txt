@@ -1,23 +1,23 @@
 # Uniqlo Price Tracker
 
-> A free, daily-updated price tracking tool for Uniqlo Canada.
+> A free, daily-updated price tracking tool for Uniqlo Canada, the United States, the United Kingdom, and Japan.
 
 ## What it does
 
-- Tracks prices across hundreds of Uniqlo Canada products, updated once per day
-- Shows every item **currently on sale** with exact discount percentages
+- Tracks prices across Uniqlo products in each supported country, updated once per day
+- Shows recorded prices below their typical tracked price, with discount percentages based on that history
 - Flags **Lowest recorded** prices — the cheapest observed since tracking began
 - Displays full **price history charts** for individual products
 - Organises products by Uniqlo category (e.g. T-Shirts, Jeans, Outerwear, Knitwear, etc.)
-- Covers Women's, Men's and Kids' lines
+- Covers Women's, Men's, Kids' and Baby lines
 
 ## Who it's for
 
-Shoppers in Canada who want to know when Uniqlo products go on sale or reach their lowest price observed by the tracker, without checking the Uniqlo website manually every day.
+Shoppers in supported countries who want to know when Uniqlo products go on sale or reach their lowest price observed by the tracker, without checking the Uniqlo website manually every day.
 
 ## Key facts
 
-- Region: Canada (prices in CAD)
+- Regions: /ca (CAD), /us (USD), /uk (GBP), /jp (JPY); Canada is the default. Prices are not currency conversions.
 - Update frequency: Once per day
 - Free to use — no account or sign-up required
 - Not affiliated with Uniqlo Co., Ltd.

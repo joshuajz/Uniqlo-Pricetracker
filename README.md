@@ -1,6 +1,6 @@
 # Uniqlo Price Tracker
 
-A simple web app for following Uniqlo Canada product prices and viewing their price history.
+A simple web app for following Uniqlo product prices in Canada, the US, the UK, and Japan and viewing their price history.
 
 ## Project structure
 
@@ -68,9 +68,8 @@ Deploy the API to a Go-compatible service such as Railway with a PostgreSQL data
 Run the Canada scraper on a schedule, such as the included daily GitHub Actions
 job. It needs `API_URL`, `AUTH_USER`, and `AUTH_PASS` to upload the latest prices
 to the API. The ingestion endpoint also accepts the UK, Japan, and US archives
-and routes their observations into separate PostgreSQL product partitions. The
-public read API remains Canada-only until the frontend market selector is wired
-to regional endpoints.
+and routes their observations into separate PostgreSQL product partitions. Public reads use `/api/ca`, `/api/us`, `/api/uk`, and `/api/jp` prefixes.
+Unprefixed API routes continue to return Canada for compatibility.
 
 The scheduled GitHub workflow records prices daily and downloads product images
 on the first day of each month (UTC). New products may have no photo until the
@@ -80,3 +79,35 @@ next monthly refresh. Manual runs can opt into image downloads with
 The Go API compresses incoming photos to JPEG quality 80 before database storage,
 preserving their pixel dimensions and keeping already smaller JPEGs unchanged.
 Existing stored photos are replaced when a later image upload includes them.
+
+## Country selection and rollout
+
+The site uses `/ca`, `/us`, `/uk`, and `/jp`, with catalogue and product links
+under each country (for example `/jp/products/E123456-000`). `/gb` is an alias
+that redirects to `/uk`; the database continues to use the ISO code `GB`.
+The country in a URL always wins. Visits to `/` redirect in the browser to the
+country saved in `localStorage` (`uniqlo-market`), or Canada when no valid
+preference is available. Storage failures also default to Canada. Old unprefixed
+links such as `/products/E123456-000` remain Canadian and redirect to `/ca/...`.
+
+The selector preserves the page type but clears country-specific filters.
+From a product page it opens the new country's catalogue: product IDs are not
+assumed to identify equivalent items across storefronts. Lists, history,
+images, statistics, caches, currency formatting, and sharing metadata are all
+scoped to the country. Prices use the storefront's currency; no conversion is
+performed. Japanese product names remain in the source language.
+
+Deploy the API before the frontend. The database is already partitioned for
+all four markets, so enabling the public regional reads needs no new data
+migration. Deploy `frontend` with the included Vercel rewrites so direct loads
+and shared links use the regional HTML metadata handler. Verify `/ca`, `/us`,
+`/uk`, `/jp`, a product deep link, and the `/` saved-country redirect after
+publishing. Root preference redirects require JavaScript; `localStorage` is
+not available to the server.
+
+Before launch, check image coverage for each market. The September 25 review
+found regional price history starting September 13, but stored images only
+for Canada. Trigger each regional workflow with `include_images` to populate
+photos ahead of the normal first-of-month image refresh. Until then the UI
+uses its image-unavailable placeholder. Deal counts may be small with short
+histories; all tracked products are still available in All products.

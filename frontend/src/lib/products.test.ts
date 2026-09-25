@@ -144,7 +144,8 @@ test('history preserves time gaps and handles one observation without inventing 
 })
 
 test('a historical product can be rendered without today’s product list', () => {
-  const detail: ProductDetail = { product_id: 'archived', name: 'Archived shirt', url: 'https://www.uniqlo.com/ca/en/',
+  const detail: ProductDetail = {
+    market: 'CA', currency: 'CAD', product_id: 'archived', name: 'Archived shirt', url: 'https://www.uniqlo.com/ca/en/',
     datapoints: [{ datetime: '2026-08-20T00:00:00Z', price: 19.9, categories: ['men/tops'] }],
     lowest_price: { lowest_price: 19.9, lowest_price_datetime: '2026-08-20T00:00:00Z' },
     highest_price: { highest_price: 39.9, highest_price_datetime: '2026-05-01T00:00:00Z' },

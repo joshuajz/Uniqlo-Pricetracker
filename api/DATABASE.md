@@ -90,10 +90,18 @@ for the same market and date returns HTTP 409. Replaying the same archive does
 not add observations. Backfills retain their original recording dates and
 cannot replace newer images.
 
-The public read endpoints remain scoped to Canada until the frontend market
-selector is connected to the API. Other market archives can be ingested safely,
-but they are not returned by the current public product, category, detail, or
-image routes.
+The public read endpoints accept a validated country prefix:
+`/api/{ca|us|uk|jp}/products`, `/product/:id`, `/product/:id/image`,
+`/categories`, and `/category/*category` (all under that same prefix).
+`uk` and `gb` both map to the database's `GB` market. Unsupported markets return
+404 before querying the database. The legacy unprefixed endpoints remain
+Canadian. JSON responses include `market` and `currency`, including empty
+catalogues. Every query, statistics join, image lookup, and cache key is
+market-scoped. Successful ingestion invalidates read caches; a generation check
+prevents an in-flight older read from repopulating an invalidated cache.
+
+No schema migration is needed to enable these regional reads on the existing
+partitioned database.
 
 ## Image storage
 

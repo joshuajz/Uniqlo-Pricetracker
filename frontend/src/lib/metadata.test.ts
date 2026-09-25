@@ -20,8 +20,8 @@ test('initial product HTML contains escaped product-specific sharing metadata', 
   const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8')
   const product = { product_id: 'E1', name: 'Shirt "A" <script>alert(1)</script> & $&', price: 19.9 }
   const rendered = renderMetadata(html, pageMetadata('/products/E1', product))
-  assert.ok(rendered.includes(`<link rel="canonical" href="${SITE_URL}/products/E1"`))
-  assert.ok(rendered.includes(`<meta property="og:url" content="${SITE_URL}/products/E1"`))
+  assert.ok(rendered.includes(`<link rel="canonical" href="${SITE_URL}/ca/products/E1"`))
+  assert.ok(rendered.includes(`<meta property="og:url" content="${SITE_URL}/ca/products/E1"`))
   assert.ok(rendered.includes('last recorded price $19.90 CAD'))
   assert.ok(rendered.includes('&lt;script&gt;alert(1)&lt;/script&gt;'))
   assert.ok(!rendered.includes('<script>alert(1)</script>'))
@@ -33,7 +33,7 @@ test('initial product HTML contains escaped product-specific sharing metadata', 
 
 test('static and missing routes get their own canonical URLs and indexing policy', () => {
   for (const route of ['/categories', '/faq']) {
-    assert.equal(pageMetadata(route).url, SITE_URL + route)
+    assert.equal(pageMetadata(route).url, SITE_URL + '/ca' + route)
     assert.equal(pageMetadata(route).noindex, false)
   }
   assert.equal(pageMetadata('/products/missing', undefined, true).noindex, true)
