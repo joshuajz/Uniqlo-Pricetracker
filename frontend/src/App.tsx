@@ -18,16 +18,24 @@ import LegalPage from './pages/LegalPage'
 
 function PageviewTracker() {
   const location = useLocation()
-  const previousPath = useRef(location.pathname)
   useEffect(() => {
     track('$pageview')
     if (!splitMarketPath(location.pathname).path.startsWith('/products/')) applyMetadata(pageMetadata(location.pathname))
   }, [location])
+  return null
+}
+
+function RouteFocusManager() {
+  const { pathname } = useLocation()
+  const previousPath = useRef(pathname)
   useEffect(() => {
-    if (previousPath.current === location.pathname) return
-    previousPath.current = location.pathname
-    document.querySelector<HTMLElement>('#main-content h1')?.focus({ preventScroll: true })
-  }, [location.pathname])
+    if (previousPath.current === pathname) return
+    previousPath.current = pathname
+    const heading = document.querySelector<HTMLElement>('#main-content h1')
+    if (heading) heading.tabIndex = -1
+    const target = heading ?? document.getElementById('main-content')
+    target?.focus({ preventScroll: true })
+  }, [pathname])
   return null
 }
 
@@ -61,7 +69,7 @@ function MarketSite() {
 }
 
 export default function App() {
-  return <BrowserRouter><Routes>
+  return <BrowserRouter><RouteFocusManager /><Routes>
     {['/', '/categories', '/dashboard', '/products/:productId', '/faq', '/terms', '/privacy'].map(path =>
       <Route key={path} path={path} element={<LegacyRedirect />} />)}
     <Route path="/:market/*" element={<MarketSite />} />
