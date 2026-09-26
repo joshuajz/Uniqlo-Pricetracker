@@ -1,6 +1,5 @@
 import { DEFAULT_MARKET, legacyDestination, marketPath, splitMarketPath } from '../src/lib/markets.ts'
 import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { pageMetadata, renderMetadata } from '../src/lib/metadata.ts'
 
@@ -53,7 +52,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     res.end()
     return
   }
-  const template = await readFile(join(process.cwd(), 'dist', 'index.html'), 'utf8')
+  const template = await readFile(new URL('../dist/index.html', import.meta.url), 'utf8')
   const { status, html } = await renderPage(path, template, process.env.VITE_API_URL)
   res.statusCode = status
   res.setHeader('Content-Type', 'text/html; charset=utf-8')

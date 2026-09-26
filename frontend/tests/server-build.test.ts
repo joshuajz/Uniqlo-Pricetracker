@@ -12,20 +12,22 @@ test('compiled server handler loads as ESM and serves direct country requests', 
   const config = ts.readConfigFile(new URL('tsconfig.json', root).pathname, ts.sys.readFile)
   const { options } = ts.parseJsonConfigFileContent(config.config, ts.sys, root.pathname)
   const output = await mkdtemp(join(tmpdir(), 'uniqlo-server-'))
+  const project = join(output, 'frontend')
   try {
-    await writeFile(join(output, 'package.json'), '{"type":"module"}')
+    await mkdir(project)
+    await writeFile(join(project, 'package.json'), '{"type":"module"}')
     for (const file of ['api/page.ts', 'src/lib/metadata.ts', 'src/lib/markets.ts']) {
       const source = await readFile(new URL(file, root), 'utf8')
       const compiled = ts.transpileModule(source, { compilerOptions: options, fileName: file })
-      const destination = join(output, file.replace(/\.ts$/, '.js'))
+      const destination = join(project, file.replace(/\.ts$/, '.js'))
       await mkdir(dirname(destination), { recursive: true })
       await writeFile(destination, compiled.outputText)
     }
-    const { default: handler } = await import(pathToFileURL(join(output, 'api/page.js')).href)
-    // The production template is read relative to the function working directory.
-    // Supply an isolated fixture so this check also runs before a Vite build.
-    await mkdir(join(output, 'dist'))
-    await writeFile(join(output, 'dist/index.html'), await readFile(new URL('index.html', root)))
+    const { default: handler } = await import(pathToFileURL(join(project, 'api/page.js')).href)
+    // Vercel preserves the frontend directory inside the function package, but
+    // starts the process at the package root rather than inside frontend.
+    await mkdir(join(project, 'dist'))
+    await writeFile(join(project, 'dist/index.html'), await readFile(new URL('index.html', root)))
     const previous = process.cwd()
     process.chdir(output)
     try {
