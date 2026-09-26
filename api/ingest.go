@@ -47,9 +47,13 @@ type preparedIngest struct {
 	products   []ingestProduct
 }
 
-// Validate the entire archive before opening a transaction. All dates are UTC
+// Validate the entire archive before product writes. All dates are UTC
 // calendar dates, matching the frontend and the direct scraper.
 func prepareIngest(output ScraperOutput, images map[string]*zip.File) (preparedIngest, error) {
+	return prepareIngestContext(context.Background(), output, images)
+}
+
+func prepareIngestContext(ctx context.Context, output ScraperOutput, images map[string]*zip.File) (preparedIngest, error) {
 	prepared := preparedIngest{output: output}
 	market, supported := supportedMarkets[output.Metadata.Market]
 	if !supported {
@@ -77,6 +81,9 @@ func prepareIngest(output ScraperOutput, images map[string]*zip.File) (preparedI
 			return prepared, fmt.Errorf("Empty category")
 		}
 		for _, product := range output.Products[category] {
+			if err := ctx.Err(); err != nil {
+				return prepared, err
+			}
 			total++
 			match := market.pricePattern.FindStringSubmatch(product.Price)
 			if len(match) != 2 {
@@ -159,6 +166,14 @@ func persistIngest(ctx context.Context, database *sql.DB, prepared preparedInges
 		return err
 	}
 	defer tx.Rollback()
+	if err := persistIngestTx(ctx, tx, prepared); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func persistIngestTx(ctx context.Context, tx *sql.Tx, prepared preparedIngest) error {
+	var err error
 	// Serialize complete snapshots, including competing scheduled/manual runs.
 	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(817423)`); err != nil {
 		return err
@@ -216,7 +231,7 @@ func persistIngest(ctx context.Context, database *sql.DB, prepared preparedInges
 			return err
 		}
 	}
-	return tx.Commit()
+	return nil
 }
 
 // persistProductImage stores final JPEG bytes once and maps the market-scoped

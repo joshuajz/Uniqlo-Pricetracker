@@ -22,6 +22,9 @@ The app opens at `http://localhost:5174`.
 ## Run the API
 
 The API needs PostgreSQL and these environment variables: `DATABASE_URL`, `AUTH_USER`, and `AUTH_PASS`.
+Set `INGEST_SPOOL_DIR` to a writable directory for local development. In production
+it must be on persistent storage; the default `/api/database/ingest` uses the
+existing Railway volume mounted at `/api/database`.
 
 ```bash
 cd api
@@ -79,6 +82,24 @@ next monthly refresh. Manual runs can opt into image downloads with
 The Go API compresses incoming photos to JPEG quality 80 before database storage,
 preserving their pixel dimensions and keeping already smaller JPEGs unchanged.
 Existing stored photos are replaced when a later image upload includes them.
+
+All four workflows use `python upload.py <country>/output.zip` from `scraper/`.
+The client streams the archive to `POST /api/ingest/jobs` with Basic Auth and
+`Content-Type: application/zip`, then polls `GET /api/ingest/jobs/<sha256>`.
+`API_URL` is the server origin (default `https://api.uniqlotracker.com`). An HTTP
+202 means the archive is durably queued; the workflow succeeds only when the
+job reports `succeeded`. It reports `failed` jobs immediately and waits up to
+45 minutes for queued work; the workflow budget is 60 minutes including scraping.
+Connection failures retry the same content-addressed job. Re-running the upload
+client with the same archive resumes polling without creating a duplicate import.
+
+Deploy the API with its persistent volume **before running the updated workflows**.
+The API adds the `ingest_jobs` table automatically. Its worker imports one job at
+a time, outside the upload request, and automatically retries unfinished jobs
+after a process or database restart. Completed archives are removed; small job
+records remain for status checks and deduplication. The existing synchronous
+`/api/products/injest` route remains available for older clients, but large
+image imports should use the job endpoints to avoid HTTP timeouts.
 
 ## Country selection and rollout
 

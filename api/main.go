@@ -2,16 +2,17 @@ package main
 
 import (
 	"archive/zip"
-	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -136,6 +137,9 @@ func initializeSchema(database *sql.DB) error {
 	if err := initializeImageSchema(database); err != nil {
 		return err
 	}
+	if err := initializeIngestJobs(database); err != nil {
+		return err
+	}
 	fmt.Println("Database initialized successfully")
 	return nil
 }
@@ -155,48 +159,12 @@ func injestProducts(c *gin.Context) {
 	}
 	defer src.Close()
 
-	fileBytes, err := io.ReadAll(src)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
-		return
-	}
-
-	zipReader, err := zip.NewReader(bytes.NewReader(fileBytes), int64(len(fileBytes)))
+	zipReader, err := zip.NewReader(src, file.Size)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ZIP file"})
 		return
 	}
-
-	var scraperOutput ScraperOutput
-	images := map[string]*zip.File{}
-	foundPrices := false
-
-	for _, f := range zipReader.File {
-		if f.Name == "prices.json" {
-			rc, err := f.Open()
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open prices.json"})
-				return
-			}
-
-			if err := json.NewDecoder(rc).Decode(&scraperOutput); err != nil {
-				rc.Close()
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse prices.json"})
-				return
-			}
-			rc.Close()
-			foundPrices = true
-		} else {
-			images[f.Name] = f
-		}
-	}
-
-	if !foundPrices {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "prices.json not found in ZIP"})
-		return
-	}
-
-	prepared, err := prepareIngest(scraperOutput, images)
+	prepared, err := prepareArchive(c.Request.Context(), zipReader)
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
@@ -211,23 +179,24 @@ func injestProducts(c *gin.Context) {
 		return
 	}
 
-	// Invalidate caches after ingesting new data
+	invalidateProductCaches()
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "Products ingested successfully",
+		"count":      len(prepared.products),
+		"categories": len(prepared.output.Products),
+		"metadata":   prepared.output.Metadata,
+	})
+}
+
+func invalidateProductCaches() {
 	productsCache.mu.Lock()
 	productsCache.cache = nil
 	productsCache.generation++
 	productsCache.mu.Unlock()
-
 	productDetailCache.mu.Lock()
 	productDetailCache.cache = make(map[string]productCacheEntry)
 	productDetailCache.generation++
 	productDetailCache.mu.Unlock()
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":    "Products ingested successfully",
-		"count":      len(prepared.products),
-		"categories": len(scraperOutput.Products),
-		"metadata":   scraperOutput.Metadata,
-	})
 }
 
 // getProducts returns all products from the most recent scrape with their lowest prices
@@ -697,10 +666,35 @@ func main() {
 		panic("AUTH_USER and AUTH_PASS environment variables must be set")
 	}
 	router.POST("/api/products/injest", gin.BasicAuth(gin.Accounts{authUser: authPass}), injestProducts)
+	spool := os.Getenv("INGEST_SPOOL_DIR")
+	if spool == "" {
+		spool = "/api/database/ingest"
+	}
+	jobs, err := newIngestQueue(db, spool)
+	if err != nil {
+		panic(err)
+	}
+	jobs.registerRoutes(router, authUser, authPass)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	workerDone := make(chan struct{})
+	go func() { defer close(workerDone); jobs.run(ctx) }()
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
-	router.Run("0.0.0.0:" + port)
+	server := &http.Server{Addr: "0.0.0.0:" + port, Handler: router, ReadHeaderTimeout: 10 * time.Second}
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = server.Shutdown(shutdownCtx)
+	}()
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		stop()
+		panic(err)
+	}
+	stop()
+	<-workerDone
 }

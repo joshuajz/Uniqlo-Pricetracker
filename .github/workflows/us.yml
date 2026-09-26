@@ -18,7 +18,7 @@ concurrency:
 jobs:
   scrape-latest:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     permissions:
       contents: read
     defaults:
@@ -46,6 +46,8 @@ jobs:
         env:
           PYTHONUNBUFFERED: 1
         run: python us/main.py
-      - name: Upload results to the API
-        run: |
-          curl --fail-with-body --show-error -X POST -F "file=@us/output.zip" -u "${{ secrets.AUTH_USER }}:${{ secrets.AUTH_PASS }}" https://api.uniqlotracker.com/api/products/injest
+      - name: Queue import and wait for completion
+        env:
+          AUTH_USER: ${{ secrets.AUTH_USER }}
+          AUTH_PASS: ${{ secrets.AUTH_PASS }}
+        run: python upload.py us/output.zip
