@@ -1,7 +1,7 @@
 import { useMarket } from '../context/MarketContext'
 import { marketPath, type Market } from '../lib/markets'
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Grid2X2, List, Search, SlidersHorizontal, X } from 'lucide-react'
+import { ArrowRight, Grid2X2, List, Search, SlidersHorizontal, Tag, X } from 'lucide-react'
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useProducts, productDetailOptions } from '../data/api'
@@ -258,11 +258,19 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
 
       <a className="skip-results-link" href="#product-results" inert={filterModalActive}>Skip filters and go to results</a>
       <div className="browse-controls" ref={browseControlsRef}>
+        <nav className="mobile-browse-scope" aria-label="Search scope" inert={filterModalActive}>
+          <Link to={{ pathname: marketPath(market), search: location.search }} aria-current={dealsOnly ? 'page' : undefined}>
+            <Tag size={15} aria-hidden="true" />Deals
+          </Link>
+          <Link to={{ pathname: marketPath(market, '/categories'), search: location.search }} aria-current={!dealsOnly ? 'page' : undefined}>
+            <Grid2X2 size={15} aria-hidden="true" />All products
+          </Link>
+        </nav>
         <div className="search-filter-row" inert={filterModalActive}>
           <label className="sr-only" htmlFor="product-search">Search {dealsOnly ? 'deals' : 'all products'}</label>
           <div className="search-box">
             <Search size={19} aria-hidden="true" />
-            <input id="product-search" type="search" placeholder="Search products or product ID"
+            <input id="product-search" type="search" placeholder={dealsOnly ? 'Search deals or product ID' : 'Search all products or product ID'}
               value={filters.query} onChange={e => updateFilters({ query: e.target.value }, true)} />
             {filters.query && <button className="icon-button" type="button" aria-label="Clear search"
               onClick={() => { updateFilters({ query: '' }, true); document.getElementById('product-search')?.focus() }}><X size={18} aria-hidden="true" /></button>}
