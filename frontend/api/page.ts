@@ -7,7 +7,7 @@ import { escapeHTML, pageMetadata, renderMetadata } from '../src/lib/metadata.ts
 export async function renderPage(path: string, template: string, apiURL: string | undefined, fetcher = fetch) {
   let content = ''
   let metadata = pageMetadata(path)
-  let status = metadata.noindex ? 404 : 200
+  let status = metadata.noindex && splitMarketPath(path).path !== '/saved' ? 404 : 200
   const resolved = splitMarketPath(path)
   if (/^\/products\/[^/]+$/.test(resolved.path)) {
     if (!apiURL || !/^https?:\/\//.test(apiURL)) {
@@ -69,7 +69,7 @@ export function redirectPath(path: string) {
     const canonical = marketPath(resolved.market, resolved.path === '/dashboard' ? '/' : resolved.path)
     return canonical === path ? undefined : canonical
   }
-  if (['/categories', '/dashboard', '/faq', '/terms', '/privacy'].includes(path) || /^\/products\/[^/]+$/.test(path)) {
+  if (['/categories', '/dashboard', '/saved', '/faq', '/terms', '/privacy'].includes(path) || /^\/products\/[^/]+$/.test(path)) {
     return legacyDestination(path)
   }
   // The home page needs browser storage to choose a country.

@@ -16,6 +16,8 @@ import ProductPage from './pages/ProductPage'
 import NotFoundPage from './pages/NotFoundPage'
 import PrivacyConsent from './components/PrivacyConsent'
 import LegalPage from './pages/LegalPage'
+import SavedPage from './pages/SavedPage'
+import { SavedProductsProvider, SavedStorageNotice } from './context/SavedProductsContext'
 
 function PageviewTracker() {
   const location = useLocation()
@@ -55,25 +57,26 @@ function MarketSite() {
   const canonical = marketPath(market, path)
   if (pathname !== canonical) return <Navigate replace to={{ pathname: canonical, search, hash }} />
   return <MarketContext.Provider value={market} key={market.code}>
-    <ScrollManager /><PageviewTracker />
-    <div className="app-shell"><a className="skip-link" href="#main-content">Skip to products and content</a><Navbar />
+    <SavedProductsProvider><ScrollManager /><PageviewTracker />
+    <div className="app-shell"><a className="skip-link" href="#main-content">Skip to products and content</a><Navbar /><SavedStorageNotice />
       <main id="main-content" tabIndex={-1}><Routes>
         <Route index element={<HomePage />} />
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="products/:productId" element={<ProductPage />} />
+        <Route path="saved" element={<SavedPage />} />
         <Route path="faq" element={<FAQPage />} />
         <Route path="terms" element={<LegalPage document="terms" />} />
         <Route path="privacy" element={<LegalPage document="privacy" />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes></main><Footer /><PrivacyConsent />
     </div>
-  </MarketContext.Provider>
+  </SavedProductsProvider></MarketContext.Provider>
 }
 
 export default function App() {
   return <BrowserRouter><RouteFocusManager /><Routes>
-    {['/', '/categories', '/dashboard', '/products/:productId', '/faq', '/terms', '/privacy'].map(path =>
+    {['/', '/categories', '/dashboard', '/saved', '/products/:productId', '/faq', '/terms', '/privacy'].map(path =>
       <Route key={path} path={path} element={<LegacyRedirect />} />)}
     <Route path="/:market/*" element={<MarketSite />} />
     <Route path="*" element={<NotFoundPage />} />

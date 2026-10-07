@@ -15,6 +15,7 @@ import type { BrowseFilters, ProductSort } from '../lib/products'
 import type { Product } from '../types/types'
 import ProductImage from '../components/ProductImage'
 import ProductSearch from '../components/ProductSearch'
+import SaveButton from '../components/SaveButton'
 import PageLoader from '../components/PageLoader'
 import ApiErrorFallback from '../components/ApiErrorFallback'
 
@@ -450,6 +451,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
                       <span className="discount">{discountPct(p)}% off</span></> : <span className="product-meta">{p.price === p.regular_price ? 'Typical price' : 'Above typical'}</span>}
                   </span><ArrowRight className="product-arrow" size={18} aria-hidden="true" />
                 </Link>
+                <SaveButton product={p} compact />
               </li>)}
             </ul>
             <div className="load-more"><p>Showing {Math.min(filters.limit, filtered.length)} of {filtered.length} {dealsOnly ? 'deal' : 'product'}{filtered.length === 1 ? '' : 's'}</p>

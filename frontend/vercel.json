@@ -19,7 +19,7 @@
     {"source": "/sitemap.xml", "destination": "/api/sitemap?path=/sitemap.xml"},
     {"source": "/sitemap-products-:market(ca|us|uk|jp)-:page([1-9][0-9]*).xml", "destination": "/api/sitemap?path=/sitemap-products-:market-:page.xml"},
     {"source": "/", "destination": "/api/page?path=/"},
-    {"source": "/:page(categories|dashboard|faq|terms|privacy)", "destination": "/api/page?path=/:page"},
+    {"source": "/:page(categories|dashboard|saved|faq|terms|privacy)", "destination": "/api/page?path=/:page"},
     {"source": "/products/:id", "destination": "/api/page?path=/products/:id"},
     {"source": "/:market(ca|us|uk|jp|gb)", "destination": "/api/page?path=/:market"},
     {"source": "/:market(ca|us|uk|jp|gb)/:path*", "destination": "/api/page?path=/:market/:path*"},

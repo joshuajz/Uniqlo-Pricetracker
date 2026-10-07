@@ -9,9 +9,10 @@ export function pageMetadata(pathname: string, product?: MetadataProduct, missin
   const market = resolved.market ?? DEFAULT_MARKET
   const path = resolved.path === '/dashboard' ? '/' : resolved.path
   const productRoute = /^\/products\/[^/]+$/.test(path)
-  let title = path === '/' ? 'Deals' : path === '/categories' ? 'All products' : path === '/faq' ? 'FAQ'
+  let title = path === '/' ? 'Deals' : path === '/categories' ? 'All products' : path === '/saved' ? 'Saved products' : path === '/faq' ? 'FAQ'
     : path === '/terms' ? 'Terms of service' : path === '/privacy' ? 'Privacy policy' : productRoute ? 'Product price history' : 'Page not found'
   let description = path === '/categories' ? `Browse the current Uniqlo ${market.name} catalogue and compare daily recorded prices in ${market.currency}.`
+    : path === '/saved' ? `View your saved Uniqlo ${market.name} products, latest recorded prices, and changes since you saved them.`
     : path === '/faq' ? `How Uniqlo Price Tracker records ${market.name} prices, calculates deals, and compares price history.`
     : path === '/terms' ? 'Terms governing use of the independent Uniqlo Price Tracker service.'
     : path === '/privacy' ? 'How Uniqlo Price Tracker handles browser preferences, hosting data, and optional PostHog analytics.'

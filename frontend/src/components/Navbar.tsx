@@ -6,11 +6,13 @@ import { useTheme } from '../context/ThemeContext'
 import { useMarket } from '../context/MarketContext'
 import { marketPath, splitMarketPath } from '../lib/markets'
 import MarketSelector from './MarketSelector'
+import { useSavedProducts } from '../context/SavedProductsContext'
 
 function rememberedSearch(key: string) { try { return sessionStorage.getItem(key) ?? '' } catch { return '' } }
 
 export default function Navbar() {
   const market = useMarket()
+  const { products: saved } = useSavedProducts()
   const storageKey = `uniqlo-browse-search:${market.code}`
   const { theme, toggle } = useTheme()
   const location = useLocation()
@@ -51,6 +53,7 @@ export default function Navbar() {
     <div className="nav-links">
       <NavLink to={{ pathname: marketPath(market), search }} end>Deals</NavLink>
       <NavLink to={{ pathname: marketPath(market, '/categories'), search }}>All products</NavLink>
+      <NavLink to={marketPath(market, '/saved')}>Saved <span className="nav-saved-count">{saved.length}</span></NavLink>
       <NavLink to={marketPath(market, '/faq')}>FAQ</NavLink>
     </div>
     <MarketSelector />
@@ -66,6 +69,7 @@ export default function Navbar() {
     {mobileMenuOpen && <div className="mobile-nav-panel" id="mobile-navigation">
       <NavLink to={{ pathname: marketPath(market), search }} end onClick={closeMobileMenu}>Deals</NavLink>
       <NavLink to={{ pathname: marketPath(market, '/categories'), search }} onClick={closeMobileMenu}>All products</NavLink>
+      <NavLink to={marketPath(market, '/saved')} onClick={closeMobileMenu}>Saved <span className="nav-saved-count">{saved.length}</span></NavLink>
       <NavLink to={marketPath(market, '/faq')} onClick={closeMobileMenu}>FAQ</NavLink>
       <span className="mobile-nav-context">Independent tracker · Prices checked daily</span>
     </div>}

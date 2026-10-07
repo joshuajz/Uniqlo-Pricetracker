@@ -58,6 +58,18 @@ router also supports the shortcut during local development. No new domain is
 needed for `www.uniqlotracker.com`. The domain must serve this frontend and
 preserve incoming paths (including when redirecting an apex domain to `www`).
 
+## Saved products
+
+Bookmark products from cards, list rows, or their detail pages. The Saved page shows
+latest recorded prices and changes from each product's price when saved. Lists stay
+in browser storage without an account and are separate for each country. Removing
+an item offers Undo. Clearing site storage also clears saved products.
+
+Products outside the current catalogue retain their history when available. If a
+price cannot refresh, the page labels the saved snapshot rather than treating it as
+a current price. When browser storage is blocked, the list lasts only for the open
+page and shows a notice.
+
 ## Run the API
 
 The API needs PostgreSQL and these environment variables: `DATABASE_URL`, `AUTH_USER`, and `AUTH_PASS`.

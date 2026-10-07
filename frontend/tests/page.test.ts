@@ -124,3 +124,15 @@ test('retailer-shaped URLs redirect to canonical regional histories', () => {
   assert.equal(redirectPath('/gb/en/products/E465185-000/00'), '/uk/products/E465185-000')
   assert.equal(redirectPath('/ca/products/E465185-000'), undefined)
 })
+
+
+test('saved pages are successful but private browser lists are not indexed', async () => {
+  for (const market of ['ca', 'us', 'uk', 'jp']) {
+    const page = await renderPage(`/${market}/saved`, template, undefined, async () => { throw new Error('must not fetch') })
+    assert.equal(page.status, 200)
+    assert.ok(page.html.includes('<title>Saved products |'))
+    assert.ok(page.html.includes(`href="https://www.uniqlotracker.com/${market}/saved"`))
+    assert.ok(page.html.includes('content="noindex,follow"'))
+  }
+  assert.equal(redirectPath('/saved'), '/ca/saved')
+})

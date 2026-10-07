@@ -13,6 +13,9 @@ import {
 } from '../lib/products'
 import type { Product } from '../types/types'
 import ProductImage from '../components/ProductImage'
+import SaveButton from '../components/SaveButton'
+import SavedPriceChange from '../components/SavedPriceChange'
+import { useSavedProducts } from '../context/SavedProductsContext'
 
 const PriceHistory = lazy(() => import('../components/PriceHistory'))
 
@@ -23,6 +26,7 @@ interface ProductLocationState {
 
 export default function ProductPage() {
   const market = useMarket()
+  const { products: saved, storageAvailable } = useSavedProducts()
   const formatMoney = (value: number) => money(value, market)
   const { productId = '' } = useParams()
   const location = useLocation()
@@ -46,7 +50,7 @@ export default function ProductPage() {
   const notFound = detailQuery.error instanceof ApiError && detailQuery.error.status === 404
   const origin = typeof state.productPageOrigin === 'string' && (state.productPageOrigin === marketPath(market) || state.productPageOrigin.startsWith(marketPath(market) + '/') || state.productPageOrigin.startsWith(marketPath(market) + '?'))
     ? state.productPageOrigin : marketPath(market, '/categories')
-  const backLabel = origin.startsWith(marketPath(market, '/categories')) ? 'All products' : 'Back to deals'
+  const backLabel = origin.startsWith(marketPath(market, '/saved')) ? 'Back to Saved' : origin.startsWith(marketPath(market, '/categories')) ? 'All products' : 'Back to deals'
 
   useEffect(() => {
     applyMetadata(pageMetadata(location.pathname, product, notFound))
@@ -97,6 +101,7 @@ export default function ProductPage() {
     </div>
   </div>
 
+  const savedEntry = saved.find(entry => entry.product.product_id === product.product_id)
   const saving = product.regular_price - product.price
   const priceStatus = isLowestRecorded(product) ? 'Lowest recorded'
     : isOnSale(product) ? 'Below typical'
@@ -127,13 +132,15 @@ export default function ProductPage() {
           <div className={`product-page-verdict ${isLowestRecorded(product) ? 'at-lowest' : ''}`}>
             <strong>{priceStatus}</strong>{priceContext && <span>{priceContext}</span>}
           </div>
-          <a className="primary-button product-store-link" href={product.url} target="_blank" rel="noopener noreferrer"
+          <div className="product-page-actions"><a className="primary-button product-store-link" href={product.url} target="_blank" rel="noopener noreferrer"
             onClick={() => track('view_on_uniqlo_clicked', {
               product_id: product.product_id, product_name: product.name, price: product.price,
               is_atl: isLowestRecorded(product), is_on_sale: isOnSale(product),
             })}>
             Check sizes on Uniqlo <ExternalLink size={16} aria-hidden="true" /><span className="sr-only"> (opens in a new tab)</span>
-          </a>
+          </a><SaveButton product={product} /></div>
+          <p className="product-save-note">{storageAvailable ? 'Saved in this browser.' : 'Saved for this visit.'} No account needed.</p>
+          {savedEntry && <div className="product-saved-comparison"><SavedPriceChange current={product.price} baseline={savedEntry.priceWhenSaved} /></div>}
         </div>
         <dl className="product-page-facts">
           <div><dt>Checked</dt><dd><time dateTime={product.datetime.slice(0, 10)}>{formatRecordingDate(product.datetime)}</time></dd></div>
