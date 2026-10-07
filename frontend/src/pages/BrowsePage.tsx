@@ -1,7 +1,7 @@
 import { useMarket } from '../context/MarketContext'
 import { marketPath, type Market } from '../lib/markets'
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Grid2X2, List, Search, SlidersHorizontal, Tag, X } from 'lucide-react'
+import { ArrowRight, Grid2X2, List, SlidersHorizontal, Tag, X } from 'lucide-react'
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useProducts, productDetailOptions } from '../data/api'
@@ -14,6 +14,7 @@ import {
 import type { BrowseFilters, ProductSort } from '../lib/products'
 import type { Product } from '../types/types'
 import ProductImage from '../components/ProductImage'
+import ProductSearch from '../components/ProductSearch'
 import PageLoader from '../components/PageLoader'
 import ApiErrorFallback from '../components/ApiErrorFallback'
 
@@ -278,14 +279,8 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
           </Link>
         </nav>
         <div className="search-filter-row" inert={filterModalActive}>
-          <label className="sr-only" htmlFor="product-search">Search {dealsOnly ? 'deals' : 'all products'}</label>
-          <div className="search-box">
-            <Search size={19} aria-hidden="true" />
-            <input id="product-search" type="search" placeholder={dealsOnly ? 'Search deals or product ID' : 'Search all products or product ID'}
-              value={filters.query} onChange={e => updateFilters({ query: e.target.value }, true)} />
-            {filters.query && <button className="icon-button" type="button" aria-label="Clear search"
-              onClick={() => { updateFilters({ query: '' }, true); document.getElementById('product-search')?.focus() }}><X size={18} aria-hidden="true" /></button>}
-          </div>
+          <ProductSearch query={filters.query} onQueryChange={value => updateFilters({ query: value }, true)}
+            origin={location.pathname + location.search} dealsOnly={dealsOnly} />
           <div className="department-options" role="group" aria-label="Department">
             {DEPARTMENTS.map(department => (
               <button key={department} type="button" aria-pressed={filters.department === department}

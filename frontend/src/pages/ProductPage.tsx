@@ -1,3 +1,4 @@
+import { retailerUrlForProduct } from '../lib/product-links'
 import { marketPath } from '../lib/markets'
 import { useMarket } from '../context/MarketContext'
 import { lazy, Suspense, useEffect, useMemo, useRef } from 'react'
@@ -65,6 +66,22 @@ export default function ProductPage() {
     <Link className="product-back-link" to={origin}><ArrowLeft size={15} aria-hidden="true" />{backLabel}</Link>
     <h1 tabIndex={-1}>Product details</h1>
     <div className="product-page-loading" role="status"><div className="skeleton product-hero-skeleton" aria-hidden="true" /><p>Loading product…</p></div>
+  </div>
+
+  if (!product && notFound) return <div className="product-detail-page page-container">
+    <Link className="product-back-link" to={origin}><ArrowLeft size={15} aria-hidden="true" />{backLabel}</Link>
+    <section className="empty-state product-not-tracked" aria-labelledby="not-tracked-title">
+      <p className="browse-eyebrow">{market.name} · {productId}</p>
+      <h1 id="not-tracked-title" tabIndex={-1}>No price history yet.</h1>
+      <p>We haven’t recorded a price for this product in {market.name}. It may still be available at Uniqlo.</p>
+      <p>History begins with the first recorded price. Pasting a link doesn’t start tracking or recover earlier prices.</p>
+      <div className="empty-actions">
+        {retailerUrlForProduct(market, productId) && <a className="primary-button" href={retailerUrlForProduct(market, productId)}
+          target="_blank" rel="noopener noreferrer">View on Uniqlo <ExternalLink size={16} aria-hidden="true" />
+          <span className="sr-only"> (opens in a new tab)</span></a>}
+        <Link className="secondary-button" to={marketPath(market, '/categories')}>Try another link</Link>
+      </div>
+    </section>
   </div>
 
   if (!product) return <div className="product-detail-page page-container">

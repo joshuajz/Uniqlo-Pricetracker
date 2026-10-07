@@ -116,3 +116,11 @@ test('initial content omits unsafe store URLs and invalid optional facts', async
     assert.ok(!body.includes('<time'))
   }
 })
+
+test('retailer-shaped URLs redirect to canonical regional histories', () => {
+  assert.equal(redirectPath('/ca/en/products/E465185-000/00'), '/ca/products/E465185-000')
+  assert.equal(redirectPath('/us/en/products/E465185-001/00'), '/us/products/E465185-001')
+  assert.equal(redirectPath('/jp/ja/products/E465185-000/00'), '/jp/products/E465185-000')
+  assert.equal(redirectPath('/gb/en/products/E465185-000/00'), '/uk/products/E465185-000')
+  assert.equal(redirectPath('/ca/products/E465185-000'), undefined)
+})

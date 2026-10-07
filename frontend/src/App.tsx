@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { MarketContext } from './context/MarketContext'
 import { legacyDestination, marketPath, rememberedMarket, rememberMarket, splitMarketPath } from './lib/markets'
 import { track } from './lib/analytics'
+import { productLinkFromPath } from './lib/product-links'
 import { applyMetadata, pageMetadata } from './lib/metadata'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
@@ -49,6 +50,8 @@ function MarketSite() {
   const { market, path } = splitMarketPath(pathname)
   useEffect(() => { if (market) rememberMarket(market) }, [market])
   if (!market) return <NotFoundPage />
+  const retailerLink = productLinkFromPath(pathname)
+  if (retailerLink) return <Navigate replace to={retailerLink.historyPath} />
   const canonical = marketPath(market, path)
   if (pathname !== canonical) return <Navigate replace to={{ pathname: canonical, search, hash }} />
   return <MarketContext.Provider value={market} key={market.code}>

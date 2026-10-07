@@ -1,3 +1,4 @@
+import { productLinkFromPath } from '../src/lib/product-links.ts'
 import { DEFAULT_MARKET, legacyDestination, marketPath, money, splitMarketPath, type Market } from '../src/lib/markets.ts'
 import { readFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -61,6 +62,8 @@ function renderProductContent(id: string, detail: RecordedProduct, market: Marke
 }
 
 export function redirectPath(path: string) {
+  const retailerLink = productLinkFromPath(path)
+  if (retailerLink) return retailerLink.historyPath
   const resolved = splitMarketPath(path)
   if (resolved.market) {
     const canonical = marketPath(resolved.market, resolved.path === '/dashboard' ? '/' : resolved.path)

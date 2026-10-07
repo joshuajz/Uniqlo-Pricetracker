@@ -16,7 +16,7 @@ test('compiled server handler loads as ESM and serves direct country requests', 
   try {
     await mkdir(project)
     await writeFile(join(project, 'package.json'), '{"type":"module"}')
-    for (const file of ['api/sitemap.ts', 'api/page.ts', 'src/lib/metadata.ts', 'src/lib/markets.ts']) {
+    for (const file of ['api/sitemap.ts', 'api/page.ts', 'src/lib/metadata.ts', 'src/lib/markets.ts', 'src/lib/product-links.ts']) {
       const source = await readFile(new URL(file, root), 'utf8')
       const compiled = ts.transpileModule(source, { compilerOptions: options, fileName: file })
       const destination = join(project, file.replace(/\.ts$/, '.js'))
@@ -45,6 +45,11 @@ test('compiled server handler loads as ESM and serves direct country requests', 
         assert.ok(html.includes(`href="https://www.uniqlotracker.com/${market}"`))
         assert.ok(html.includes('id="root"'))
       }
+      const headers = new Map()
+      const response = { statusCode: 0, setHeader: (key: string, value: string) => headers.set(key, value), end: () => {} }
+      await handler({ url: '/api/page?path=/jp/ja/products/E465185-001/00&colorDisplayCode=09' }, response)
+      assert.equal(response.statusCode, 308)
+      assert.equal(headers.get('Location'), '/jp/products/E465185-001?colorDisplayCode=09')
     } finally { process.chdir(previous) }
   } finally { await rm(output, { recursive: true, force: true }) }
 })

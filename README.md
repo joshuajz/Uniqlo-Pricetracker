@@ -19,6 +19,45 @@ npm run dev
 
 The app opens at `http://localhost:5174`.
 
+To test against the public production catalogue without a local database:
+
+```bash
+cd frontend
+DEV_API_ORIGIN=https://api.uniqlotracker.com npm run dev
+```
+
+This proxies public catalogue, history, and image reads through the local dev server.
+Without `DEV_API_ORIGIN`, the proxy continues to use the local API at port 8080.
+
+## Find a product by link
+
+The browse search accepts names, product IDs, and product-page URLs from Uniqlo
+Canada, the US, the UK, and Japan. Names and IDs filter as you type. Pasting a
+link shows its country and full product ID; press Enter or **View history** to
+open the matching history directly, regardless of the browse filters or current
+country. The edition suffix (for example `E465185-001`) remains part of the ID.
+Links may omit `https://`; colour query parameters and fragments do not change
+the product match. Category pages and unsupported countries show guidance.
+
+A product with no recorded history shows **No price history yet**, with a link
+back to Uniqlo. Looking up a link does not start tracking or fetch older prices.
+Temporary API errors continue to offer a retry rather than claiming the product
+has no history.
+
+After deploying this change, users can also replace `uniqlo` with
+`uniqlotracker` in a supported product URL:
+
+```text
+https://www.uniqlo.com/ca/en/products/E465185-000/00
+https://www.uniqlotracker.com/ca/en/products/E465185-000/00
+→ https://www.uniqlotracker.com/ca/products/E465185-000
+```
+
+The existing Vercel page handler issues a permanent HTTP redirect; the React
+router also supports the shortcut during local development. No new domain is
+needed for `www.uniqlotracker.com`. The domain must serve this frontend and
+preserve incoming paths (including when redirecting an apex domain to `www`).
+
 ## Run the API
 
 The API needs PostgreSQL and these environment variables: `DATABASE_URL`, `AUTH_USER`, and `AUTH_PASS`.
