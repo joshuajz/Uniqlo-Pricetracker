@@ -11,6 +11,10 @@ export interface BrowseFilters {
   categories: string[]
   tags: string[]
   lowestOnly: boolean
+  minPrice: number | null
+  maxPrice: number | null
+  minDiscount: number | null
+  minSavings: number | null
   sort: ProductSort
   view: 'list' | 'grid'
   limit: number
@@ -139,6 +143,13 @@ export function recordingStatus(date: string | null | undefined, now = Date.now(
   return 'Latest prices loaded'
 }
 
+// Blank or malformed amounts must never become an accidental zero-price cap.
+export function readBudgetAmount(value: string | null, maximum = Number.MAX_SAFE_INTEGER): number | null {
+  if (!value?.trim() || !/^\d+(?:\.\d+)?$/.test(value.trim())) return null
+  const amount = Number(value)
+  return Number.isFinite(amount) && amount >= 0 && amount <= maximum ? amount : null
+}
+
 export function readBrowseFilters(params: URLSearchParams, defaultSort: ProductSort = 'discount'): BrowseFilters {
   const legacy = params.get('open')?.split('/') ?? []
   const department = params.get('department') ?? legacy[0] ?? 'all'
@@ -152,6 +163,10 @@ export function readBrowseFilters(params: URLSearchParams, defaultSort: ProductS
     categories: [...new Set(categories)],
     tags: [...new Set(params.getAll('tag').filter(value => value && value !== 'all').map(canonicalFacetLabel))],
     lowestOnly: params.get('lowest') === '1' || sort === 'atl',
+    minPrice: readBudgetAmount(params.get('minPrice')),
+    maxPrice: readBudgetAmount(params.get('maxPrice')),
+    minDiscount: readBudgetAmount(params.get('minDiscount'), 100),
+    minSavings: readBudgetAmount(params.get('minSavings')),
     sort: sort === 'discount' || sort === 'price' || sort === 'name' ? sort : defaultSort,
     view: params.get('view') === 'list' ? 'list' : 'grid',
     limit: Number.isSafeInteger(limit) && limit >= PAGE_SIZE ? Math.min(limit, 10000) : PAGE_SIZE,
@@ -172,6 +187,12 @@ export function filterProducts(products: Product[], filters: BrowseFilters, deal
       .map(normalizeProductText)
     return (!dealsOnly || isOnSale(p))
       && (!filters.lowestOnly || isLowestRecorded(p))
+      && (filters.minPrice === null || p.price >= filters.minPrice)
+      && (filters.maxPrice === null || p.price <= filters.maxPrice)
+      // Compare the actual discount, rather than the rounded badge percentage.
+      && (filters.minDiscount === null || (p.regular_price > 0
+        ? Math.max(0, (1 - p.price / p.regular_price) * 100) : 0) + 1e-9 >= filters.minDiscount)
+      && (filters.minSavings === null || Math.max(0, Math.round((p.regular_price - p.price) * 100) / 100) >= filters.minSavings)
       && [...selectedFacetGroups].every(([group, labels]) => facets
         .some(facet => facet.group === group && labels.includes(facet.label)))
       && queryTerms.every(term => searchTerms.some(value => value.includes(term)))

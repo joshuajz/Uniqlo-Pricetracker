@@ -114,6 +114,15 @@ select { border:1px solid var(--control-border); background:var(--surface); padd
 .filter-panel-head-actions { display:flex; align-items:center; gap:16px; }
 .lowest-corner { display:flex; align-items:center; gap:8px; min-height:34px; padding:5px 10px; border:1px solid var(--border); background:var(--wash); font-size:11px; font-weight:600; white-space:nowrap; cursor:pointer; }
 .lowest-corner input { width:15px; height:15px; margin:0; accent-color:var(--ink); }
+.budget-filters { margin-bottom:23px; padding-bottom:20px; border-bottom:1px solid var(--border); }
+.budget-filters h3 { margin-bottom:12px; font-size:13px; }
+.budget-filters h3 span { margin-left:6px; color:var(--muted); font:10px var(--data-font); }
+.budget-fields { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+.budget-fields label { display:grid; gap:7px; min-width:0; font-size:12px; }
+.budget-fields input { width:100%; min-width:0; min-height:44px; padding:9px 11px; border:1px solid var(--control-border); border-radius:0; background:var(--surface); color:var(--ink); font:14px var(--data-font); }
+.budget-fields input[aria-invalid="true"] { border-color:var(--ink); }
+.budget-filters p { margin-top:10px; color:var(--muted); font-size:11px; }
+.budget-filters #budget-range-error { color:var(--ink); }
 .filter-groups { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:30px; }
 .filter-group { min-width:0; }
 .filter-group-categories { grid-column:span 2; }
@@ -307,6 +316,7 @@ button.facet-option:hover { background:var(--wash); }
 @media(max-width:900px) {
   .desktop-additional-filters { margin-left:0; }
   .product-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .budget-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .filter-groups { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .product-page-hero { grid-template-columns:240px minmax(0,1fr); }
   .product-page-image-stage,.product-page-image-stage .product-image { min-height:260px; height:260px; }
@@ -356,6 +366,7 @@ button.facet-option:hover { background:var(--wash); }
   .filter-panel-close { display:inline-flex; }
   .filter-panel-list-actions { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:14px 20px 2px; }
   .filter-panel-list-actions .text-button { flex-shrink:0; color:var(--muted); font-size:11px; }
+  .budget-filters { margin:0 20px; padding:20px 0; }
   .filter-groups { grid-template-columns:1fr; gap:24px; padding:16px 20px max(22px,env(safe-area-inset-bottom)); }
   .facet-option,.lowest-corner,.active-filters>button { min-height:44px; }
   .filter-panel-list-actions .text-button { min-height:44px; }

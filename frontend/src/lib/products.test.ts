@@ -253,3 +253,47 @@ test('a historical product can be rendered without today’s product list', () =
     datapoints: [{ ...detail.datapoints[0], categories: ['women/linen'] }],
   }).attributes, { materials: ['linen'], features: [] })
 })
+
+test('budget URLs preserve zero and decimals and ignore malformed amounts', () => {
+  const filters = readBrowseFilters(new URLSearchParams('minPrice=0&maxPrice=79.90&minDiscount=25.5&minSavings=10.01'))
+  assert.equal(filters.minPrice, 0)
+  assert.equal(filters.maxPrice, 79.9)
+  assert.equal(filters.minDiscount, 25.5)
+  assert.equal(filters.minSavings, 10.01)
+  for (const value of ['', ' ', '-1', 'NaN', 'Infinity', '1e2', '0x10', '10 dollars', '9007199254740992']) {
+    const parsed = readBrowseFilters(new URLSearchParams({ minPrice: value, maxPrice: value, minDiscount: value, minSavings: value }))
+    for (const key of ['minPrice', 'maxPrice', 'minDiscount', 'minSavings'] as const) assert.equal(parsed[key], null, value)
+  }
+  assert.equal(readBrowseFilters(new URLSearchParams('minDiscount=100.01')).minDiscount, null)
+  assert.equal(readBrowseFilters(new URLSearchParams('minDiscount=100')).minDiscount, 100)
+})
+
+test('men’s outerwear within a budget combines department, category, prices and savings', () => {
+  const jacket = product('jacket', { price: 79.9, regular_price: 100, categories: ['men/outerwear'] })
+  const pricey = product('pricey', { price: 80.01, regular_price: 120, categories: ['men/outerwear'] })
+  const women = product('women', { price: 50, categories: ['women/outerwear'] })
+  const tops = product('tops', { price: 50, categories: ['men/tops'] })
+  const full = product('full', { price: 60, regular_price: 60, categories: ['men/outerwear'] })
+  const data = [jacket, pricey, women, tops, full]
+  const filters = readBrowseFilters(new URLSearchParams('department=men&category=outerwear&minPrice=60&maxPrice=80'))
+  assert.deepEqual(filterProducts(data, filters, false).map(p => p.product_id), ['jacket', 'full'])
+  assert.deepEqual(filterProducts(data, { ...filters, minDiscount: 20, minSavings: 20.1 }, false), [jacket])
+  assert.deepEqual(filterProducts(data, filters, true), [jacket])
+  assert.deepEqual(filterProducts(data, { ...filters, minPrice: 81 }, false), [])
+  assert.deepEqual(filterProducts(data, { ...filters, minPrice: 79.9, maxPrice: 79.9 }, false), [jacket])
+})
+
+test('minimum discount uses actual percentages and savings handle decimal prices precisely', () => {
+  const almost = product('almost', { price: 80.1, regular_price: 100 })
+  const exact = product('exact', { price: 19.9, regular_price: 39.9 })
+  const above = product('above', { price: 50, regular_price: 40 })
+  const zero = product('zero', { price: 0, regular_price: 0 })
+  assert.deepEqual(filterProducts([almost], { ...defaults, minDiscount: 20 }, false), [])
+  assert.deepEqual(filterProducts([exact], { ...defaults, minSavings: 20 }, false), [exact])
+  assert.deepEqual(filterProducts([exact], { ...defaults, minSavings: 20.01 }, false), [])
+  assert.deepEqual(filterProducts([above, zero], { ...defaults, minSavings: 0.01 }, false), [])
+  assert.deepEqual(filterProducts([above, zero], { ...defaults, minDiscount: 0.01 }, false), [])
+  assert.deepEqual(filterProducts([zero], { ...defaults, maxPrice: 0, minDiscount: 0, minSavings: 0 }, false), [zero])
+  const yen = product('yen', { price: 1990, regular_price: 2990 })
+  assert.deepEqual(filterProducts([yen], { ...defaults, maxPrice: 2000, minSavings: 1000 }, false), [yen])
+})

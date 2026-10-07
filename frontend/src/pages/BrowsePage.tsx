@@ -9,13 +9,21 @@ import { track } from '../lib/analytics'
 import {
   DEPARTMENTS, PAGE_SIZE, categoryFilterPresentation, categoryLabel, departmentHasCategory, departmentsLabel, discountPct,
   filterProducts, formatRecordingDate, isLowestRecorded, isOnSale, money, productCategory, productFacets,
-  readBrowseFilters, recordingAge, recordingStatus,
+  readBrowseFilters, readBudgetAmount, recordingAge, recordingStatus,
 } from '../lib/products'
 import type { BrowseFilters, ProductSort } from '../lib/products'
 import type { Product } from '../types/types'
 import ProductImage from '../components/ProductImage'
 import PageLoader from '../components/PageLoader'
 import ApiErrorFallback from '../components/ApiErrorFallback'
+
+const EMPTY_BUDGET = { minPrice: null, maxPrice: null, minDiscount: null, minSavings: null }
+const BUDGET_FIELDS = [
+  { key: 'minPrice', label: 'Minimum price' },
+  { key: 'maxPrice', label: 'Maximum price' },
+  { key: 'minDiscount', label: 'Minimum discount' },
+  { key: 'minSavings', label: 'Minimum savings' },
+] as const
 
 interface CategoryFilterOption { key: string; label: string; values: string[]; count: number }
 
@@ -102,7 +110,9 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
     }))
   }, [tagBase])
   const selectedCategoryOptions = categoryOptions.filter(option => option.values.some(value => filters.categories.includes(value)))
-  const activeFilterCount = selectedCategoryOptions.length + filters.tags.length + Number(filters.lowestOnly)
+  const activeBudgetFields = BUDGET_FIELDS.filter(({ key }) => filters[key] !== null)
+  const invalidPriceRange = filters.minPrice !== null && filters.maxPrice !== null && filters.minPrice > filters.maxPrice
+  const activeFilterCount = selectedCategoryOptions.length + filters.tags.length + Number(filters.lowestOnly) + activeBudgetFields.length
   const hasFilters = !!filters.query || filters.department !== 'all' || activeFilterCount > 0
   const staleDays = recordingAge(query.data?.datetime)
   const filterModalActive = filtersOpen && mobileFilters
@@ -195,12 +205,13 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
     const next = { ...filters, limit: preserveLimit ? filters.limit : PAGE_SIZE, ...patch }
     setParams(previous => {
       const search = new URLSearchParams(previous)
-      for (const key of ['open', 'q', 'department', 'category', 'tag', 'lowest', 'sort', 'view', 'limit']) search.delete(key)
+      for (const key of ['open', 'q', 'department', 'category', 'tag', 'lowest', 'sort', 'view', 'limit', ...BUDGET_FIELDS.map(field => field.key)]) search.delete(key)
       if (next.query) search.set('q', next.query)
       if (next.department !== 'all') search.set('department', next.department)
       next.categories.forEach(category => search.append('category', category))
       next.tags.forEach(tag => search.append('tag', tag))
       if (next.lowestOnly) search.set('lowest', '1')
+      BUDGET_FIELDS.forEach(({ key }) => { if (next[key] !== null) search.set(key, String(next[key])) })
       if (next.sort !== defaultSort) search.set('sort', next.sort)
       if (next.view !== 'grid') search.set('view', next.view)
       if (next.limit > PAGE_SIZE) search.set('limit', String(next.limit))
@@ -301,6 +312,11 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
           {filters.tags.map(tag => <button type="button" key={tag}
             onClick={() => updateFilters({ tags: filters.tags.filter(value => value !== tag) })}>
             <span>{tag}</span><X size={14} aria-hidden="true" /></button>)}
+          {activeBudgetFields.map(({ key, label }) => <button type="button" key={key}
+            aria-label={`Remove ${label.toLowerCase()} filter`} onClick={() => updateFilters({ [key]: null })}>
+            <span>{label}: {key === 'minDiscount' ? `${filters[key]}%` : formatMoney(filters[key]!)}</span>
+            <X size={14} aria-hidden="true" />
+          </button>)}
           {filters.lowestOnly && <button type="button" onClick={() => updateFilters({ lowestOnly: false })}>
             <span>Lowest recorded</span><X size={14} aria-hidden="true" /></button>}
         </div>}
@@ -319,7 +335,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
                 <span>Lowest recorded</span>
               </label>}
               <button type="button" className="text-button filter-panel-desktop-action" onClick={() => updateFilters({
-                categories: [], tags: [], lowestOnly: false,
+                categories: [], tags: [], lowestOnly: false, ...EMPTY_BUDGET,
               })}>Clear filters</button>
               <button ref={filterCloseRef} type="button" className="icon-button filter-panel-close"
                 aria-label="Close filters" onClick={() => closeFilters(true)}><X size={18} aria-hidden="true" /></button>
@@ -332,9 +348,25 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
               <span>Lowest recorded</span>
             </label>}
             <button type="button" className="text-button" onClick={() => updateFilters({
-              categories: [], tags: [], lowestOnly: false,
+              categories: [], tags: [], lowestOnly: false, ...EMPTY_BUDGET,
             })}>Clear filters</button>
           </div>
+          <section className="budget-filters" aria-labelledby="budget-filter-title">
+            <h3 id="budget-filter-title">Budget <span>{market.currency}</span></h3>
+            <div className="budget-fields">
+              {BUDGET_FIELDS.map(({ key, label }) => <label key={key} htmlFor={`budget-${key}`}>
+                <span>{label}{key === 'minDiscount' ? ' (%)' : ` (${market.currency})`}</span>
+                <input id={`budget-${key}`} type="number" inputMode="decimal" min="0"
+                  max={key === 'minDiscount' ? 100 : undefined} step="any"
+                  placeholder="Any" value={filters[key] ?? ''}
+                  aria-invalid={(key === 'minPrice' || key === 'maxPrice') && invalidPriceRange || undefined}
+                  aria-describedby={invalidPriceRange && (key === 'minPrice' || key === 'maxPrice') ? 'budget-range-error' : 'budget-filter-help'}
+                  onChange={event => updateFilters({ [key]: readBudgetAmount(event.target.value, key === 'minDiscount' ? 100 : undefined) }, true)} />
+              </label>)}
+            </div>
+            <p id="budget-filter-help">Discount and savings are compared with the typical tracked price.</p>
+            {invalidPriceRange && <p id="budget-range-error" role="status">Minimum price must be no more than maximum price.</p>}
+          </section>
           <div className="filter-groups">
             <div className="filter-group filter-group-categories">
               <h3>Category</h3>
@@ -371,7 +403,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
             ? <>Checked <time dateTime={query.data.datetime.slice(0, 10)}>{formatRecordingDate(query.data.datetime, false)}</time></>
             : `${market.name} · ${market.currency}`}</span>
           {hasFilters && <button type="button" className="text-button clear-filters" onClick={() => updateFilters({
-            query: '', department: 'all', categories: [], tags: [], lowestOnly: false,
+            query: '', department: 'all', categories: [], tags: [], lowestOnly: false, ...EMPTY_BUDGET,
           })}>Clear filters</button>}
           <label className="sort-label"><span>Sort by</span>
             <select aria-label="Sort products" value={filters.sort} onChange={e => {
@@ -397,7 +429,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
             <div className="empty-actions">
               {dealsOnly && products.length > 0 && <Link className="primary-button" to={{ pathname: marketPath(market, '/categories'), search: allSearch.toString() }}>Search all products</Link>}
               {hasFilters && <button className="secondary-button" type="button" onClick={() => updateFilters({
-                query: '', department: 'all', categories: [], tags: [], lowestOnly: false,
+                query: '', department: 'all', categories: [], tags: [], lowestOnly: false, ...EMPTY_BUDGET,
               })}>Clear search and filters</button>}
             </div>
           </div> : <>
