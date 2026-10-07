@@ -18,6 +18,13 @@ export interface Product {
   lowest_price: number
   regular_price: number
   is_all_time_low: boolean
+  attributes?: ProductAttributes
+}
+
+// Stable identifiers shared by search and facets, independent of display language.
+export interface ProductAttributes {
+  materials: string[]
+  features: string[]
 }
 
 export interface ProductDatapoint {
@@ -39,4 +46,5 @@ export interface ProductDetail {
   current_price: number
   on_sale: boolean
   is_all_time_low: boolean
+  attributes?: ProductAttributes
 }

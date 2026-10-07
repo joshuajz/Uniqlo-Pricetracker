@@ -3,6 +3,7 @@ import type { Market } from '../lib/markets'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import type { ProductsAPI, ProductDetail } from '../types/types'
 import { requestJSON, shouldRetryRequest } from '../lib/api-client'
+import { normalizeProduct } from '../lib/products'
 export { ApiError } from '../lib/api-client'
 
 const API_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
@@ -10,7 +11,10 @@ export const useProducts = () => {
   const market = useMarket()
   return useQuery({
     queryKey: ['products', market.code],
-    queryFn: ({ signal }) => requestJSON<ProductsAPI>(`${API_URL}/${market.slug}/products`, signal),
+    queryFn: async ({ signal }) => {
+      const catalogue = await requestJSON<ProductsAPI>(`${API_URL}/${market.slug}/products`, signal)
+      return { ...catalogue, products: catalogue.products.map(normalizeProduct) }
+    },
     staleTime: 5 * 60 * 1000,
     retry: shouldRetryRequest,
     retryDelay: attempt => Math.min(1000 * 2 ** attempt, 4000),

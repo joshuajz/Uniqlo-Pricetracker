@@ -1,4 +1,4 @@
-import type { Product, ProductDatapoint, ProductDetail } from '../types/types.ts'
+import type { Product, ProductAttributes, ProductDatapoint, ProductDetail } from '../types/types.ts'
 
 export const DAY = 86_400_000
 export const PAGE_SIZE = 24
@@ -33,27 +33,62 @@ export const categoryLabel = (slug: string) => CATEGORY_LABELS[slug]
 export type ProductFacetGroup = 'Material' | 'Feature'
 export interface ProductFacet { group: ProductFacetGroup; label: string }
 
-const PRODUCT_FACETS: Array<ProductFacet & { terms: RegExp }> = [
-  { group: 'Material', label: 'Cotton', terms: /\bcotton\b/i },
-  { group: 'Material', label: 'Denim', terms: /\bdenim\b|\bjeans?\b/i },
-  { group: 'Material', label: 'Linen', terms: /\blinen\b/i },
-  { group: 'Material', label: 'Merino wool', terms: /\bmerino\b/i },
-  { group: 'Material', label: 'Wool', terms: /\bwool\b/i },
-  { group: 'Material', label: 'Cashmere', terms: /\bcashmere\b/i },
-  { group: 'Material', label: 'Fleece', terms: /\bfleece\b/i },
-  { group: 'Feature', label: 'AIRism', terms: /\bairism\b/i },
-  { group: 'Feature', label: 'HEATTECH', terms: /\bheattech\b/i },
-  { group: 'Feature', label: 'PUFFTECH', terms: /\bpufftech\b/i },
-  { group: 'Feature', label: 'UV protection', terms: /\buv protection\b/i },
-  { group: 'Feature', label: 'Ultra light down', terms: /\bultra light down\b/i },
-  { group: 'Feature', label: 'BLOCKTECH', terms: /\bblocktech\b/i },
-  { group: 'Feature', label: 'Stretch', terms: /\bstretch\b/i },
-  { group: 'Feature', label: 'Washable', terms: /\bwashable\b/i },
-  { group: 'Feature', label: 'Quick dry', terms: /\bquick dry\b|\bdry-ex\b/i },
+// Normalize compatibility forms (including half-width kana and full-width Latin)
+// without changing the names displayed to customers.
+export const normalizeProductText = (text: string) => text.replace(/[™®℠]/g, '').normalize('NFKC').toLowerCase()
+  .replace(/[‐‑‒–—−]/g, '-').replace(/\s+/g, ' ').trim()
+
+const PRODUCT_FACETS: Array<ProductFacet & { id: string; aliases: string[]; terms: RegExp }> = [
+  { id: 'cotton', group: 'Material', label: 'Cotton', aliases: ['コットン', '綿'], terms: /(?<![a-z0-9])cotton(?![a-z0-9])|コットン|綿/ },
+  { id: 'denim', group: 'Material', label: 'Denim', aliases: ['jeans', 'デニム', 'ジーンズ'], terms: /(?<![a-z0-9])(?:denim|jeans?)(?![a-z0-9])|デニム|ジーンズ/ },
+  { id: 'linen', group: 'Material', label: 'Linen', aliases: ['リネン', '麻'], terms: /(?<![a-z0-9])linen(?![a-z0-9])|リネン|麻/ },
+  { id: 'merino-wool', group: 'Material', label: 'Merino wool', aliases: ['merino', 'メリノ'], terms: /(?<![a-z0-9])merino(?![a-z0-9])|メリノ/ },
+  { id: 'wool', group: 'Material', label: 'Wool', aliases: ['ウール', '羊毛'], terms: /(?<![a-z0-9])(?:wool|merino)(?![a-z0-9])|ウール|羊毛|メリノ/ },
+  { id: 'cashmere', group: 'Material', label: 'Cashmere', aliases: ['カシミヤ', 'カシミア'], terms: /(?<![a-z0-9])cashmere(?![a-z0-9])|カシミ[ヤア]/ },
+  { id: 'fleece', group: 'Material', label: 'Fleece', aliases: ['フリース'], terms: /(?<![a-z0-9])fleece(?![a-z0-9])|フリース/ },
+  { id: 'airism', group: 'Feature', label: 'AIRism', aliases: ['air ism', 'air-ism', 'エアリズム'], terms: /(?<![a-z0-9])air[ -]?ism(?![a-z0-9])|エアリズム/ },
+  { id: 'heattech', group: 'Feature', label: 'HEATTECH', aliases: ['heat tech', 'heat-tech', 'ヒートテック'], terms: /(?<![a-z0-9])heat[ -]?tech(?![a-z0-9])|ヒートテック/ },
+  { id: 'pufftech', group: 'Feature', label: 'PUFFTECH', aliases: ['puff tech', 'puff-tech', 'パフテック'], terms: /(?<![a-z0-9])puff[ -]?tech(?![a-z0-9])|パフテック/ },
+  { id: 'uv-protection', group: 'Feature', label: 'UV protection', aliases: ['uv cut', 'uv-cut', 'uvcut', 'UVカット'], terms: /(?<![a-z0-9])uv[ -]?(?:protection|cut)(?![a-z0-9])|uvカット/ },
+  { id: 'ultra-light-down', group: 'Feature', label: 'Ultra light down', aliases: ['ウルトラライトダウン'], terms: /(?<![a-z0-9])ultra[ -]light[ -]down(?![a-z0-9])|ウルトラライトダウン/ },
+  { id: 'blocktech', group: 'Feature', label: 'BLOCKTECH', aliases: ['block tech', 'block-tech', 'ブロックテック'], terms: /(?<![a-z0-9])block[ -]?tech(?![a-z0-9])|ブロックテック/ },
+  { id: 'stretch', group: 'Feature', label: 'Stretch', aliases: ['ストレッチ'], terms: /(?<![a-z0-9])stretch(?![a-z0-9])|ストレッチ/ },
+  { id: 'washable', group: 'Feature', label: 'Washable', aliases: ['ウォッシャブル', '洗える'], terms: /(?<![a-z0-9])washable(?![a-z0-9])|ウォッシャブル|洗える/ },
+  { id: 'quick-dry', group: 'Feature', label: 'Quick dry', aliases: ['quick-dry', 'dry-ex', 'dry ex', 'dryex', 'ドライEX', 'ドライ-EX', 'ドライ EX', '速乾'], terms: /(?<![a-z0-9])(?:quick[ -]dry|dry[ -]?ex)(?![a-z0-9])|ドライ[ -]?ex|速乾/ },
 ]
 
-export const productFacets = (product: Product) => PRODUCT_FACETS
-  .filter(facet => facet.terms.test(product.name))
+// Resolve only complete aliases: 'cot' must not select the Cotton filter.
+const canonicalFacetLabel = (value: string) => {
+  const normalized = normalizeProductText(value)
+  return PRODUCT_FACETS.find(facet => [facet.id, facet.label, ...facet.aliases]
+    .some(alias => normalizeProductText(alias) === normalized))?.label ?? value
+}
+
+const attributeKey = (group: ProductFacetGroup) => group === 'Material' ? 'materials' : 'features'
+
+// Derive canonical attributes from names and attribute-specific category routes
+// for existing records, and accept explicit attributes when supplied by the API.
+export function productAttributes(product: Pick<Product, 'name' | 'attributes'> & Partial<Pick<Product, 'categories'>>): ProductAttributes {
+  const name = normalizeProductText(product.name)
+  const categoryIds = new Set(product.categories?.map(path => path.split('/').slice(-1)[0]))
+  const attributes: ProductAttributes = { materials: [], features: [] }
+  for (const facet of PRODUCT_FACETS) {
+    const key = attributeKey(facet.group)
+    if (product.attributes?.[key]?.includes(facet.id) || categoryIds.has(facet.id) || facet.terms.test(name)) {
+      attributes[key].push(facet.id)
+    }
+  }
+  return attributes
+}
+
+export const normalizeProduct = (product: Product): Product => ({
+  ...product, attributes: productAttributes(product),
+})
+
+const facetsFromAttributes = (attributes: ProductAttributes) => PRODUCT_FACETS
+  .filter(facet => attributes[attributeKey(facet.group)].includes(facet.id))
+
+export const productFacets = (product: Product): ProductFacet[] => facetsFromAttributes(productAttributes(product))
   .map(({ group, label }) => ({ group, label }))
 
 export const productCategory = (product: Product) => {
@@ -115,7 +150,7 @@ export function readBrowseFilters(params: URLSearchParams, defaultSort: ProductS
     query: params.get('q') ?? '',
     department: DEPARTMENTS.find(option => option === department) ?? 'all',
     categories: [...new Set(categories)],
-    tags: [...new Set(params.getAll('tag').filter(value => value && value !== 'all'))],
+    tags: [...new Set(params.getAll('tag').filter(value => value && value !== 'all').map(canonicalFacetLabel))],
     lowestOnly: params.get('lowest') === '1' || sort === 'atl',
     sort: sort === 'discount' || sort === 'price' || sort === 'name' ? sort : defaultSort,
     view: params.get('view') === 'list' ? 'list' : 'grid',
@@ -124,23 +159,28 @@ export function readBrowseFilters(params: URLSearchParams, defaultSort: ProductS
 }
 
 export function filterProducts(products: Product[], filters: BrowseFilters, dealsOnly: boolean) {
-  const query = filters.query.trim().toLowerCase()
+  const queryTerms = normalizeProductText(filters.query).split(' ').filter(Boolean)
   const unique = [...new Map(products.map(p => [p.product_id, p])).values()]
   const selectedFacetGroups = new Map<ProductFacetGroup, string[]>()
-  for (const facet of PRODUCT_FACETS.filter(item => filters.tags.includes(item.label))) {
+  const selectedLabels = new Set(filters.tags.map(canonicalFacetLabel))
+  for (const facet of PRODUCT_FACETS.filter(item => selectedLabels.has(item.label))) {
     selectedFacetGroups.set(facet.group, [...(selectedFacetGroups.get(facet.group) ?? []), facet.label])
   }
-  return unique.filter(p => (!dealsOnly || isOnSale(p))
-    && (!filters.lowestOnly || isLowestRecorded(p))
-    && [...selectedFacetGroups].every(([group, labels]) => productFacets(p)
-      .some(facet => facet.group === group && labels.includes(facet.label)))
-    && (!query || p.name.toLowerCase().includes(query) || p.product_id.toLowerCase().includes(query)
-      || productFacets(p).some(facet => facet.label.toLowerCase().includes(query)))
-    && ((filters.department === 'all' && filters.categories.length === 0) || p.categories.some(slug => {
-      const [department, ...category] = slug.split('/')
-      return (filters.department === 'all' || department === filters.department)
-        && (filters.categories.length === 0 || filters.categories.includes(category.join('/')))
-    })))
+  return unique.filter(p => {
+    const facets = facetsFromAttributes(productAttributes(p))
+    const searchTerms = [p.name, p.product_id, ...facets.flatMap(facet => [facet.id, facet.label, ...facet.aliases])]
+      .map(normalizeProductText)
+    return (!dealsOnly || isOnSale(p))
+      && (!filters.lowestOnly || isLowestRecorded(p))
+      && [...selectedFacetGroups].every(([group, labels]) => facets
+        .some(facet => facet.group === group && labels.includes(facet.label)))
+      && queryTerms.every(term => searchTerms.some(value => value.includes(term)))
+      && ((filters.department === 'all' && filters.categories.length === 0) || p.categories.some(slug => {
+        const [department, ...category] = slug.split('/')
+        return (filters.department === 'all' || department === filters.department)
+          && (filters.categories.length === 0 || filters.categories.includes(category.join('/')))
+      }))
+  })
     .sort((a, b) => {
       const difference = filters.sort === 'price' ? a.price - b.price
         : filters.sort === 'name' ? a.name.localeCompare(b.name)
@@ -152,12 +192,13 @@ export function filterProducts(products: Product[], filters: BrowseFilters, deal
 export function productFromDetail(detail: ProductDetail): Product {
   const sorted = [...detail.datapoints].sort((a, b) => recordingTime(a.datetime) - recordingTime(b.datetime))
   const latest = sorted[sorted.length - 1]
-  return {
+  return normalizeProduct({
     product_id: detail.product_id, name: detail.name, price: detail.current_price,
     url: detail.url, categories: latest?.categories ?? [], datetime: latest?.datetime ?? '',
     regular_price: detail.regular_price, lowest_price: detail.lowest_price.lowest_price,
     is_all_time_low: detail.is_all_time_low,
-  }
+    attributes: detail.attributes,
+  })
 }
 
 export function recordedHistory(datapoints: ProductDatapoint[]) {

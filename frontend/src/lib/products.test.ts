@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Product, ProductDetail } from '../types/types.ts'
-import { categoryFilterPresentation, chartHistory, DAY, departmentHasCategory, departmentsLabel, filterProducts, formatRecordingDate, isLowestRecorded, PAGE_SIZE, productFacets, productFromDetail, readBrowseFilters, recordingTime } from './products.ts'
+import { categoryFilterPresentation, chartHistory, DAY, departmentHasCategory, departmentsLabel, filterProducts, formatRecordingDate, isLowestRecorded, normalizeProduct, PAGE_SIZE, productAttributes, productFacets, productFromDetail, readBrowseFilters, recordingTime } from './products.ts'
 
 const product = (id: string, overrides: Partial<Product> = {}): Product => ({
   product_id: id, name: id, price: 19.9, regular_price: 39.9, lowest_price: 19.9,
@@ -43,6 +43,99 @@ test('facet selections use OR within a group and AND across groups', () => {
   ['cotton-airism', 'cotton-stretch', 'denim-stretch'])
   assert.deepEqual(filterProducts([cottonStretch, cottonAirism, denimStretch],
     { ...defaults, tags: ['Cotton', 'Stretch'] }, true).map(p => p.product_id), ['cotton-stretch'])
+})
+
+test('Japan AIRism URL search and combined filters find Japanese catalogue names', () => {
+  const airism = product('E484912-000', { name: 'エアリズムコットンUVカットT/ドライEX', categories: ['women/tops'] })
+  const cotton = product('E2', { name: 'コットンシャツ', categories: ['women/tops'] })
+  const data = [airism, cotton]
+  const filters = readBrowseFilters(new URL('https://www.uniqlotracker.com/jp/categories?q=AIRism').searchParams)
+  assert.deepEqual(filterProducts(data, filters, false), [airism])
+  assert.deepEqual(productAttributes(airism), { materials: ['cotton'], features: ['airism', 'uv-protection', 'quick-dry'] })
+  for (const query of ['ＡＩＲｉｓｍ', 'ｴｱﾘｽﾞﾑ', 'airism cotton', 'AIRism UV protection', 'uv-protection', 'dry-ex', 'ドライＥＸ']) {
+    assert.deepEqual(filterProducts(data, { ...filters, query }, false), [airism], query)
+  }
+  assert.deepEqual(filterProducts(data, {
+    ...filters, query: '', department: 'women', categories: ['tops'], tags: ['Cotton', 'AIRism'],
+  }, false), [airism])
+  assert.deepEqual(filterProducts(data, { ...filters, tags: ['HEATTECH'] }, false), [])
+  const fullPrice = { ...airism, price: airism.regular_price }
+  assert.deepEqual(filterProducts([fullPrice], filters, true), [])
+  assert.deepEqual(filterProducts([fullPrice], filters, false), [fullPrice])
+})
+
+test('every Japanese material and feature alias maps to the same English filter and search', () => {
+  const examples = [
+    ['Cotton', 'コットンTシャツ'], ['Cotton', '綿シャツ'],
+    ['Denim', 'デニムパンツ'], ['Denim', 'ジーンズ'], ['Linen', 'リネンシャツ'], ['Linen', '麻混シャツ'],
+    ['Merino wool', 'メリノクルーネックセーター'], ['Wool', 'ウールセーター'], ['Wool', '羊毛セーター'],
+    ['Cashmere', 'カシミヤセーター'], ['Cashmere', 'カシミアセーター'], ['Fleece', 'フリースジャケット'],
+    ['AIRism', 'エアリズムTシャツ'], ['HEATTECH', 'ヒートテックタイツ'], ['PUFFTECH', 'パフテックジャケット'],
+    ['UV protection', 'UVカットパーカ'], ['Ultra light down', 'ウルトラライトダウンジャケット'],
+    ['BLOCKTECH', 'ブロックテックパーカ'], ['Stretch', 'ウルトラストレッチパンツ'],
+    ['Washable', 'ウォッシャブルセーター'], ['Washable', '洗えるセーター'],
+    ['Quick dry', 'ドライEXポロシャツ'], ['Quick dry', '速乾Tシャツ'],
+  ]
+  for (const [label, name] of examples) {
+    const item = product('E1', { name })
+    assert.ok(productFacets(item).some(facet => facet.label === label), name)
+    assert.deepEqual(filterProducts([item], { ...defaults, tags: [label] }, false), [item], name)
+    assert.deepEqual(filterProducts([item], { ...defaults, query: label }, false), [item], name)
+  }
+})
+
+test('normalized attributes support names without aliases, and bilingual search works both ways', () => {
+  const item = normalizeProduct(product('E1', {
+    name: 'クルーネックTシャツ', attributes: { materials: ['cotton', 'cotton'], features: ['airism', 'unknown'] },
+  }))
+  assert.deepEqual(item.attributes, { materials: ['cotton'], features: ['airism'] })
+  assert.deepEqual(normalizeProduct(item), item)
+  assert.deepEqual(filterProducts([item], { ...defaults, query: 'エアリズム コットン', tags: ['Cotton', 'AIRism'] }, false), [item])
+  const english = product('E2', { name: 'AIRism Cotton T-Shirt' })
+  assert.deepEqual(filterProducts([english], { ...defaults, query: 'エアリズム 綿' }, false), [english])
+  assert.deepEqual(productFacets(product('E3', { name: 'ＡＩＲｉｓｍコットンTシャツ' })), productFacets(english))
+  assert.deepEqual(productFacets(product('E4', { name: 'Fairisms Cottonwood Stretching' })), [])
+})
+
+test('localized, lowercase and canonical facet URLs select and deduplicate the same filters', () => {
+  const data = [product('airism', { name: 'エアリズムコットンTシャツ' }), product('denim', { name: 'ジーンズ' })]
+  const params = new URLSearchParams()
+  for (const tag of ['エアリズム', 'airism', 'ＡＩＲｉｓｍ', '綿', 'cotton']) params.append('tag', tag)
+  const filters = readBrowseFilters(params)
+  assert.deepEqual(filters.tags, ['AIRism', 'Cotton'])
+  assert.deepEqual(filterProducts(data, filters, false).map(p => p.product_id), ['airism'])
+  assert.deepEqual(filterProducts(data, { ...defaults, tags: ['エアリズム', 'cotton'] }, false).map(p => p.product_id), ['airism'])
+  assert.deepEqual(readBrowseFilters(new URLSearchParams('tag=uv-protection&tag=UVカット')).tags, ['UV protection'])
+  assert.deepEqual(readBrowseFilters(new URLSearchParams('tag=cot')).tags, ['cot'])
+})
+
+test('trademarks and spaced or hyphenated feature names share search and filter attributes', () => {
+  for (const [label, names] of [
+    ['AIRism', ['AIRism™ T-Shirt', 'Air-Ism T-Shirt', 'Air Ism T-Shirt']],
+    ['HEATTECH', ['HEATTECH™ T-Shirt', 'Heat-Tech T-Shirt', 'Heat Tech T-Shirt']],
+    ['PUFFTECH', ['PUFFTECH® Jacket', 'Puff Tech Jacket']],
+    ['BLOCKTECH', ['BLOCKTECH℠ Parka', 'Block-Tech Parka']],
+    ['UV protection', ['UV-Cut Parka', 'UVcut Parka', 'ＵＶカットパーカ']],
+    ['Quick dry', ['DRYEX T-Shirt', 'DRY-EX™ T-Shirt', 'ドライEX™MクルーネックTシャツ', 'ドライ-EXシャツ']],
+  ] as const) {
+    for (const name of names) {
+      const item = product('E1', { name })
+      assert.ok(productFacets(item).some(facet => facet.label === label), name)
+      assert.deepEqual(filterProducts([item], { ...defaults, query: label, tags: [label] }, false), [item], name)
+    }
+  }
+  const item = product('E1', { name: 'ドライEXシャツ' })
+  assert.deepEqual(filterProducts([item], { ...defaults, query: 'DRYEX™' }, false), [item])
+})
+
+test('attribute-specific categories supply facets even when the name omits the attribute', () => {
+  const linen = product('linen', { name: 'Blend Shirt', categories: ['women/linen'] })
+  const uv = product('uv', { name: 'Pocketable Parka', categories: ['men/uv-protection'] })
+  const ordinary = product('plain', { name: 'Shirt', categories: ['men/tops'] })
+  assert.deepEqual(normalizeProduct(linen).attributes, { materials: ['linen'], features: [] })
+  assert.deepEqual(filterProducts([linen, uv, ordinary], { ...defaults, query: 'リネン', tags: ['linen'] }, false), [linen])
+  assert.deepEqual(filterProducts([linen, uv, ordinary], { ...defaults, query: 'UVカット', tags: ['uv-protection'] }, false), [uv])
+  assert.deepEqual(productFacets(ordinary), [])
 })
 
 test('broadening the same query includes a full-price item and price sorting is global', () => {
@@ -152,4 +245,11 @@ test('a historical product can be rendered without today’s product list', () =
     regular_price: 39.9, current_price: 19.9, on_sale: true, is_all_time_low: true }
   assert.equal(productFromDetail(detail).datetime, '2026-08-20T00:00:00Z')
   assert.equal(productFromDetail(detail).name, 'Archived shirt')
+  assert.deepEqual(productFromDetail({ ...detail, name: 'ヒートテックコットンTシャツ' }).attributes,
+    { materials: ['cotton'], features: ['heattech'] })
+  assert.deepEqual(productFromDetail({ ...detail, attributes: { materials: ['linen'], features: ['stretch'] } }).attributes,
+    { materials: ['linen'], features: ['stretch'] })
+  assert.deepEqual(productFromDetail({ ...detail,
+    datapoints: [{ ...detail.datapoints[0], categories: ['women/linen'] }],
+  }).attributes, { materials: ['linen'], features: [] })
 })
