@@ -293,6 +293,35 @@ func getProducts(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// getProductImageIDs exposes the stored image inventory for daily scraper backfills.
+func getProductImageIDs(c *gin.Context) {
+	market := requestMarket(c)
+	rows, err := db.QueryContext(c.Request.Context(), `
+		SELECT pi.product_id FROM product_images pi
+		JOIN images i ON i.image_id = pi.image_id
+		WHERE pi.market_code = $1 ORDER BY pi.product_id
+	`, market)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get image inventory"})
+		return
+	}
+	defer rows.Close()
+	ids := make([]string, 0)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read image inventory"})
+			return
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read image inventory"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"market": market, "product_ids": ids})
+}
+
 // getProductImage returns the product image as JPEG from the database
 func getProductImage(c *gin.Context) {
 	market := requestMarket(c)
@@ -640,6 +669,7 @@ func requestMarket(c *gin.Context) string {
 func registerReadRoutes(router *gin.Engine) {
 	for _, group := range []*gin.RouterGroup{router.Group("/api"), router.Group("/api/:market", marketMiddleware)} {
 		group.GET("/products", getProducts)
+		group.GET("/product-images", getProductImageIDs)
 		group.GET("/category/*category", getProductsByCategory)
 		group.GET("/product/:id", getProduct)
 		group.GET("/product/:id/image", getProductImage)

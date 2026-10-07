@@ -38,12 +38,20 @@ python us/main.py
 ```
 
 Each command writes `prices.json` and `output.zip` in its own country folder.
-Set `SAVE_PHOTO=true` to include one image per unique product. Optional settings
+Set `SAVE_PHOTO=true` to refresh one image per unique product, or
+`SAVE_MISSING_PHOTO=true` to download only images absent from the application API
+(using `API_URL`, defaulting to `https://api.uniqlotracker.com`). Full refresh takes
+precedence when both are enabled. Optional settings
 include `MAX_WORKERS`, `API_PAGE_SIZE`, `REQUEST_MAX_ATTEMPTS`, and
 `MIN_PRODUCTS`.
 
-The scheduled Canada workflow uploads prices daily and includes photos only on
-the first day of each month (UTC). Manual workflow runs can request photos with
+Every scheduled workflow uploads prices and fills missing photos daily, including
+new arrivals and retries of failed downloads. Stored image IDs are checked once
+per market through `/api/:market/product-images`; products missing from the latest
+price snapshot still retain their images. If the inventory is unavailable or
+invalid, the scraper downloads all images so prices and new photos can still be
+imported. All photos are refreshed on the first day of each month (UTC). Manual
+workflow runs fill missing photos and can request a full refresh with
 `include_images`. The Go API compresses uploaded photos before storage; local
 scraper downloads remain at their original quality.
 
@@ -56,8 +64,8 @@ Regional workflows run once per UTC day without overlapping:
 | Japan | 04:30 |
 | United States | 06:45 |
 
-Every market includes photos on the first UTC day of the month. Each workflow
-also supports a manual run with the `include_images` option.
+Every market refreshes all photos on the first UTC day of the month. Each workflow
+also supports a manual full refresh with the `include_images` option.
 
 For a small live API check that fetches only two products:
 

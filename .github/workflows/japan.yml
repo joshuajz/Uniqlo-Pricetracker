@@ -45,6 +45,7 @@ jobs:
       - name: Run Japan scraper
         env:
           PYTHONUNBUFFERED: 1
+          SAVE_MISSING_PHOTO: "true"
         run: python japan/main.py
       - name: Queue import and wait for completion
         env:

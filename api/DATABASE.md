@@ -150,8 +150,11 @@ only if no other product still references it. The first deployment of this schem
 deliberately drops the legacy product-keyed `images` table; those photos are
 restored by the next image-enabled scrape.
 
-The scheduled scraper includes photos on the first day of each month (UTC),
-while prices continue to update daily. Manual runs can use `include_images`.
+The scheduled scrapers fill missing photos daily and refresh all photos on the
+first day of each month (UTC). The market-scoped `/api/:market/product-images`
+endpoint lists stored image mappings, including historical products, so daily
+runs download only absent images and retry failed downloads. Manual runs also
+fill missing photos and can use `include_images` for a full refresh.
 Price-only uploads preserve existing photos. Existing database images are not
 recompressed at startup; they are replaced when a subsequent image upload
 includes them. This also means photos for products absent from future scrapes

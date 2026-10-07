@@ -74,10 +74,10 @@ to the API. The ingestion endpoint also accepts the UK, Japan, and US archives
 and routes their observations into separate PostgreSQL product partitions. Public reads use `/api/ca`, `/api/us`, `/api/uk`, and `/api/jp` prefixes.
 Unprefixed API routes continue to return Canada for compatibility.
 
-The scheduled GitHub workflow records prices daily and downloads product images
-on the first day of each month (UTC). New products may have no photo until the
-next monthly refresh. Manual runs can opt into image downloads with
-`include_images`.
+The scheduled GitHub workflows record prices and fill missing product images
+daily in every market. All product images are refreshed on the first day of each
+month (UTC). Manual runs also fill missing images; `include_images` requests a
+full refresh. Failed image downloads are retried on the next daily run.
 
 The Go API compresses incoming photos to JPEG quality 80 before database storage,
 preserving their pixel dimensions and keeping already smaller JPEGs unchanged.
@@ -128,7 +128,7 @@ not available to the server.
 
 Before launch, check image coverage for each market. The September 25 review
 found regional price history starting September 13, but stored images only
-for Canada. Trigger each regional workflow with `include_images` to populate
-photos ahead of the normal first-of-month image refresh. Until then the UI
+for Canada. Daily regional workflows now fill missing photos automatically; `include_images`
+can request an immediate full refresh. Until a regional import runs, the UI
 uses its image-unavailable placeholder. Deal counts may be small with short
 histories; all tracked products are still available in All products.

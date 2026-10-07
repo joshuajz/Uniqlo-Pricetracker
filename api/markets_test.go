@@ -19,7 +19,7 @@ func TestUnknownMarketRejectedBeforeDatabaseRead(t *testing.T) {
 	registerReadRoutes(router)
 	// Also ensure the protected upload route can coexist with regional GETs.
 	router.POST("/api/products/injest", func(c *gin.Context) { c.Status(http.StatusUnauthorized) })
-	for _, path := range []string{"/api/au/products", "/api/ca-jp/product/E1", "/api/zz/product/E1/image", "/api/xx/categories", "/api/xx/category/men/tops"} {
+	for _, path := range []string{"/api/au/products", "/api/ca-jp/product/E1", "/api/zz/product/E1/image", "/api/xx/categories", "/api/xx/product-images", "/api/xx/category/men/tops"} {
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
 		if recorder.Code != http.StatusNotFound {
@@ -161,6 +161,40 @@ func TestEmptyRegionalCatalogueIsAnArrayAndNeverFallsBackToCanada(t *testing.T) 
 		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
 		if recorder.Code != 404 {
 			t.Fatalf("absent regional product fell back: %s %d", path, recorder.Code)
+		}
+	}
+}
+
+func TestImageInventoryIsMarketScopedAndIncludesHistoricalProducts(t *testing.T) {
+	database := testDatabase(t)
+	previous := db
+	db = database
+	t.Cleanup(func() { db = previous })
+	var imageID int64
+	hash := sha256.Sum256([]byte("photo"))
+	if err := database.QueryRow(`INSERT INTO images(content_sha256,image,byte_size) VALUES($1,$2,5) RETURNING image_id`, hash[:], []byte("photo")).Scan(&imageID); err != nil {
+		t.Fatal(err)
+	}
+	// No price rows: inventory must still include the stored historical mappings.
+	for market, id := range map[string]string{"CA": "E1", "US": "E2", "GB": "E3"} {
+		if _, err := database.Exec(`INSERT INTO product_images(market_code,product_id,image_id,last_updated) VALUES($1,$2,$3,'2026-09-01')`, market, id, imageID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	router := gin.New()
+	registerReadRoutes(router)
+	for path, want := range map[string]string{
+		"/api/product-images":    `{"market":"CA","product_ids":["E1"]}`,
+		"/api/ca/product-images": `{"market":"CA","product_ids":["E1"]}`,
+		"/api/us/product-images": `{"market":"US","product_ids":["E2"]}`,
+		"/api/uk/product-images": `{"market":"GB","product_ids":["E3"]}`,
+		"/api/gb/product-images": `{"market":"GB","product_ids":["E3"]}`,
+		"/api/jp/product-images": `{"market":"JP","product_ids":[]}`,
+	} {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+		if recorder.Code != http.StatusOK || recorder.Body.String() != want {
+			t.Fatalf("%s: %d %s; want %s", path, recorder.Code, recorder.Body.String(), want)
 		}
 	}
 }

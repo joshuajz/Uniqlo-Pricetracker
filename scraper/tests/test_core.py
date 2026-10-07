@@ -1,12 +1,18 @@
 import json
+import io
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from dataclasses import replace
+from unittest.mock import patch
 
 from canada.config import CONFIG as CANADA
 from core import (
     Category,
+    ScraperSettings,
+    add_images,
+    existing_image_ids,
     create_archive,
     current_price,
     parse_product,
@@ -210,6 +216,70 @@ class ApiScraperTests(unittest.TestCase):
             self.assertEqual(payload["metadata"]["currency"], "GBP")
             with zipfile.ZipFile(output_dir / "output.zip") as archive:
                 self.assertEqual(archive.namelist(), ["prices.json"])
+
+
+class ProductImageTests(unittest.TestCase):
+    def setUp(self):
+        self.settings = replace(ScraperSettings.from_env(1), save_photo=False, save_missing_photo=True)
+        self.prices = {
+            "men/tops": [{"product_id": "E1", "image": None}, {"product_id": "E2", "image": None}],
+            "women/tops": [{"product_id": "E2", "image": None}],
+        }
+        self.urls = {"E1": "https://example.com/1.jpg", "E2": "https://example.com/2.jpg"}
+
+    def test_daily_downloads_only_missing_images_once_and_attaches_all_occurrences(self):
+        with tempfile.TemporaryDirectory() as directory, patch("core.existing_image_ids", return_value={"E1"}), patch(
+            "core.download_product_image", return_value="images/E2.jpg"
+        ) as download:
+            self.assertEqual(add_images(CANADA, self.settings, Path(directory), self.prices, self.urls), 0)
+            download.assert_called_once_with(CANADA, self.settings, Path(directory), "E2", self.urls["E2"])
+        self.assertIsNone(self.prices["men/tops"][0]["image"])
+        self.assertEqual(self.prices["men/tops"][1]["image"], "images/E2.jpg")
+        self.assertEqual(self.prices["women/tops"][0]["image"], "images/E2.jpg")
+
+    def test_monthly_refresh_downloads_existing_images_without_inventory_lookup(self):
+        settings = replace(self.settings, save_photo=True)
+        with tempfile.TemporaryDirectory() as directory, patch("core.existing_image_ids") as inventory, patch(
+            "core.download_product_image", side_effect=lambda *args: f"images/{args[3]}.jpg"
+        ) as download:
+            self.assertEqual(add_images(CANADA, settings, Path(directory), self.prices, self.urls), 0)
+            self.assertEqual(download.call_count, 2)
+            inventory.assert_not_called()
+
+    def test_no_missing_images_skips_downloads(self):
+        with tempfile.TemporaryDirectory() as directory, patch("core.existing_image_ids", return_value=set(self.urls)), patch(
+            "core.download_product_image"
+        ) as download:
+            self.assertEqual(add_images(CANADA, self.settings, Path(directory), self.prices, self.urls), 0)
+            download.assert_not_called()
+
+    def test_inventory_outage_falls_back_to_all_images(self):
+        with tempfile.TemporaryDirectory() as directory, patch("core.existing_image_ids", side_effect=OSError("offline")), patch(
+            "core.download_product_image", side_effect=lambda *args: f"images/{args[3]}.jpg"
+        ) as download:
+            self.assertEqual(add_images(CANADA, self.settings, Path(directory), self.prices, self.urls), 0)
+            self.assertEqual(download.call_count, 2)
+
+    def test_failed_missing_image_is_retried_next_run(self):
+        with tempfile.TemporaryDirectory() as directory, patch("core.existing_image_ids", return_value={"E1"}), patch(
+            "core.download_product_image", side_effect=[OSError("offline"), "images/E2.jpg"]
+        ) as download:
+            self.assertEqual(add_images(CANADA, self.settings, Path(directory), self.prices, self.urls), 1)
+            self.assertIsNone(self.prices["men/tops"][1]["image"])
+            self.assertEqual(add_images(CANADA, self.settings, Path(directory), self.prices, self.urls), 0)
+            self.assertEqual(download.call_count, 2)
+
+    def test_inventory_request_is_market_scoped_and_validated(self):
+        for config in MARKETS:
+            with self.subTest(market=config.market_code), patch.dict("os.environ", {"API_URL": "https://tracker.example/"}), patch(
+                "core.urllib.request.urlopen", return_value=io.BytesIO(json.dumps({"market": config.market_code, "product_ids": ["E1"]}).encode())
+            ) as request:
+                self.assertEqual(existing_image_ids(config, self.settings), {"E1"})
+                self.assertEqual(request.call_args.args[0].full_url, f"https://tracker.example/api/{config.market_code.lower()}/product-images")
+        for payload in ([], None, {"market": "US", "product_ids": ["E1"]}, {"market": "CA"}, {"market": "CA", "product_ids": [1]}):
+            with patch("core.urllib.request.urlopen", return_value=io.BytesIO(json.dumps(payload).encode())):
+                with self.assertRaises(ValueError):
+                    existing_image_ids(CANADA, self.settings)
 
 
 if __name__ == "__main__":

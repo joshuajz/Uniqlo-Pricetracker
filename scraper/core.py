@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import http.client
 import os
 import shutil
 import time
@@ -57,6 +58,7 @@ class ScraperSettings:
     image_download_timeout: int
     min_products: int
     save_photo: bool
+    save_missing_photo: bool = False
 
     @classmethod
     def from_env(cls, default_min_products: int) -> ScraperSettings:
@@ -73,6 +75,7 @@ class ScraperSettings:
             image_download_timeout=_positive_int_env("IMAGE_DOWNLOAD_TIMEOUT", 30),
             min_products=_positive_int_env("MIN_PRODUCTS", default_min_products),
             save_photo=os.getenv("SAVE_PHOTO", "false").lower() == "true",
+            save_missing_photo=os.getenv("SAVE_MISSING_PHOTO", "false").lower() == "true",
         )
 
 
@@ -498,6 +501,23 @@ def download_product_image(
     return relative_path.as_posix()
 
 
+def existing_image_ids(config: MarketConfig, settings: ScraperSettings) -> set[str]:
+    """Read stored images, including products absent from the latest price snapshot."""
+    api_url = os.getenv("API_URL", "https://api.uniqlotracker.com").rstrip("/")
+    url = f"{api_url}/api/{config.market_code.lower()}/product-images"
+    request = urllib.request.Request(url, headers={"Accept": "application/json"})
+    with urllib.request.urlopen(request, timeout=settings.request_timeout_seconds) as response:
+        payload = json.load(response)
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid product image inventory")
+    ids = payload.get("product_ids")
+    if payload.get("market") != config.market_code or not isinstance(ids, list) or any(
+        not isinstance(product_id, str) for product_id in ids
+    ):
+        raise ValueError("Invalid product image inventory")
+    return set(ids)
+
+
 def add_images(
     config: MarketConfig,
     settings: ScraperSettings,
@@ -506,8 +526,22 @@ def add_images(
     images_by_id: dict[str, str],
 ) -> int:
     """Download unique images and attach paths to every category occurrence."""
-    if not settings.save_photo:
+    if not settings.save_photo and not settings.save_missing_photo:
         return 0
+    if settings.save_missing_photo and not settings.save_photo:
+        try:
+            existing = existing_image_ids(config, settings)
+        except (OSError, ValueError, http.client.HTTPException) as exc:
+            # An unavailable inventory must not delay photos or the price import.
+            print(f"WARNING: Image inventory unavailable; downloading all images: {exc}")
+        else:
+            images_by_id = {
+                product_id: url for product_id, url in images_by_id.items()
+                if product_id not in existing
+            }
+            if not images_by_id:
+                print("INFO: No missing product images to download")
+                return 0
     if not images_by_id:
         print("WARNING: The API returned no product image URLs")
         return 0
@@ -604,7 +638,7 @@ def run(config: MarketConfig, output_dir: Path) -> None:
         request_json(config, settings, config.taxonomy_api_url),
     )
     print(f"INFO: Resolved all {len(categories)} category routes")
-    print(f"INFO: Product image downloads enabled: {settings.save_photo}")
+    print(f"INFO: Product images: refresh={settings.save_photo}, fill missing={settings.save_missing_photo}")
 
     start_time = time.time()
     results_by_route: dict[str, CategoryResult] = {}
