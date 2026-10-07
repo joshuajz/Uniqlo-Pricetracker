@@ -38,7 +38,7 @@ export function applyMetadata(metadata: PageMetadata) {
   set('meta[name="robots"]', metadata.noindex ? 'noindex,follow' : 'index,follow')
 }
 
-const escapeHTML = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+export const escapeHTML = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 
 // Render these into the initial response so sharing crawlers need no JavaScript.
 export function renderMetadata(html: string, metadata: PageMetadata) {

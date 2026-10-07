@@ -62,9 +62,22 @@ Deploy the frontend to Vercel with `frontend` as the project root. Set `VITE_API
 
 Keep `VITE_API_URL` available to both builds and Vercel Functions. Product routes
 use `api/page.ts` to put their title, description, canonical URL, and sharing
-metadata in the initial HTML. The function bundles `dist/index.html`; the app
-also updates metadata during client-side navigation. A missing product returns
+metadata in the initial HTML, together with a readable product name, recorded
+price, typical and lowest prices, recording dates, and store link. The interactive
+React app replaces this content when it mounts. The function bundles
+`dist/index.html`; the app also updates metadata during client-side navigation. A missing product returns
 404 with `noindex`; an unavailable API returns a non-cached 503 app shell.
+
+`/sitemap.xml` is a live sitemap index containing the general pages in
+`/sitemap-pages.xml` and regional product sitemaps at
+`/sitemap-products-<market>-<page>.xml`. Each product sitemap contains up to
+10,000 sorted, unique canonical URLs from that market's latest catalogue.
+Archived products retain their working detail pages but are not listed in the
+current-catalogue sitemaps. Successful sitemap responses are cached for five
+minutes; API failures return a non-cached 503 instead of incomplete XML.
+`robots.txt` continues to advertise `/sitemap.xml`. No rebuild is required when
+the catalogue changes. Verify the index and one product sitemap per market
+after deploying the frontend.
 
 Deploy the API to a Go-compatible service such as Railway with a PostgreSQL database. Set `DATABASE_URL`, `AUTH_USER`, `AUTH_PASS`, and `CORS_ORIGINS` (your frontend URL).
 

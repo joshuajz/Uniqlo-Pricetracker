@@ -16,7 +16,7 @@ test('compiled server handler loads as ESM and serves direct country requests', 
   try {
     await mkdir(project)
     await writeFile(join(project, 'package.json'), '{"type":"module"}')
-    for (const file of ['api/page.ts', 'src/lib/metadata.ts', 'src/lib/markets.ts']) {
+    for (const file of ['api/sitemap.ts', 'api/page.ts', 'src/lib/metadata.ts', 'src/lib/markets.ts']) {
       const source = await readFile(new URL(file, root), 'utf8')
       const compiled = ts.transpileModule(source, { compilerOptions: options, fileName: file })
       const destination = join(project, file.replace(/\.ts$/, '.js'))
@@ -24,6 +24,10 @@ test('compiled server handler loads as ESM and serves direct country requests', 
       await writeFile(destination, compiled.outputText)
     }
     const { default: handler } = await import(pathToFileURL(join(project, 'api/page.js')).href)
+    const { renderSitemap } = await import(pathToFileURL(join(project, 'api/sitemap.js')).href)
+    const sitemap = await renderSitemap('/sitemap-products-ca-1.xml', 'https://api.example/api', async () => Response.json({ products: [{ product_id: 'E1' }] }))
+    assert.equal(sitemap.status, 200)
+    assert.ok(sitemap.body.includes('/ca/products/E1</loc>'))
     // Vercel preserves the frontend directory inside the function package, but
     // starts the process at the package root rather than inside frontend.
     await mkdir(join(project, 'dist'))

@@ -82,3 +82,37 @@ test('every country landing page works without the API, and unknown routes are 4
     assert.ok(page.html.includes('content="noindex,follow"'))
   }
 })
+
+
+test('initial product body exposes recorded facts and navigation without JavaScript', async () => {
+  const page = await renderPage('/jp/products/E1', template, 'https://api.example/api', async () => Response.json({
+    name: '日本のシャツ <script>&', current_price: 1990, regular_price: 2990,
+    lowest_price: { lowest_price: 1490 }, url: 'https://www.uniqlo.com/jp/item?x=1&y=2',
+    datapoints: [{ datetime: '2026-10-06T00:00:00Z' }, { datetime: '2026-09-13T00:00:00Z' }],
+  }))
+  const body = page.html.split('<body>')[1].split('<script type="module"')[0]
+  assert.ok(body.includes('<h1>日本のシャツ &lt;script&gt;&amp;</h1>'))
+  assert.ok(body.includes('Last recorded price</dt><dd>¥1,990 JPY'))
+  assert.ok(body.includes('Typical tracked price</dt><dd>¥2,990 JPY'))
+  assert.ok(body.includes('Lowest recorded price</dt><dd>¥1,490 JPY'))
+  assert.ok(body.includes('2026-09-13</time>'))
+  assert.ok(body.includes('2026-10-06</time>'))
+  assert.ok(body.includes('href="/jp/categories"'))
+  assert.ok(body.includes('href="https://www.uniqlo.com/jp/item?x=1&amp;y=2"'))
+  assert.ok(!body.includes('<script>'))
+})
+
+test('initial content omits unsafe store URLs and invalid optional facts', async () => {
+  for (const url of ['javascript:alert(1)', 'https://uniqlo.com.evil.example/', 'http://www.uniqlo.com/']) {
+    const page = await renderPage('/ca/products/E1', template, 'https://api.example/api', async () => Response.json({
+      name: 'Shirt', current_price: 19.9, url, regular_price: null,
+      lowest_price: { lowest_price: 'invalid' }, datapoints: [{ datetime: '\"><script>' }],
+    }))
+    assert.equal(page.status, 200)
+    const body = page.html.split('<body>')[1]
+    assert.ok(body.includes('<h1>Shirt</h1>'))
+    assert.ok(!body.includes('Check sizes and availability'))
+    assert.ok(!body.includes('Typical tracked price'))
+    assert.ok(!body.includes('<time'))
+  }
+})
