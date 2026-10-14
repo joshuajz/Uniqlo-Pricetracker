@@ -13,7 +13,7 @@ default to keep network traffic low.
 | `canada/` | Canada (English) | CAD | 27 |
 | `uk/` | United Kingdom | GBP | 25 |
 | `japan/` | Japan (Japanese) | JPY | 28 |
-| `us/` | United States | USD | 29 |
+| `us/` | United States | USD | 28 |
 
 All markets cover men, women, kids, and baby, including newborn and toddler
 listings. Canada also includes women's dresses and skirts and men's UV
