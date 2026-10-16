@@ -141,7 +141,9 @@ export default function ProductPage() {
             })}>
             Check sizes on Uniqlo <ExternalLink size={16} aria-hidden="true" /><span className="sr-only"> (opens in a new tab)</span>
           </a><SaveButton product={product} /></div>
-          <p className="product-save-note">{storageAvailable ? 'Saved in this browser.' : 'Saved for this visit.'} No account needed.</p>
+          <p className="product-save-note">{savedEntry
+            ? storageAvailable ? 'Saved in this browser.' : 'Saved for this visit.'
+            : storageAvailable ? 'Save to this browser.' : 'Save for this visit.'} No account needed.</p>
           {savedEntry && <div className="product-saved-comparison"><SavedPriceChange current={product.price} baseline={savedEntry.priceWhenSaved} /></div>}
         </div>
         <dl className="product-page-facts">
