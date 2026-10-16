@@ -146,6 +146,7 @@ button.facet-option:hover { background:var(--wash); }
 .clear-filters { min-height:34px; color:var(--muted); font-size:11px; }
 .result-count { font-size:14px; margin-right:auto; }
 .sort-label { display:flex; align-items:center; gap:10px; min-width:0; color:var(--muted); font-size:12px; }
+.sort-caption { flex-shrink:0; white-space:nowrap; }
 .sort-control { position:relative; display:grid; min-width:0; }
 .sort-control>svg { position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--muted); pointer-events:none; }
 .sort-label select { appearance:none; width:100%; min-height:44px; border:1px solid var(--control-border); border-radius:0; background:var(--surface); color:var(--ink); padding:10px 40px 10px 12px; font-weight:600; }
@@ -558,8 +559,7 @@ button.facet-option:hover { background:var(--wash); }
   .saved-device-note svg { margin-top:2px; }
   .saved-toolbar { flex-wrap:wrap; gap:8px; padding:12px 0; }
   .saved-toolbar .sort-label { margin-left:auto; }
-  .saved-toolbar .sort-label>span { display:block; }
-  .saved-toolbar .sort-label select { width:auto; font-size:12px; }
+  .saved-toolbar .sort-label select { font-size:16px; }
   .saved-filters { gap:5px; }
   .saved-filters button { padding:8px 10px; font-size:11px; }
   .saved-column-head { display:none; }

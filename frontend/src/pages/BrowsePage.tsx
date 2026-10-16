@@ -1,7 +1,7 @@
 import { useMarket } from '../context/MarketContext'
 import { marketPath, type Market } from '../lib/markets'
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, ChevronDown, Grid2X2, List, SlidersHorizontal, Tag, X } from 'lucide-react'
+import { ArrowRight, Grid2X2, List, SlidersHorizontal, Tag, X } from 'lucide-react'
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useProducts, productDetailOptions } from '../data/api'
@@ -16,6 +16,7 @@ import type { Product } from '../types/types'
 import ProductImage from '../components/ProductImage'
 import ProductSearch from '../components/ProductSearch'
 import SaveButton from '../components/SaveButton'
+import SortControl from '../components/SortControl'
 import PageLoader from '../components/PageLoader'
 import ApiErrorFallback from '../components/ApiErrorFallback'
 
@@ -410,17 +411,12 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
           {hasFilters && <button type="button" className="text-button clear-filters" onClick={() => updateFilters({
             query: '', department: 'all', categories: [], tags: [], lowestOnly: false, ...EMPTY_BUDGET,
           })}>Clear filters</button>}
-          <label className="sort-label"><span className="sort-caption">Sort by</span>
-            <span className="sort-control">
-              <select aria-label="Sort products" value={filters.sort} onChange={e => {
-                updateFilters({ sort: e.target.value as ProductSort })
-                track('categories_sort_changed', { sort_key: e.target.value })
-              }}>
-                <option value="discount">Biggest discount</option><option value="price">Price: low to high</option><option value="name">Name: A to Z</option>
-              </select>
-              <ChevronDown size={16} aria-hidden="true" />
-            </span>
-          </label>
+          <SortControl label="Sort products" value={filters.sort} onChange={value => {
+            updateFilters({ sort: value as ProductSort })
+            track('categories_sort_changed', { sort_key: value })
+          }}>
+            <option value="discount">Biggest discount</option><option value="price">Price: low to high</option><option value="name">Name: A to Z</option>
+          </SortControl>
           <div className="view-options" role="group" aria-label="Product view">
             <button className="icon-button" type="button" aria-label="List view" aria-pressed={filters.view === 'list'}
               onClick={() => updateFilters({ view: 'list' }, false, true)}><List size={18} aria-hidden="true" /></button>
