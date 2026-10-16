@@ -1,3 +1,4 @@
+import TypicalHelp from './TypicalHelp'
 import { useMarket } from '../context/MarketContext'
 import { useMemo, useState } from 'react'
 import { Area, AreaChart, CartesianGrid, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -104,7 +105,7 @@ export default function PriceHistory({ datapoints, typicalPrice }: { datapoints:
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <p className="chart-caption">Steps connect daily observations; changes between checks are unknown. Dashed line: typical tracked price ({formatMoney(typicalPrice)}).{hasGaps && ' Gaps indicate days without a recorded price.'}</p>
+          <p className="chart-caption">Steps connect daily observations; changes between checks are unknown. Dashed line: typical tracked price ({formatMoney(typicalPrice)}) <TypicalHelp />.{hasGaps && ' Gaps indicate days without a recorded price.'}</p>
         </>}
       <details className="history-calendar">
         <summary>View {observations.length} recorded {observations.length === 1 ? 'price' : 'prices'} in this range</summary>

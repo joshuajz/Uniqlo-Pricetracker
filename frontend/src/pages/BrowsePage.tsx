@@ -16,6 +16,7 @@ import type { Product } from '../types/types'
 import ProductImage from '../components/ProductImage'
 import ProductSearch from '../components/ProductSearch'
 import SaveButton from '../components/SaveButton'
+import TypicalHelp from '../components/TypicalHelp'
 import PageLoader from '../components/PageLoader'
 import ApiErrorFallback from '../components/ApiErrorFallback'
 
@@ -260,7 +261,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
       <header className="browse-heading volume-heading" inert={filterModalActive}>
         <div className="volume-copy">
           <p className="browse-eyebrow">Uniqlo {market.name} price tracker</p>
-          <h1 tabIndex={-1}>{dealsOnly ? 'Deals, within reach.' : 'All tracked products.'}</h1>
+          <h1 tabIndex={-1}><span className="browse-title-desktop">{dealsOnly ? 'Deals, within reach.' : 'All tracked products.'}</span><span className="browse-title-mobile">{dealsOnly ? 'Find your next deal.' : 'Find a product.'}</span></h1>
           <p className="browse-intro">{dealsOnly
             ? `Independent tracker for Uniqlo ${market.name} price drops`
             : `Search Uniqlo ${market.name} products and price history`}
@@ -386,6 +387,9 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
             </div>
             )}
           </div>
+          <div className="filter-panel-footer"><button type="button" className="primary-button" onClick={() => closeFilters(true)}>
+            Show {filtered.length.toLocaleString('en-CA')} {dealsOnly ? (filtered.length === 1 ? 'deal' : 'deals') : (filtered.length === 1 ? 'product' : 'products')}
+          </button></div>
         </div>
       </div>
 
@@ -476,7 +480,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
           <p className="price-basis">{dealsOnly
             ? 'Deals are below the most frequently recorded price. '
             : 'Price comparisons use the most frequently recorded price. '}
-            <Link to={marketPath(market, "/faq#price-comparisons")}>How price comparisons work</Link>
+            <span className="typical-basis">Typical price <TypicalHelp /></span> <Link to={marketPath(market, "/faq#price-comparisons")}>How price comparisons work</Link>
           </p>
         </>}
       </section>

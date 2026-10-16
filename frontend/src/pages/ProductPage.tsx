@@ -6,7 +6,7 @@ import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { ApiError, useProductDetail } from '../data/api'
 import { track } from '../lib/analytics'
-import { applyMetadata, pageMetadata } from '../lib/metadata'
+import { applyMetadata, pageMetadata, SITE_URL } from '../lib/metadata'
 import {
   departmentsLabel, discountPct, formatRecordingDate, isLowestRecorded, isOnSale, money,
   productCategory, productFromDetail, recordedHistory, recordingAge,
@@ -14,6 +14,8 @@ import {
 import type { Product } from '../types/types'
 import ProductImage from '../components/ProductImage'
 import SaveButton from '../components/SaveButton'
+import TypicalHelp from '../components/TypicalHelp'
+import CopyLink from '../components/CopyLink'
 import SavedPriceChange from '../components/SavedPriceChange'
 import { useSavedProducts } from '../context/SavedProductsContext'
 
@@ -122,13 +124,14 @@ export default function ProductPage() {
         <header className="product-page-title">
           <div className="product-page-status"><p className="product-page-code">{product.product_id}</p>
             {archived && <span className="archived-badge">Archived</span>}
+            <CopyLink key={productId} url={SITE_URL + marketPath(market, `/products/${encodeURIComponent(productId)}`)} />
           </div>
           <h1 tabIndex={-1}>{product.name}</h1>
         </header>
         <div className="product-page-buy">
           {archived && <p className="product-recorded-label">Last recorded price</p>}
           <div className="product-page-price"><strong>{formatMoney(product.price)}</strong><span>{market.currency}</span>
-            {isOnSale(product) && <span className="product-page-typical"><span>Typical</span>
+            {isOnSale(product) && <span className="product-page-typical"><span>Typical <TypicalHelp /></span>
               <del aria-label={`Typical tracked price ${formatMoney(product.regular_price)}`}>{formatMoney(product.regular_price)}</del></span>}
           </div>
           <div className={`product-page-verdict ${isLowestRecorded(product) ? 'at-lowest' : ''}`}>
@@ -163,7 +166,7 @@ export default function ProductPage() {
     </div>}
     {detailQuery.data && <section className="product-page-history" aria-label="Recorded price history">
       <Suspense fallback={<div className="product-page-chart-loading" role="status"><div className="skeleton chart-skeleton" aria-hidden="true" /><p>Loading price chart…</p></div>}>
-        <PriceHistory datapoints={detailQuery.data.datapoints} typicalPrice={detailQuery.data.regular_price} />
+        <PriceHistory key={productId} datapoints={detailQuery.data.datapoints} typicalPrice={detailQuery.data.regular_price} />
       </Suspense>
       <Link className="product-comparison-link" to={marketPath(market, "/faq#price-comparisons")}>How prices are compared</Link>
     </section>}
