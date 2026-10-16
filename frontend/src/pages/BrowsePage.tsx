@@ -18,6 +18,7 @@ import ProductSearch from '../components/ProductSearch'
 import SaveButton from '../components/SaveButton'
 import SortControl from '../components/SortControl'
 import TypicalHelp from '../components/TypicalHelp'
+import FilterSection from '../components/FilterSection'
 import PageLoader from '../components/PageLoader'
 import ApiErrorFallback from '../components/ApiErrorFallback'
 
@@ -60,6 +61,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
   const filters = useMemo(() => readBrowseFilters(params, defaultSort), [params, defaultSort])
   const deferredQuery = useDeferredValue(filters.query)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [advancedBudgetOpen, setAdvancedBudgetOpen] = useState(true)
   const [mobileFilters, setMobileFilters] = useState(() => window.matchMedia('(max-width: 650px)').matches)
   const browseControlsRef = useRef<HTMLDivElement>(null)
   const filterTriggerRef = useRef<HTMLButtonElement>(null)
@@ -257,6 +259,34 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
       state={{ productPageOrigin: legacyOrigin }} />
   }
 
+  const budgetFields = (fields: readonly (typeof BUDGET_FIELDS)[number][]) => <div className="budget-fields">
+    {fields.map(({ key, label }) => <label key={key} htmlFor={`budget-${key}`}>
+      <span>{label}{key === 'minDiscount' ? ' (%)' : ` (${market.currency})`}</span>
+      <input id={`budget-${key}`} type="number" inputMode="decimal" min="0"
+        max={key === 'minDiscount' ? 100 : undefined} step="any"
+        placeholder="Any" value={filters[key] ?? ''}
+        aria-invalid={(key === 'minPrice' || key === 'maxPrice') && invalidPriceRange || undefined}
+        aria-describedby={invalidPriceRange && (key === 'minPrice' || key === 'maxPrice') ? 'budget-range-error' : 'budget-filter-help'}
+        onChange={event => updateFilters({ [key]: readBudgetAmount(event.target.value, key === 'minDiscount' ? 100 : undefined) }, true)} />
+    </label>)}
+  </div>
+
+  const activeFilterButtons = <>
+    {selectedCategoryOptions.map(option => <button type="button" key={option.key}
+      onClick={() => updateFilters({ categories: filters.categories.filter(value => !option.values.includes(value)) })}>
+      <span>{option.label}</span><X size={14} aria-hidden="true" /></button>)}
+    {filters.tags.map(tag => <button type="button" key={tag}
+      onClick={() => updateFilters({ tags: filters.tags.filter(value => value !== tag) })}>
+      <span>{tag}</span><X size={14} aria-hidden="true" /></button>)}
+    {activeBudgetFields.map(({ key, label }) => <button type="button" key={key}
+      aria-label={`Remove ${label.toLowerCase()} filter`} onClick={() => updateFilters({ [key]: null })}>
+      <span>{label}: {key === 'minDiscount' ? `${filters[key]}%` : formatMoney(filters[key]!)}</span>
+      <X size={14} aria-hidden="true" />
+    </button>)}
+    {filters.lowestOnly && <button type="button" onClick={() => updateFilters({ lowestOnly: false })}>
+      <span>Lowest recorded</span><X size={14} aria-hidden="true" /></button>}
+  </>
+
   return (
     <div className="browse-page page-container">
       <header className="browse-heading volume-heading" inert={filterModalActive}>
@@ -305,19 +335,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
         </div>
 
         {activeFilterCount > 0 && <div className="active-filters" aria-label="Active filters" inert={filterModalActive}>
-          {selectedCategoryOptions.map(option => <button type="button" key={option.key}
-            onClick={() => updateFilters({ categories: filters.categories.filter(value => !option.values.includes(value)) })}>
-            <span>{option.label}</span><X size={14} aria-hidden="true" /></button>)}
-          {filters.tags.map(tag => <button type="button" key={tag}
-            onClick={() => updateFilters({ tags: filters.tags.filter(value => value !== tag) })}>
-            <span>{tag}</span><X size={14} aria-hidden="true" /></button>)}
-          {activeBudgetFields.map(({ key, label }) => <button type="button" key={key}
-            aria-label={`Remove ${label.toLowerCase()} filter`} onClick={() => updateFilters({ [key]: null })}>
-            <span>{label}: {key === 'minDiscount' ? `${filters[key]}%` : formatMoney(filters[key]!)}</span>
-            <X size={14} aria-hidden="true" />
-          </button>)}
-          {filters.lowestOnly && <button type="button" onClick={() => updateFilters({ lowestOnly: false })}>
-            <span>Lowest recorded</span><X size={14} aria-hidden="true" /></button>}
+          {activeFilterButtons}
         </div>}
 
         {filterModalActive && <div className="filter-backdrop" aria-hidden="true" onClick={() => closeFilters(true)} />}
@@ -326,67 +344,61 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
           aria-labelledby={filterModalActive ? 'browse-filter-title' : undefined}
           aria-label={filterModalActive ? undefined : 'Product filters'} hidden={!filtersOpen}>
           <div className="filter-panel-head">
-            <h2 id="browse-filter-title">Refine the {filtered.length.toLocaleString('en-CA')} {dealsOnly ? 'deals' : 'products'}</h2>
+            <h2 id="browse-filter-title">Filters</h2>
             <div className="filter-panel-head-actions">
               {dealsOnly && <label className="lowest-corner filter-panel-desktop-action">
                 <input type="checkbox" checked={filters.lowestOnly}
                   onChange={event => updateFilters({ lowestOnly: event.target.checked })} />
                 <span>Lowest recorded</span>
               </label>}
-              <button type="button" className="text-button filter-panel-desktop-action" onClick={() => updateFilters({
+              {activeFilterCount > 0 && <button type="button" className="text-button filter-panel-desktop-action" onClick={() => updateFilters({
                 categories: [], tags: [], lowestOnly: false, ...EMPTY_BUDGET,
-              })}>Clear filters</button>
+              })}>Clear filters</button>}
               <button ref={filterCloseRef} type="button" className="icon-button filter-panel-close"
                 aria-label="Close filters" onClick={() => closeFilters(true)}><X size={18} aria-hidden="true" /></button>
             </div>
           </div>
-          <div className="filter-panel-list-actions">
+          {(dealsOnly || activeFilterCount > 0) && <div className="filter-panel-list-actions">
             {dealsOnly && <label className="lowest-corner">
               <input type="checkbox" checked={filters.lowestOnly}
                 onChange={event => updateFilters({ lowestOnly: event.target.checked })} />
               <span>Lowest recorded</span>
             </label>}
-            <button type="button" className="text-button" onClick={() => updateFilters({
+            {activeFilterCount > 0 && <button type="button" className="text-button" onClick={() => updateFilters({
               categories: [], tags: [], lowestOnly: false, ...EMPTY_BUDGET,
-            })}>Clear filters</button>
-          </div>
-          <section className="budget-filters" aria-labelledby="budget-filter-title">
-            <h3 id="budget-filter-title">Budget <span>{market.currency}</span></h3>
-            <div className="budget-fields">
-              {BUDGET_FIELDS.map(({ key, label }) => <label key={key} htmlFor={`budget-${key}`}>
-                <span>{label}{key === 'minDiscount' ? ' (%)' : ` (${market.currency})`}</span>
-                <input id={`budget-${key}`} type="number" inputMode="decimal" min="0"
-                  max={key === 'minDiscount' ? 100 : undefined} step="any"
-                  placeholder="Any" value={filters[key] ?? ''}
-                  aria-invalid={(key === 'minPrice' || key === 'maxPrice') && invalidPriceRange || undefined}
-                  aria-describedby={invalidPriceRange && (key === 'minPrice' || key === 'maxPrice') ? 'budget-range-error' : 'budget-filter-help'}
-                  onChange={event => updateFilters({ [key]: readBudgetAmount(event.target.value, key === 'minDiscount' ? 100 : undefined) }, true)} />
-              </label>)}
-            </div>
-            <p id="budget-filter-help">Discount and savings are compared with the typical tracked price.</p>
-            {invalidPriceRange && <p id="budget-range-error" role="status">Minimum price must be no more than maximum price.</p>}
-          </section>
+            })}>Clear filters</button>}
+          </div>}
+          {activeFilterCount > 0 && <div className="active-filters panel-active-filters" aria-label="Selected filters">{activeFilterButtons}</div>}
           <div className="filter-groups">
-            <div className="filter-group filter-group-categories">
-              <h3>Category</h3>
-              <div className="filter-options" role="group" aria-label="Category">
+            <FilterSection title="Product type" selected={selectedCategoryOptions.length} collapsible={mobileFilters} className="filter-group-categories">
+              <div className="filter-options" role="group" aria-label="Product type">
                 {categoryOptions.map(option => <button className="facet-option" key={option.key} type="button"
                   aria-pressed={option.values.some(value => filters.categories.includes(value))}
                   onClick={() => updateFilters({ categories: toggleValues(filters.categories, option.values) })}>
                   <span className="facet-check" aria-hidden="true" /><span>{option.label}</span><small>{option.count}</small>
                 </button>)}
               </div>
-            </div>
-            {tagGroups.map(({ group, tags }) => tags.length > 0 && <div className="filter-group" key={group}>
-              <h3>{group}</h3>
+              <p className="filter-group-help">Choose any matching product type.</p>
+            </FilterSection>
+            <FilterSection title={`Budget · ${market.currency}`} selected={activeBudgetFields.length} className="budget-filters">
+              {budgetFields(BUDGET_FIELDS.slice(0, 2))}
+              {invalidPriceRange && <p id="budget-range-error" role="status">Minimum price must be no more than maximum price.</p>}
+              <button type="button" className="advanced-budget-toggle" aria-expanded={advancedBudgetOpen} aria-controls="advanced-budget-fields"
+                onClick={() => setAdvancedBudgetOpen(value => !value)}>Discount &amp; savings <span aria-hidden="true">{advancedBudgetOpen ? '−' : '+'}</span>
+                {(filters.minDiscount !== null || filters.minSavings !== null) && <span className="filter-selected-count">{Number(filters.minDiscount !== null) + Number(filters.minSavings !== null)} selected</span>}
+              </button>
+              <div id="advanced-budget-fields" hidden={!advancedBudgetOpen}>{budgetFields(BUDGET_FIELDS.slice(2))}</div>
+              <p id="budget-filter-help">Discount and savings are compared with the typical tracked price.</p>
+            </FilterSection>
+            {tagGroups.map(({ group, tags }) => tags.length > 0 && <FilterSection key={group} title={group}
+              selected={tags.filter(([tag]) => filters.tags.includes(tag)).length} collapsible={mobileFilters}>
               <div className="filter-options" role="group" aria-label={group}>
                 {tags.map(([tag, count]) => <button className="facet-option" key={tag} type="button" aria-pressed={filters.tags.includes(tag)}
                   onClick={() => updateFilters({ tags: toggleValues(filters.tags, [tag]) })}>
                   <span className="facet-check" aria-hidden="true" /><span>{tag}</span><small>{count}</small>
                 </button>)}
               </div>
-            </div>
-            )}
+            </FilterSection>)}
           </div>
           <div className="filter-panel-footer"><button type="button" className="primary-button" onClick={() => closeFilters(true)}>
             Show {filtered.length.toLocaleString('en-CA')} {dealsOnly ? (filtered.length === 1 ? 'deal' : 'deals') : (filtered.length === 1 ? 'product' : 'products')}

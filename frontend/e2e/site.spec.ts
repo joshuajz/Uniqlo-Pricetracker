@@ -114,3 +114,74 @@ test('catalogue failure offers retry without claiming no matching products', asy
   await page.getByRole('button',{name:/Try again|Retry/}).click()
   await expect(page.getByRole('link',{name:/View price history for Cotton/})).toBeVisible()
 })
+
+test('grouped product types count each product once and preserve legacy category links', async ({page,isMobile}) => {
+  const products = [
+    {product_id:'E200001-000',name:'Cotton base layer',categories:['women/innerwear','women/innerwear-and-base-layers']},
+    {product_id:'E200002-000',name:'Cotton undershirt',categories:['women/innerwear-and-base-layers']},
+  ].map(product => ({...product,price:20,regular_price:40,lowest_price:20,is_all_time_low:true,
+    datetime:'2026-10-15T00:00:00Z',attributes:{materials:['cotton'],features:['airism']},url:`https://www.uniqlo.com/ca/en/products/${product.product_id}/00`}))
+  await page.route('**/api/ca/products',route=>route.fulfill({json:{products,count:2,datetime:'2026-10-15T00:00:00Z',market:'CA',currency:'CAD'}}))
+  await page.goto('/ca/categories?category=innerwear')
+  await expect(page.getByRole('link',{name:/View price history for Cotton base layer/})).toBeVisible()
+  await expect(page.getByRole('link',{name:/View price history for Cotton undershirt/})).not.toBeVisible()
+  await page.getByRole('button',{name:/^Filters/}).click()
+  await expect(page.getByRole('spinbutton',{name:'Minimum discount (%)',exact:true})).toBeVisible()
+  const group = page.getByRole('group',{name:'Product type',exact:true})
+  const innerwear = group.getByRole('button',{name:'Innerwear and base layers 2',exact:true})
+  await expect(innerwear).toHaveAttribute('aria-pressed','true')
+  await innerwear.click()
+  await innerwear.click()
+  const params = new URL(page.url()).searchParams
+  expect(params.getAll('category')).toEqual(['innerwear','innerwear-and-base-layers'])
+  await expect(page.getByRole('group',{name:'Product type'}).getByRole('button')).toHaveCount(1)
+  if (isMobile) {
+    await expect(page.getByRole('button',{name:'Material',exact:true})).toHaveAttribute('aria-expanded','true')
+    await expect(page.getByRole('button',{name:'Feature',exact:true})).toHaveAttribute('aria-expanded','true')
+    await page.getByRole('group',{name:'Material',exact:true}).getByRole('button',{name:'Cotton 2',exact:true}).click()
+    await page.getByRole('button',{name:'Material 1 selected',exact:true}).click()
+    await expect(page.getByRole('group',{name:'Material',exact:true})).not.toBeVisible()
+    await page.getByRole('dialog').getByLabel('Selected filters').getByRole('button',{name:'Cotton',exact:true}).click()
+    await page.getByRole('button',{name:'Show 2 products',exact:true}).click()
+  } else await page.getByRole('button',{name:/^Filters/}).click()
+  await expect(page.getByRole('link',{name:/View price history for Cotton/})).toHaveCount(2)
+  await page.reload()
+  await expect(page.getByRole('link',{name:/View price history for Cotton/})).toHaveCount(2)
+  await page.goto('/ca/categories?open=women/innerwear')
+  await expect(page.getByRole('link',{name:/View price history for Cotton base layer/})).toBeVisible()
+  await expect(page.getByRole('link',{name:/View price history for Cotton undershirt/})).not.toBeVisible()
+})
+
+test('advanced savings remain available and selected values survive reload',async ({page,isMobile}) => {
+  await page.goto('/ca?minDiscount=25')
+  await page.getByRole('button',{name:/^Filters/}).click()
+  await expect(page.getByRole('spinbutton',{name:'Minimum discount (%)',exact:true})).toHaveValue('25')
+  await page.getByRole('spinbutton',{name:'Minimum savings (CAD)',exact:true}).fill('10')
+  await page.getByRole('button',{name:/^Discount & savings/}).click()
+  await expect(page.getByRole('spinbutton',{name:'Minimum savings (CAD)',exact:true})).not.toBeVisible()
+  if (isMobile) await page.getByRole('button',{name:'Show 1 deal',exact:true}).click()
+  await page.reload()
+  await page.getByRole('button',{name:/^Filters/}).click()
+  await expect(page.getByRole('spinbutton',{name:'Minimum savings (CAD)',exact:true})).toHaveValue('10')
+})
+
+test('filter panel stays usable at narrow and tablet widths with keyboard dismissal', async ({page}) => {
+  for (const width of [320,650,768]) {
+    await page.setViewportSize({width,height:844})
+    await page.goto('/ca/categories')
+    const trigger = page.getByRole('button',{name:'Filters',exact:true})
+    await trigger.focus()
+    await page.keyboard.press('Enter')
+    const panel = page.locator('#browse-filter-panel')
+    await expect(panel).toBeVisible()
+    await expect(panel.getByRole('button',{name:'Clear filters',exact:true})).not.toBeVisible()
+    await expect(panel.getByRole('spinbutton',{name:'Minimum savings (CAD)',exact:true})).toBeVisible()
+    const bounds = (await panel.boundingBox())!
+    expect(bounds.x).toBeGreaterThanOrEqual(0)
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(width + 1)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.keyboard.press('Escape')
+    await expect(panel).not.toBeVisible()
+    await expect(trigger).toBeFocused()
+  }
+})
