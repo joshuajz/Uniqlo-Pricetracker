@@ -212,3 +212,15 @@ recorded date (including archived products). Range lows/highs use observations
 inside the selected window. The latest-price streak counts consecutive recorded
 days across the full history and stops at missing days or a different price.
 Step lines connect daily observations, not known intraday price changes.
+
+## Browser regression checks
+
+From `frontend`, run `npm ci`, `npx playwright install chromium`, then
+`npm run test:e2e`. The suite builds the production frontend and starts an
+isolated preview on port 5180. It covers desktop Chromium and an iPhone-sized
+Chromium viewport, using deterministic API fixtures without production writes.
+It covers archived search and URL state, price ranges, saving and undo, mobile
+filters and focus, Typical help, sharing and clipboard failure, country links,
+missing products and API failure recovery. Mobile emulation is not a substitute
+for testing Safari on a real iPhone. CI runs these alongside unit tests and
+PostgreSQL API integration tests, retaining browser traces on failure.
