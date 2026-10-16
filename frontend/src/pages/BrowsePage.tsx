@@ -8,7 +8,7 @@ import { useProducts, productDetailOptions } from '../data/api'
 import { track } from '../lib/analytics'
 import {
   DEPARTMENTS, PAGE_SIZE, categoryFilterPresentation, categoryLabel, departmentHasCategory, departmentsLabel, discountPct,
-  filterProducts, formatRecordingDate, isLowestRecorded, isOnSale, money, productCategory, productFacets,
+  filterProducts, formatRecordingDate, isFeatureCategory, isLowestRecorded, isOnSale, money, productCategory, productFacets,
   readBrowseFilters, readBudgetAmount, recordingAge, recordingStatus,
 } from '../lib/products'
 import type { BrowseFilters, ProductSort } from '../lib/products'
@@ -81,7 +81,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
       const productGroups = new Set<string>()
       product.categories
         .filter(path => filters.department === 'all' || path.startsWith(`${filters.department}/`))
-        .map(path => path.split('/').slice(1).join('/')).filter(Boolean)
+        .map(path => path.split('/').slice(1).join('/')).filter(category => category && !isFeatureCategory(category))
         .forEach(category => {
           const presentation = categoryFilterPresentation(category)
           const option = options.get(presentation.key) ?? { ...presentation, count: 0 }

@@ -97,14 +97,19 @@ export const productFacets = (product: Product): ProductFacet[] => facetsFromAtt
   .map(({ group, label }) => ({ group, label }))
 
 export const productCategory = (product: Product) => {
-  const path = product.categories[0]?.split('/').slice(1).join('/')
-  return path ? categoryLabel(path) : 'Uncategorized'
+  const paths = product.categories.map(path => path.split('/').slice(1).join('/')).filter(Boolean)
+  const path = paths.find(path => !isFeatureCategory(path))
+  return path ? categoryFilterPresentation(path).label : paths.length ? 'Clothing' : 'Uncategorized'
 }
+export const isFeatureCategory = (category: string) => PRODUCT_FACETS.some(facet => facet.group === 'Feature' && facet.id === category)
 export interface CategoryFilterPresentation { key: string; label: string; values: string[] }
 const CATEGORY_FILTER_PRESENTATIONS: CategoryFilterPresentation[] = [
   { key: 'newborn', label: 'Newborn', values: ['baby-6-18-months', 'newborn', 'newborn2'] },
   { key: 'accessories-and-home', label: 'Accessories and home', values: ['accessories', 'accessories-and-home'] },
-  { key: 'formal-and-polo-shirts', label: 'Formal and polo shirts', values: ['shirts-and-polo-shirts'] },
+  { key: 'shirts', label: 'Shirts, blouses and polos', values: ['shirts-and-polo-shirts', 'shirts-and-polos', 'shirts-and-blouses'] },
+  { key: 'innerwear', label: 'Innerwear and base layers', values: ['innerwear', 'innerwear-and-base-layers'] },
+  { key: 'loungewear', label: 'Loungewear and homeware', values: ['loungewear', 'loungewear-and-homeware'] },
+  { key: 'dresses', label: 'Dresses, skirts and jumpsuits', values: ['dresses-and-jumpsuits', 'dresses-and-skirts'] },
   { key: 'knitwear', label: 'Knitwear', values: [
     'shirts-and-knitwear', 'shirts-and-knitware', 'sweaters-and-knitwear', 'sweaters-and-knitware',
   ] },

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Product, ProductDetail } from '../types/types.ts'
-import { categoryFilterPresentation, chartHistory, DAY, departmentHasCategory, departmentsLabel, filterProducts, formatRecordingDate, isLowestRecorded, normalizeProduct, PAGE_SIZE, productAttributes, productFacets, productFromDetail, readBrowseFilters, recordingTime } from './products.ts'
+import { categoryFilterPresentation, chartHistory, DAY, departmentHasCategory, departmentsLabel, filterProducts, formatRecordingDate, isFeatureCategory, isLowestRecorded, normalizeProduct, PAGE_SIZE, productAttributes, productCategory, productFacets, productFromDetail, readBrowseFilters, recordingTime } from './products.ts'
 
 const product = (id: string, overrides: Partial<Product> = {}): Product => ({
   product_id: id, name: id, price: 19.9, regular_price: 39.9, lowest_price: 19.9,
@@ -186,7 +186,7 @@ test('category presentation combines and renames filters without changing stored
   assert.deepEqual(categoryFilterPresentation('accessories'), {
     key: 'accessories-and-home', label: 'Accessories and home', values: ['accessories', 'accessories-and-home'],
   })
-  assert.equal(categoryFilterPresentation('shirts-and-polo-shirts').label, 'Formal and polo shirts')
+  assert.equal(categoryFilterPresentation('shirts-and-polo-shirts').label, 'Shirts, blouses and polos')
   assert.deepEqual(categoryFilterPresentation('sweaters-and-knitwear').values,
     ['shirts-and-knitwear', 'shirts-and-knitware', 'sweaters-and-knitwear', 'sweaters-and-knitware'])
   for (const category of ['baby-6-18-months', 'newborn', 'newborn2']) {
@@ -194,6 +194,21 @@ test('category presentation combines and renames filters without changing stored
     assert.equal(presentation.label, 'Newborn')
     assert.equal(presentation.values.includes(category), true)
   }
+})
+
+test('merged categories retain products from every alias and agree with card labels', () => {
+  for (const slug of ['innerwear', 'loungewear', 'dresses-and-skirts', 'shirts-and-polo-shirts']) {
+    const group = categoryFilterPresentation(slug)
+    const data = group.values.map((value, index) => product(String(index), { categories: [`women/${value}`] }))
+    assert.equal(filterProducts(data, { ...defaults, categories: group.values }, false).length, data.length)
+    assert.ok(data.every(item => productCategory(item) === group.label))
+    const legacy = readBrowseFilters(new URLSearchParams(`category=${slug}`))
+    assert.equal(filterProducts(data, legacy, false).length, 1)
+  }
+  const uv = product('uv', { categories: ['women/uv-protection', 'women/outerwear'] })
+  assert.equal(isFeatureCategory('uv-protection'), true)
+  assert.equal(productCategory(uv), 'Outerwear')
+  assert.ok(productFacets(uv).some(facet => facet.label === 'UV protection'))
 })
 
 test('lowest-recorded eligibility excludes a new full-price observation everywhere', () => {
