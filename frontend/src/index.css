@@ -333,8 +333,7 @@ button.facet-option:hover { background:var(--wash); }
   .product-page-summary { grid-template-columns:1fr; grid-template-rows:auto; gap:14px; padding-left:30px; }
   .product-page-facts { grid-column:auto; }
 }
-@media(max-width:650px) {
-  .page-container { padding:24px 16px 40px; }
+@media(max-width:800px) {
   .site-nav { min-height:64px; padding:6px 12px; gap:8px; } .nav-links { display:none; } .nav-region,.market-current { display:none; }
   .site-nav .theme-toggle { margin-left:auto; }
   .site-nav .market-selector+.theme-toggle { margin-left:0; }
@@ -349,7 +348,11 @@ button.facet-option:hover { background:var(--wash); }
   .market-mobile-code { display:block; font:10px var(--data-font); }
   .market-trigger .market-flag { height:18px; }
   .market-list { position:fixed; top:64px; right:10px; left:10px; width:auto; }
-  .nav-region+.theme-toggle { margin-left:auto; } .site-footer { flex-wrap:wrap; padding:18px 16px; align-items:flex-start; } .site-footer .legal-links { order:3; width:100%; justify-content:flex-start; }
+  .nav-region+.theme-toggle { margin-left:auto; }
+}
+@media(max-width:650px) {
+  .page-container { padding:24px 16px 40px; }
+  .site-footer { flex-wrap:wrap; padding:18px 16px; align-items:flex-start; } .site-footer .legal-links { order:3; width:100%; justify-content:flex-start; }
   .privacy-banner { right:10px; bottom:10px; grid-template-columns:1fr; width:calc(100% - 20px); gap:14px; padding:18px; }
   .privacy-banner .privacy-actions,.privacy-dialog .privacy-actions { display:grid; grid-template-columns:1fr; }
   .privacy-dialog { padding:22px 18px; }
