@@ -107,20 +107,16 @@ func prepareIngestContext(ctx context.Context, output ScraperOutput, images map[
 				if file == nil {
 					return prepared, fmt.Errorf("Missing image for product %q", product.ProductID)
 				}
-				r, err := file.Open()
+				item.image, err = prepareProductPhoto(file)
 				if err != nil {
-					return prepared, err
+					// Photos are optional: a bad CDN response must not discard prices
+					// or replace an existing valid image. Missing photos retry daily.
+					item.image = nil
+					prepared.output.Metadata.TotalFailed++
+					fmt.Printf("WARNING: skipping image for %s/%q: %v\n", prepared.market, product.ProductID, err)
+				} else {
+					item.imageHash = sha256.Sum256(item.image)
 				}
-				original, err := io.ReadAll(io.LimitReader(r, productimage.MaxInputBytes+1))
-				r.Close()
-				if err != nil {
-					return prepared, err
-				}
-				item.image, err = productimage.Compress(original)
-				if err != nil {
-					return prepared, fmt.Errorf("Invalid image for product %q: %w", product.ProductID, err)
-				}
-				item.imageHash = sha256.Sum256(item.image)
 			}
 			byID[product.ProductID] = item
 		}
@@ -138,6 +134,19 @@ func prepareIngestContext(ctx context.Context, output ScraperOutput, images map[
 	}
 	sort.Slice(prepared.products, func(i, j int) bool { return prepared.products[i].ProductID < prepared.products[j].ProductID })
 	return prepared, nil
+}
+
+func prepareProductPhoto(file *zip.File) ([]byte, error) {
+	r, err := file.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	original, err := io.ReadAll(io.LimitReader(r, productimage.MaxInputBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	return productimage.Compress(original)
 }
 
 // Recompute from retained observations: replacement/backfill may remove an old

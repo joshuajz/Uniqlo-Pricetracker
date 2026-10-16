@@ -55,6 +55,11 @@ def wait_for_import(archive, api_url, user, password, timeout=2700, interval=10)
                 job = request(endpoint, authorization, archive)
             if job.get("id") != job_id:
                 raise RuntimeError("API returned an unexpected import job ID")
+            if job.get("status") == "pending" and job.get("needs_upload") is True:
+                # Restore a lost spool payload using the exact hash-matched file.
+                job = request(endpoint, authorization, archive)
+                if job.get("id") != job_id:
+                    raise RuntimeError("API returned an unexpected import job ID")
             status = job.get("status")
             if status != last_status:
                 print(f"Import status: {status}", flush=True)

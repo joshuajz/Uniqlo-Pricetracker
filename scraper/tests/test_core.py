@@ -10,6 +10,7 @@ from unittest.mock import patch
 from canada.config import CONFIG as CANADA
 from core import (
     Category,
+    CategoryResult,
     ScraperSettings,
     add_images,
     existing_image_ids,
@@ -19,6 +20,7 @@ from core import (
     product_query,
     resolve_categories,
     scrape_category,
+    canonical_catalogue,
 )
 from japan.config import CONFIG as JAPAN
 from uk.config import CONFIG as UK
@@ -104,6 +106,31 @@ class MarketConfigTests(unittest.TestCase):
 
 
 class ApiScraperTests(unittest.TestCase):
+    def test_price_group_choice_does_not_follow_page_order(self):
+        category = Category("men/tops", "men", 1, 2)
+        primary = product_item(CANADA, "E1", price=39.9, price_group="00")
+        discounted = product_item(CANADA, "E1", price=19.9, price_group="01")
+        primary["images"]["main"]["09"]["image"] = "https://example.com/primary.jpg"
+        for order in ([primary, discounted], [discounted, primary]):
+            result, images = scrape_category(CANADA, category,
+                page_fetcher=lambda _category, offset: ([order[offset]], 2))
+            self.assertEqual(result.products[0]["price"], "CA $ 39.90")
+            self.assertEqual(result.products[0]["price_group"], "00")
+            self.assertTrue(result.products[0]["url"].endswith("/00"))
+            self.assertEqual(images["E1"], "https://example.com/primary.jpg")
+
+    def test_cross_listings_use_one_group_and_matching_photo(self):
+        config = replace(CANADA, category_routes=("men/tops", "women/tops"))
+        sale, _ = parse_product(config, product_item(config, "E1", price=19.9, price_group="01"))
+        primary, _ = parse_product(config, product_item(config, "E1", price=39.9, price_group="00"))
+        results = {"women/tops": CategoryResult("women/tops", [primary], 1),
+                   "men/tops": CategoryResult("men/tops", [sale], 1)}
+        prices, images = canonical_catalogue(config, results,
+            {"men/tops": {"E1": "sale.jpg"}, "women/tops": {"E1": "primary.jpg"}})
+        self.assertEqual(prices["men/tops"], prices["women/tops"])
+        self.assertEqual(prices["men/tops"][0]["price"], "CA $ 39.90")
+        self.assertEqual(images, {"E1": "primary.jpg"})
+
     def test_product_query_targets_whole_top_level_class(self):
         category = Category("men/tops", "men", 528, 546)
         query = product_query(category, 100, 80)

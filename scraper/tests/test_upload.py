@@ -44,6 +44,14 @@ class UploadTests(unittest.TestCase):
         self.assertEqual(request.call_count, 1)
         self.assertEqual(len(request.call_args.args), 2)
 
+    def test_pending_job_with_missing_payload_is_reuploaded(self):
+        with patch.object(upload, "request", side_effect=[
+            self.job("pending", needs_upload=True), self.job("pending"), self.job("succeeded"),
+        ]) as request:
+            self.assertEqual(self.run_import()["status"], "succeeded")
+        self.assertEqual(request.call_args_list[1].args[2], self.archive)
+        self.assertEqual(sum(len(call.args) == 3 for call in request.call_args_list), 1)
+
     def test_failure_is_not_reported_as_success(self):
         with patch.object(upload, "request", return_value=self.job("failed", error="Invalid image")):
             with self.assertRaisesRegex(RuntimeError, "Invalid image"):

@@ -52,7 +52,7 @@ func fixtureWithImage() ScraperOutput {
 	return output
 }
 
-func TestPrepareIngestCompressesImageAndRejectsInvalidData(t *testing.T) {
+func TestPrepareIngestCompressesImageAndSkipsInvalidPhotos(t *testing.T) {
 	var original bytes.Buffer
 	im := image.NewRGBA(image.Rect(0, 0, 80, 120))
 	for y := 0; y < 120; y++ {
@@ -78,8 +78,12 @@ func TestPrepareIngestCompressesImageAndRejectsInvalidData(t *testing.T) {
 		t.Fatal("archive preparation did not hash the stored image bytes")
 	}
 	for _, data := range [][]byte{[]byte("invalid image"), make([]byte, productimage.MaxInputBytes+1)} {
-		if _, err := prepareIngest(fixtureWithImage(), imageArchive(t, data)); err == nil {
-			t.Fatal("accepted invalid or oversized image from archive")
+		prepared, err := prepareIngest(fixtureWithImage(), imageArchive(t, data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(prepared.products) != 1 || len(prepared.products[0].image) != 0 || prepared.output.Metadata.TotalFailed != 1 {
+			t.Fatal("invalid photo must be counted and omitted without discarding prices")
 		}
 	}
 }
@@ -98,6 +102,20 @@ func TestCompressedImageIsStoredAndSurvivesPriceOnlyIngest(t *testing.T) {
 		t.Fatal(err)
 	}
 	ingestFixture(t, database, "2026-09-13T03:00:00Z", "CA $ 9.90")
+	badPhoto := fixtureWithImage()
+	badPhoto.Metadata.Datetime = "2026-09-14T03:00:00Z"
+	badPhoto.Products["men/tops"][0].Price = "CA $ 8.90"
+	withoutPhoto, err := prepareIngest(badPhoto, imageArchive(t, []byte("<html>CDN error</html>")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := persistIngest(context.Background(), database, withoutPhoto); err != nil {
+		t.Fatal(err)
+	}
+	var latestPrice float64
+	if err := database.QueryRow(`SELECT price FROM products WHERE product_id='E1' ORDER BY datetime DESC LIMIT 1`).Scan(&latestPrice); err != nil || latestPrice != 8.9 {
+		t.Fatalf("bad optional photo prevented the price update: %v %v", latestPrice, err)
+	}
 	var stored []byte
 	var updated string
 	if err = database.QueryRow(`SELECT i.image,pi.last_updated::text

@@ -4,6 +4,24 @@ import { useMarket } from './MarketContext'
 import { addSavedProduct, parseSavedProducts, readSavedProducts, savedStorageKey, writeSavedProducts, type SavedProduct } from '../lib/saved-products'
 import type { Product } from '../types/types'
 
+type SavedState = ReturnType<typeof readSavedProducts>
+const SavedMemoryContext = createContext<Map<string, SavedState> | null>(null)
+
+// Survives the market-keyed UI, but is discarded when the page closes/reloads.
+export function SavedProductsMemoryProvider({ children }: { children: ReactNode }) {
+  const memory = useRef(new Map<string, SavedState>())
+  useEffect(() => {
+    const sync = (event: StorageEvent) => {
+      if (event.storageArea !== window.localStorage) return
+      if (event.key === null) memory.current.clear()
+      else memory.current.delete(event.key)
+    }
+    window.addEventListener('storage', sync)
+    return () => window.removeEventListener('storage', sync)
+  }, [])
+  return <SavedMemoryContext.Provider value={memory.current}>{children}</SavedMemoryContext.Provider>
+}
+
 interface SavedProductsValue {
   products: SavedProduct[]
   storageAvailable: boolean
@@ -24,13 +42,17 @@ export function SavedStorageNotice() {
 
 export function SavedProductsProvider({ children }: { children: ReactNode }) {
   const market = useMarket()
+  const memory = useContext(SavedMemoryContext)
+  if (!memory) throw new Error('SavedProductsMemoryProvider is missing')
   const [state, setState] = useState(() => {
+    const retained = memory.get(savedStorageKey(market))
+    if (retained && !retained.available) return retained
     try { return readSavedProducts(window.localStorage, market) }
     catch { return { products: [] as SavedProduct[], available: false } }
   })
   const current = useRef(state)
   const [notice, setNotice] = useState<{ message: string; undo?: () => void } | null>(null)
-  const set = (next: typeof state) => { current.current = next; setState(next) }
+  const set = (next: typeof state) => { memory.set(savedStorageKey(market), next); current.current = next; setState(next) }
   const latest = () => {
     if (!current.current.available) return current.current.products
     try {

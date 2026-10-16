@@ -12,6 +12,11 @@ export default defineConfig({
     { name: 'mobile', use: { ...devices['iPhone 13'], defaultBrowserType: 'chromium' } },
   ],
   webServer: {
+    env: {
+      VITE_PUBLIC_POSTHOG_KEY: 'phc_browser_test',
+      VITE_PUBLIC_POSTHOG_REVERSE_PROXY: 'http://127.0.0.1:5180/analytics',
+      VITE_PUBLIC_POSTHOG_HOST: 'http://127.0.0.1:5180/analytics',
+    },
     command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 5180 --strictPort',
     url: 'http://127.0.0.1:5180', reuseExistingServer: false,
   },

@@ -17,7 +17,7 @@ import NotFoundPage from './pages/NotFoundPage'
 import PrivacyConsent from './components/PrivacyConsent'
 import LegalPage from './pages/LegalPage'
 import SavedPage from './pages/SavedPage'
-import { SavedProductsProvider, SavedStorageNotice } from './context/SavedProductsContext'
+import { SavedProductsMemoryProvider, SavedProductsProvider, SavedStorageNotice } from './context/SavedProductsContext'
 
 function PageviewTracker() {
   const location = useLocation()
@@ -75,10 +75,10 @@ function MarketSite() {
 }
 
 export default function App() {
-  return <BrowserRouter><RouteFocusManager /><Routes>
+  return <SavedProductsMemoryProvider><BrowserRouter><RouteFocusManager /><Routes>
     {['/', '/categories', '/dashboard', '/saved', '/products/:productId', '/faq', '/terms', '/privacy'].map(path =>
       <Route key={path} path={path} element={<LegacyRedirect />} />)}
     <Route path="/:market/*" element={<MarketSite />} />
     <Route path="*" element={<NotFoundPage />} />
-  </Routes></BrowserRouter>
+  </Routes></BrowserRouter></SavedProductsMemoryProvider>
 }

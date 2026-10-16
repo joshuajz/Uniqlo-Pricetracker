@@ -14,6 +14,7 @@ import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Callable
 
@@ -370,12 +371,52 @@ def parse_product(
         price_group = "00"
     product = {
         "product_id": product_id,
+        "price_group": price_group,
         "name": name.strip(),
         "price": current_price(config, item),
         "url": f"{config.site_base_url}/products/{product_id}/{price_group}",
         "image": None,
     }
     return product, product_image_url(item)
+
+
+def product_selection_key(
+    config: MarketConfig, product: dict[str, Any]
+) -> tuple[str, Decimal, str, str]:
+    """Prefer the primary group (00), then the lowest available group code.
+
+    Price/name ties are deterministic too, including categories fetched on
+    different workers. A lower price breaks a tie within the same group only.
+    """
+    return (
+        product["price_group"],
+        Decimal(product["price"].removeprefix(config.price_prefix).replace(",", "")),
+        product["url"], product["name"],
+    )
+
+
+def canonical_catalogue(
+    config: MarketConfig,
+    results_by_route: dict[str, CategoryResult],
+    images_by_route: dict[str, dict[str, str]],
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, str]]:
+    """Give every category occurrence the same selected price group and photo."""
+    selected: dict[str, dict[str, Any]] = {}
+    image_urls: dict[str, str] = {}
+    for route in config.category_routes:
+        for product in results_by_route[route].products:
+            product_id = product["product_id"]
+            previous = selected.get(product_id)
+            if previous is None or product_selection_key(config, product) < product_selection_key(config, previous):
+                selected[product_id] = product
+                image_urls.pop(product_id, None)
+                if image_url := images_by_route[route].get(product_id):
+                    image_urls[product_id] = image_url
+    prices = {
+        route: [dict(selected[p["product_id"]]) for p in results_by_route[route].products]
+        for route in config.category_routes
+    }
+    return prices, image_urls
 
 
 PageFetcher = Callable[[Category, int], tuple[list[dict[str, Any]], int]]
@@ -434,8 +475,10 @@ def scrape_category(
                 )
             listing_keys.add(listing_key)
             product, image_url = parse_product(config, item)
-            if product["product_id"] not in products_by_id:
+            previous = products_by_id.get(product["product_id"])
+            if previous is None or product_selection_key(config, product) < product_selection_key(config, previous):
                 products_by_id[product["product_id"]] = product
+                images_by_id.pop(product["product_id"], None)
                 if image_url:
                     images_by_id[product["product_id"]] = image_url
         offset += len(items)
@@ -642,7 +685,7 @@ def run(config: MarketConfig, output_dir: Path) -> None:
 
     start_time = time.time()
     results_by_route: dict[str, CategoryResult] = {}
-    all_images: dict[str, str] = {}
+    images_by_route: dict[str, dict[str, str]] = {}
     failures: dict[str, str] = {}
     worker_count = min(settings.max_workers, len(categories))
     with ThreadPoolExecutor(max_workers=worker_count) as pool:
@@ -661,7 +704,7 @@ def run(config: MarketConfig, output_dir: Path) -> None:
             try:
                 result, images = future.result()
                 results_by_route[result.route] = result
-                all_images.update(images)
+                images_by_route[result.route] = images
             except Exception as exc:
                 failures[category.route] = str(exc)
 
@@ -674,9 +717,7 @@ def run(config: MarketConfig, output_dir: Path) -> None:
             print(f"ERROR: {route}: {error}")
         raise SystemExit(1)
 
-    prices = {
-        route: results_by_route[route].products for route in config.category_routes
-    }
+    prices, all_images = canonical_catalogue(config, results_by_route, images_by_route)
     total_products = sum(len(products) for products in prices.values())
     if total_products < settings.min_products:
         print(

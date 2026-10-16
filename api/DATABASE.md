@@ -122,8 +122,11 @@ The existing import lock `817423` still serializes database writes with legacy
 imports. Product writes and the successful job status commit in **one transaction**.
 Validation or persistence errors produce a failed job with no partial import;
 connection loss or shutdown rolls back and leaves the job pending for recovery.
-An unavailable archive remains pending until its storage is restored. Terminal
-payload cleanup runs after the commit and is safe to repeat after a restart.
+An unavailable archive remains pending. Its status includes `needs_upload: true`
+when the payload is missing; rerunning `scraper/upload.py` with the same archive
+restores the payload under the job's row lock. Repairs recheck the pending state
+so they cannot recreate completed payloads. Terminal payload cleanup runs after
+the commit and is safe to repeat after a restart.
 
 Use the existing single API replica with the persistent volume mounted at
 `/api/database`. Every worker must have access to the same spool; do not scale to
@@ -139,8 +142,10 @@ Incoming JPEG and PNG photos are validated and compressed in Go before product
 writes begin. Photos retain their original pixel dimensions and
 are encoded as JPEG at quality 80; an already smaller JPEG is retained unchanged.
 PNG transparency is composited onto white. Invalid photos, photos larger than
-20 MiB, and images exceeding 25 million pixels reject the archive before any
-database writes. The image endpoint continues to return `image/jpeg`.
+20 MiB, and images exceeding 25 million pixels are skipped, logged, and added to
+the run's `total_failed` count. Valid prices still import, and any existing photo
+is preserved. A referenced image absent from the ZIP remains an archive validation
+error. The image endpoint continues to return `image/jpeg`.
 
 The SHA-256 digest is calculated from the final compressed JPEG. `images` stores
 each byte-identical blob once, while `product_images` maps the current market and

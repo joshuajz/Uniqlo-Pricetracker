@@ -53,7 +53,7 @@ export default function SavedPage() {
       <ul className="saved-results">{visible.map(({ entry, product, live, missing, refreshing, notFound }) => <li className="saved-row" key={product.product_id}>
         <div className="saved-identity"><Link to={marketPath(market, `/products/${encodeURIComponent(product.product_id)}`)} tabIndex={-1} aria-hidden="true"><ProductImage id={product.product_id} /></Link>
           <div><Link className="saved-product-name" to={marketPath(market, `/products/${encodeURIComponent(product.product_id)}`)}
-            state={{ product, productPageOrigin: location.pathname }}>{product.name}</Link>
+            state={{ product, savedSnapshot: !live, productPageOrigin: location.pathname }}>{product.name}</Link>
             <p className="product-meta">{departmentsLabel(product)} · {productCategory(product)}</p>
             {missing && live && <span className="archived-badge">Archived</span>}
             {live && !missing && (isLowestRecorded(product) ? <span className="low-badge">Lowest recorded</span> : isOnSale(product) ? <span className="low-badge">Below typical price</span> : null)}

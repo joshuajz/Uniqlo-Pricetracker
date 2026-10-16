@@ -45,6 +45,13 @@ export function initializeAnalytics(): Promise<boolean> {
       respect_dnt: true,
     })
     initialized = true
+    // The SDK retains its own opt-out across reloads, independently of our
+    // preference. Reconcile it only while the current choice is still accepted.
+    if (getAnalyticsConsent() !== 'accepted') {
+      posthog.opt_out_capturing()
+      return false
+    }
+    posthog.opt_in_capturing({ captureEventName: false })
     return true
   }).catch(() => false).finally(() => { loading = null })
   return loading

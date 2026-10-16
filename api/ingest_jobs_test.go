@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -240,18 +241,16 @@ func TestWorkerInterruptionLeavesJobPendingAndExcludesOtherWorkers(t *testing.T)
 }
 
 func TestQueuedImportFailureRollsBackAndReportsFailure(t *testing.T) {
-	for _, invalidPhoto := range []bool{true, false} {
-		t.Run(map[bool]string{true: "invalid image", false: "database error"}[invalidPhoto], func(t *testing.T) {
+	for _, invalidPrice := range []bool{true, false} {
+		t.Run(map[bool]string{true: "invalid price", false: "database error"}[invalidPrice], func(t *testing.T) {
 			database := testDatabase(t)
 			q, err := newIngestQueue(database, t.TempDir())
 			if err != nil {
 				t.Fatal(err)
 			}
 			output := fixture("2026-09-12T03:00:00Z", "CA $ 19.90")
-			var photo []byte
-			if invalidPhoto {
-				output = fixtureWithImage()
-				photo = []byte("invalid photo")
+			if invalidPrice {
+				output.Products["men/tops"][0].Price = "invalid price"
 			} else {
 				// Fail after product writes, proving the savepoint rolls them back
 				// while still allowing the terminal job failure to commit.
@@ -261,7 +260,7 @@ func TestQueuedImportFailureRollsBackAndReportsFailure(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			job := submitArchive(t, queueRouter(q), queuedArchive(t, output, photo))
+			job := submitArchive(t, queueRouter(q), queuedArchive(t, output, nil))
 			if worked, err := q.processNext(context.Background()); !worked || err != nil {
 				t.Fatalf("process: %v %v", worked, err)
 			}
@@ -274,6 +273,92 @@ func TestQueuedImportFailureRollsBackAndReportsFailure(t *testing.T) {
 				t.Fatalf("partial import: %d %v", count, err)
 			}
 		})
+	}
+}
+
+func TestQueuedInvalidPhotoDoesNotDiscardPrices(t *testing.T) {
+	database := testDatabase(t)
+	q, err := newIngestQueue(database, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	job := submitArchive(t, queueRouter(q), queuedArchive(t, fixtureWithImage(), []byte("<html>CDN error</html>")))
+	if _, err := q.processNext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	state, err := q.lookup(context.Background(), job.ID)
+	if err != nil || state.Status != "succeeded" {
+		t.Fatalf("%+v %v", state, err)
+	}
+	var products, images, failures int
+	if err := database.QueryRow(`SELECT (SELECT count(*) FROM products), (SELECT count(*) FROM product_images), total_failed FROM scraper`).Scan(&products, &images, &failures); err != nil {
+		t.Fatal(err)
+	}
+	if products != 1 || images != 0 || failures != 1 {
+		t.Fatalf("products=%d images=%d failures=%d", products, images, failures)
+	}
+}
+
+func TestMissingPendingPayloadCanBeRestoredWithoutRecreatingCompletedJobs(t *testing.T) {
+	database := testDatabase(t)
+	q, err := newIngestQueue(database, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	router := queueRouter(q)
+	archive := queuedArchive(t, fixture("2026-09-12T03:00:00Z", "CA $ 19.90"), nil)
+	job := submitArchive(t, router, archive)
+	path := filepath.Join(q.spool, job.ID+".zip")
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodGet, "/api/ingest/jobs/"+job.ID, nil)
+	request.SetBasicAuth("test-user", "test-pass")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	var status ingestJob
+	if err := json.Unmarshal(response.Body.Bytes(), &status); err != nil {
+		t.Fatal(err)
+	}
+	if response.Code != http.StatusOK || !status.NeedsUpload {
+		t.Fatalf("missing recovery signal: %s", response.Body)
+	}
+
+	var repairs sync.WaitGroup
+	repairErrors := make(chan error, 2)
+	for _, name := range []string{".upload-repair-1", ".upload-repair-2"} {
+		temporary := filepath.Join(q.spool, name)
+		if err := os.WriteFile(temporary, archive, 0600); err != nil {
+			t.Fatal(err)
+		}
+		repairs.Add(1)
+		go func() { defer repairs.Done(); repairErrors <- q.enqueue(context.Background(), job.ID, temporary) }()
+	}
+	repairs.Wait()
+	close(repairErrors)
+	for err := range repairErrors {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if restored, err := os.ReadFile(path); err != nil || !bytes.Equal(restored, archive) {
+		t.Fatalf("repair failed: %v", err)
+	}
+	if _, err := q.processNext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := q.processNext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	// Model a repair that raced completion: the locked state check must win.
+	if err := q.restorePendingArchive(context.Background(), job.ID, filepath.Join(q.spool, ".upload-repair-1")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("recreated terminal payload: %v", err)
+	}
+	if replay := submitArchive(t, router, archive); replay.Status != "succeeded" {
+		t.Fatal(replay)
 	}
 }
 

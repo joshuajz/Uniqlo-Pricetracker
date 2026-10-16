@@ -24,6 +24,14 @@ The shared implementation lives in `core.py`; each market folder contains only
 the routes and storefront settings that differ. This keeps retry, pagination,
 validation, archive, and image behavior consistent across countries.
 
+One observation is retained per product ID. When multiple price groups are
+listed, the scraper prefers primary group `00`, then the lowest available group
+code; within a group, the lowest listed price breaks ties. Selection is consistent
+across pages and categories, so listing order cannot create a price change. Every
+category uses the selected group's price, product URL, and photo. Archives retain
+the `price_group` field for inspection; existing historical observations are not
+rewritten.
+
 ## Run
 
 Python 3.10 or newer is required. There are no third-party dependencies.

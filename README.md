@@ -146,6 +146,8 @@ full refresh. Failed image downloads are retried on the next daily run.
 The Go API compresses incoming photos to JPEG quality 80 before database storage,
 preserving their pixel dimensions and keeping already smaller JPEGs unchanged.
 Existing stored photos are replaced when a later image upload includes them.
+Invalid or oversized photos are skipped and counted as failures while valid
+prices are imported; an existing photo is preserved.
 
 All four workflows use `python upload.py <country>/output.zip` from `scraper/`.
 The client streams the archive to `POST /api/ingest/jobs` with Basic Auth and
@@ -156,6 +158,8 @@ job reports `succeeded`. It reports `failed` jobs immediately and waits up to
 45 minutes for queued work; the workflow budget is 60 minutes including scraping.
 Connection failures retry the same content-addressed job. Re-running the upload
 client with the same archive resumes polling without creating a duplicate import.
+If a pending job has lost its stored archive, the client reuploads the same file
+to restore it. Completed jobs remain deduplicated.
 
 Deploy the API with its persistent volume **before running the updated workflows**.
 The API adds the `ingest_jobs` table automatically. Its worker imports one job at

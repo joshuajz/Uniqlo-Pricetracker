@@ -27,9 +27,10 @@ type ingestQueue struct {
 }
 
 type ingestJob struct {
-	ID     string `json:"id"`
-	Status string `json:"status"`
-	Error  string `json:"error,omitempty"`
+	ID          string `json:"id"`
+	Status      string `json:"status"`
+	Error       string `json:"error,omitempty"`
+	NeedsUpload bool   `json:"needs_upload,omitempty"`
 }
 
 func initializeIngestJobs(database *sql.DB) error {
@@ -76,6 +77,14 @@ func (q *ingestQueue) status(c *gin.Context) {
 	} else if err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Import queue unavailable"})
 	} else {
+		if job.Status == "pending" {
+			if _, err := os.Stat(filepath.Join(q.spool, id+".zip")); errors.Is(err, os.ErrNotExist) {
+				job.NeedsUpload = true
+			} else if err != nil {
+				c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Import storage unavailable"})
+				return
+			}
+		}
 		c.Header("Cache-Control", "no-store")
 		c.JSON(http.StatusOK, job)
 	}
@@ -134,8 +143,16 @@ func (q *ingestQueue) submit(c *gin.Context) {
 func (q *ingestQueue) enqueue(ctx context.Context, id, temporary string) error {
 	// Reads see the committed pending state even while a worker holds the row
 	// lock. A duplicate upload must not wait for image processing to finish.
-	if _, err := q.lookup(ctx, id); err == nil {
-		return nil
+	if job, err := q.lookup(ctx, id); err == nil {
+		if job.Status != "pending" {
+			return nil
+		}
+		if _, err := os.Stat(filepath.Join(q.spool, id+".zip")); err == nil {
+			return nil
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		return q.restorePendingArchive(ctx, id, temporary)
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
@@ -154,6 +171,37 @@ func (q *ingestQueue) enqueue(ctx context.Context, id, temporary string) error {
 	}
 	if n == 1 {
 		if err := os.Rename(temporary, filepath.Join(q.spool, id+".zip")); err != nil {
+			return err
+		}
+		dir, err := os.Open(q.spool)
+		if err != nil {
+			return err
+		}
+		err = dir.Sync()
+		dir.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (q *ingestQueue) restorePendingArchive(ctx context.Context, id, temporary string) error {
+	tx, err := q.database.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	// Serialize repairs with the worker and recheck its terminal state. An
+	// ordinary duplicate whose payload exists still uses the fast path above.
+	var status string
+	if err := tx.QueryRowContext(ctx, `SELECT status FROM ingest_jobs WHERE id=$1 FOR UPDATE`, id).Scan(&status); err != nil {
+		return err
+	}
+	if status == "pending" {
+		// Link publishes the already-synced upload without overwriting another
+		// repair. Both files are on the same spool filesystem.
+		if err := os.Link(temporary, filepath.Join(q.spool, id+".zip")); err != nil && !errors.Is(err, os.ErrExist) {
 			return err
 		}
 		dir, err := os.Open(q.spool)

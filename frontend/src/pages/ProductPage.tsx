@@ -23,6 +23,7 @@ const PriceHistory = lazy(() => import('../components/PriceHistory'))
 
 interface ProductLocationState {
   product?: Product
+  savedSnapshot?: boolean
   productPageOrigin?: string
 }
 
@@ -49,6 +50,7 @@ export default function ProductPage() {
   const firstDate = observations[0] ? new Date(observations[0].time).toISOString() : null
   const archived = product?.is_archived === true
   const notFound = detailQuery.error instanceof ApiError && detailQuery.error.status === 404
+  const savedSnapshot = state.savedSnapshot === true && !detailQuery.data
   const origin = typeof state.productPageOrigin === 'string' && (state.productPageOrigin === marketPath(market) || state.productPageOrigin.startsWith(marketPath(market) + '/') || state.productPageOrigin.startsWith(marketPath(market) + '?'))
     ? state.productPageOrigin : marketPath(market, '/categories')
   const backLabel = origin.startsWith(marketPath(market, '/saved')) ? 'Back to Saved' : origin.startsWith(marketPath(market, '/categories')) ? 'All products' : 'Back to deals'
@@ -58,14 +60,14 @@ export default function ProductPage() {
   }, [location.pathname, product, notFound])
 
   useEffect(() => {
-    if (!product || tracked.current === product.product_id) return
+    if (!product || savedSnapshot || tracked.current === product.product_id) return
     tracked.current = product.product_id
     track('product_page_viewed', {
       product_id: product.product_id, product_name: product.name, price: product.price,
       regular_price: product.regular_price, discount_pct: discountPct(product),
       is_atl: isLowestRecorded(product), is_on_sale: isOnSale(product),
     })
-  }, [product])
+  }, [product, savedSnapshot])
 
   if (!product && detailQuery.isPending) return <div className="product-detail-page page-container">
     <Link className="product-back-link" to={origin}><ArrowLeft size={15} aria-hidden="true" />{backLabel}</Link>
@@ -123,20 +125,21 @@ export default function ProductPage() {
       <div className="product-page-summary">
         <header className="product-page-title">
           <div className="product-page-status"><p className="product-page-code">{product.product_id}</p>
-            {archived && <span className="archived-badge">Archived</span>}
+            {archived && !savedSnapshot && <span className="archived-badge">Archived</span>}
             <CopyLink key={productId} url={SITE_URL + marketPath(market, `/products/${encodeURIComponent(productId)}`)} />
           </div>
           <h1 tabIndex={-1}>{product.name}</h1>
         </header>
         <div className="product-page-buy">
-          {archived && <p className="product-recorded-label">Last recorded price</p>}
+          {savedSnapshot ? <p className="product-recorded-label" role="status">Price when saved — latest price unavailable.</p>
+            : archived && <p className="product-recorded-label">Last recorded price</p>}
           <div className="product-page-price"><strong>{formatMoney(product.price)}</strong><span>{market.currency}</span>
-            {isOnSale(product) && <span className="product-page-typical"><span>Typical <TypicalHelp /></span>
+            {!savedSnapshot && isOnSale(product) && <span className="product-page-typical"><span>Typical <TypicalHelp /></span>
               <del aria-label={`Typical tracked price ${formatMoney(product.regular_price)}`}>{formatMoney(product.regular_price)}</del></span>}
           </div>
-          <div className={`product-page-verdict ${isLowestRecorded(product) ? 'at-lowest' : ''}`}>
+          {!savedSnapshot && <div className={`product-page-verdict ${isLowestRecorded(product) ? 'at-lowest' : ''}`}>
             <strong>{priceStatus}</strong>{priceContext && <span>{priceContext}</span>}
-          </div>
+          </div>}
           <div className="product-page-actions"><a className="primary-button product-store-link" href={product.url} target="_blank" rel="noopener noreferrer"
             onClick={() => track('view_on_uniqlo_clicked', {
               product_id: product.product_id, product_name: product.name, price: product.price,
@@ -147,7 +150,7 @@ export default function ProductPage() {
           <p className="product-save-note">{savedEntry
             ? storageAvailable ? 'Saved in this browser.' : 'Saved for this visit.'
             : storageAvailable ? 'Save to this browser.' : 'Save for this visit.'} No account needed.</p>
-          {savedEntry && <div className="product-saved-comparison"><SavedPriceChange current={product.price} baseline={savedEntry.priceWhenSaved} /></div>}
+          {savedEntry && !savedSnapshot && <div className="product-saved-comparison"><SavedPriceChange current={product.price} baseline={savedEntry.priceWhenSaved} /></div>}
         </div>
         <dl className="product-page-facts">
           <div><dt>Checked</dt><dd><time dateTime={product.datetime.slice(0, 10)}>{formatRecordingDate(product.datetime, true, 'long')}</time></dd></div>
@@ -156,7 +159,7 @@ export default function ProductPage() {
       </div>
     </article>
 
-    {archived && <p className="notice" role="status">This product isn’t in the latest catalog. Its last recorded prices remain available.</p>}
+    {archived && !savedSnapshot && <p className="notice" role="status">This product isn’t in the latest catalog. Its last recorded prices remain available.</p>}
     {!archived && recordingAge(product.datetime) > 1 && <p className="notice" role="status">This price was last recorded {formatRecordingDate(product.datetime, true, 'long')}. Confirm it on Uniqlo.</p>}
     {detailQuery.isError && <div className="product-history-error inline-error" role="alert">
       <h2>Price history couldn’t load</h2><p>The product link still works.</p>
