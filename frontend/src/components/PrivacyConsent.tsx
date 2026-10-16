@@ -71,7 +71,7 @@ export default function PrivacyConsent() {
   }
 
   const copy = <>
-    <p>With your permission, we use US-based PostHog to collect pseudonymous page views and interactions, along with browser, device and approximate-location data. We do not record sessions or form text. Declining does not affect the price tracker.</p>
+    <p>With your permission, we use US-based PostHog to collect pseudonymous page views, search terms you type, and feature interactions, along with browser, device and approximate-location data. We do not record sessions. Declining does not affect the price tracker.</p>
     <Link to={marketPath(market, '/privacy')} onClick={event => {
       if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) return
       navigatingToPolicy.current = true

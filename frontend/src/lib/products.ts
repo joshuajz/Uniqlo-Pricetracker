@@ -124,23 +124,19 @@ export const departmentHasCategory = (products: Product[], department: Departmen
 
 // The API stores calendar dates, not instants in the viewer's timezone.
 export const recordingTime = (date: string) => Date.parse(`${date.slice(0, 10)}T00:00:00Z`)
-export function formatRecordingDate(date: string | null | undefined, year = true) {
+export function formatRecordingDate(date: string | null | undefined, year = true, month: 'short' | 'long' = 'short') {
   if (!date || !Number.isFinite(recordingTime(date))) return 'Date unavailable'
   return new Intl.DateTimeFormat('en-CA', {
-    month: 'short', day: 'numeric', ...(year ? { year: 'numeric' as const } : {}), timeZone: 'UTC',
+    month, day: 'numeric', ...(year ? { year: 'numeric' as const } : {}), timeZone: 'UTC',
   }).format(recordingTime(date))
 }
 export function recordingAge(date: string | null | undefined, now = Date.now()) {
   return date ? Math.max(0, Math.floor((now - recordingTime(date)) / DAY)) : NaN
 }
 
-export function recordingStatus(date: string | null | undefined, now = Date.now()) {
+export function recordingStatus(date: string | null | undefined) {
   if (!date || !Number.isFinite(recordingTime(date))) return 'Recording date unavailable'
-  const today = recordingTime(new Date(now).toISOString())
-  const day = recordingTime(date)
-  if (day === today) return 'Prices checked today'
-  if (day === today - DAY) return 'Prices checked yesterday'
-  return 'Latest prices loaded'
+  return `Prices checked ${formatRecordingDate(date, false, 'long')}`
 }
 
 // Blank or malformed amounts must never become an accidental zero-price cap.

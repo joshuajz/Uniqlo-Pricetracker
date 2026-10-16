@@ -263,10 +263,10 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
           <p className="browse-intro">{dealsOnly
             ? `Independent tracker for Uniqlo ${market.name} price drops`
             : `Search the current Uniqlo ${market.name} catalogue and price history`}
-            {query.data?.datetime && <> · Updated <time dateTime={query.data.datetime.slice(0, 10)}>{formatRecordingDate(query.data.datetime, false)}</time></>}</p>
+            {query.data?.datetime && <> · Updated <time dateTime={query.data.datetime.slice(0, 10)}>{formatRecordingDate(query.data.datetime, false, 'long')}</time></>}</p>
         </div>
         <p className="volume-status"><span aria-hidden="true" />{query.isPending ? 'Loading prices' : query.isError ? 'Update unavailable' : recordingStatus(query.data?.datetime)}</p>
-        {staleDays > 1 && <p className="notice" role="status">The latest update is {staleDays} days old. Check Uniqlo for current prices.</p>}
+        {staleDays > 1 && <p className="notice" role="status">Prices were last checked {formatRecordingDate(query.data?.datetime, true, 'long')}. Check Uniqlo for current prices.</p>}
       </header>
 
       <a className="skip-results-link" href="#product-results" inert={filterModalActive}>Skip filters and go to results</a>
@@ -396,7 +396,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
               : `${filtered.length.toLocaleString('en-CA')} ${dealsOnly ? 'deal' : 'product'}${filtered.length === 1 ? '' : 's'}`}</strong>
           </p>
           <span className="results-freshness">{query.data?.datetime
-            ? <>Checked <time dateTime={query.data.datetime.slice(0, 10)}>{formatRecordingDate(query.data.datetime, false)}</time></>
+            ? <>Checked <time dateTime={query.data.datetime.slice(0, 10)}>{formatRecordingDate(query.data.datetime, false, 'long')}</time></>
             : `${market.name} · ${market.currency}`}</span>
           {hasFilters && <button type="button" className="text-button clear-filters" onClick={() => updateFilters({
             query: '', department: 'all', categories: [], tags: [], lowestOnly: false, ...EMPTY_BUDGET,

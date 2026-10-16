@@ -4,16 +4,16 @@ import { test } from 'node:test'
 import { pageMetadata, renderMetadata, SITE_URL } from './metadata.ts'
 import { recordingAge, recordingStatus } from './products.ts'
 
-test('freshness distinguishes calendar dates and missing observations', () => {
+test('freshness shows absolute recording dates and handles missing observations', () => {
   const now = Date.parse('2026-09-11T12:00:00Z')
-  assert.equal(recordingStatus('2026-09-11T00:00:00Z', now), 'Prices checked today')
-  assert.equal(recordingStatus('2026-09-10T00:00:00Z', now), 'Prices checked yesterday')
-  assert.equal(recordingStatus('2026-09-09T00:00:00Z', now), 'Latest prices loaded')
+  assert.equal(recordingStatus('2026-09-11T00:00:00Z'), 'Prices checked September 11')
+  assert.equal(recordingStatus('2026-09-10T00:00:00Z'), 'Prices checked September 10')
+  assert.equal(recordingStatus('2026-10-15T00:00:00Z'), 'Prices checked October 15')
   for (const date of [null, undefined, '', 'invalid']) {
-    assert.equal(recordingStatus(date, now), 'Recording date unavailable')
+    assert.equal(recordingStatus(date), 'Recording date unavailable')
     assert.ok(Number.isNaN(recordingAge(date, now)))
   }
-  assert.notEqual(recordingStatus('2026-09-12', now), 'Prices checked today')
+  assert.equal(recordingStatus('2026-09-12'), 'Prices checked September 12')
 })
 
 test('initial product HTML contains escaped product-specific sharing metadata', () => {

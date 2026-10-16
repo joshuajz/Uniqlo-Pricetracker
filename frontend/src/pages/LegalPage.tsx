@@ -10,7 +10,7 @@ function PrivacyPolicy() {
     <header>
       <p className="legal-eyebrow">Legal</p>
       <h1>Privacy policy</h1>
-      <p>Effective {EFFECTIVE_DATE}</p>
+      <p>Effective October 15, 2026</p>
     </header>
 
     <div className="legal-summary" aria-labelledby="privacy-summary-title">
@@ -30,7 +30,7 @@ function PrivacyPolicy() {
       <h3>Device-only preferences</h3>
       <p>Your browser may store your light or dark theme, selected country, saved products and their prices when saved, search and filter state, scroll position, and analytics choice. These settings support the features you request and normally stay on your device. You can remove them through your browser settings, although doing so may reset your preferences and ask for your analytics choice again.</p>
       <h3>Optional PostHog analytics</h3>
-      <p>If you select “Allow analytics”, we use PostHog to measure pseudonymous page views and feature interactions. The data may include a random browser identifier, pages viewed, buttons or filters used, timestamps, referring page, browser and device details, and approximate location derived from an IP address.</p>
+      <p>If you select “Allow analytics”, we use PostHog to measure pseudonymous page views, searches and feature interactions. The data may include a random browser identifier, pages viewed and their URLs, search terms you type and the number of matching results, buttons or filters used, timestamps, referring page, browser and device details, and approximate location derived from an IP address.</p>
       <p>PostHog is a US-based service provider. Analytics information may be processed and stored in the United States and may be available to US authorities under applicable US law. We have configured PostHog not to use session replay, automatic click or form capture, heatmaps, performance monitoring, exception capture, surveys, or person profiles.</p>
     </section>
 

@@ -121,10 +121,13 @@ export default function ProductPage() {
       </div>
       <div className="product-page-summary">
         <header className="product-page-title">
-          <p className="product-page-code">{product.product_id}</p>
+          <div className="product-page-status"><p className="product-page-code">{product.product_id}</p>
+            {archived && <span className="archived-badge">Archived</span>}
+          </div>
           <h1 tabIndex={-1}>{product.name}</h1>
         </header>
         <div className="product-page-buy">
+          {archived && <p className="product-recorded-label">Last recorded price</p>}
           <div className="product-page-price"><strong>{formatMoney(product.price)}</strong><span>{market.currency}</span>
             {isOnSale(product) && <span className="product-page-typical"><span>Typical</span>
               <del aria-label={`Typical tracked price ${formatMoney(product.regular_price)}`}>{formatMoney(product.regular_price)}</del></span>}
@@ -143,14 +146,14 @@ export default function ProductPage() {
           {savedEntry && <div className="product-saved-comparison"><SavedPriceChange current={product.price} baseline={savedEntry.priceWhenSaved} /></div>}
         </div>
         <dl className="product-page-facts">
-          <div><dt>Checked</dt><dd><time dateTime={product.datetime.slice(0, 10)}>{formatRecordingDate(product.datetime)}</time></dd></div>
+          <div><dt>Checked</dt><dd><time dateTime={product.datetime.slice(0, 10)}>{formatRecordingDate(product.datetime, true, 'long')}</time></dd></div>
           <div><dt>Tracking since</dt><dd>{firstDate ? formatRecordingDate(firstDate) : detailQuery.isPending ? 'Loading…' : 'Unavailable'}</dd></div>
         </dl>
       </div>
     </article>
 
     {archived && <p className="notice" role="status">This product isn’t in the latest catalog. Its last recorded prices remain available.</p>}
-    {!archived && recordingAge(product.datetime) > 1 && <p className="notice" role="status">This price is {recordingAge(product.datetime)} days old. Confirm it on Uniqlo.</p>}
+    {!archived && recordingAge(product.datetime) > 1 && <p className="notice" role="status">This price was last recorded {formatRecordingDate(product.datetime, true, 'long')}. Confirm it on Uniqlo.</p>}
     {detailQuery.isError && <div className="product-history-error inline-error" role="alert">
       <h2>Price history couldn’t load</h2><p>The product link still works.</p>
       <button type="button" className="secondary-button" disabled={detailQuery.isFetching}
