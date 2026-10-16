@@ -11,7 +11,8 @@ const FAQS = [
   { id: 'availability', q: 'Are all sizes and colours available at the recorded price?', a: 'We track the product’s displayed price. We do not track availability for every size or colour. Choose “Check sizes on Uniqlo” to confirm availability and the final price.' },
   { id: 'affiliation', q: 'Is this affiliated with Uniqlo?', a: 'No. This is an independent price tracker and is not affiliated with Uniqlo Co., Ltd.' },
   { id: 'affiliate-links', q: 'Are product links affiliate links?', a: 'No. We do not receive a commission when you follow a product link or make a purchase.' },
-  { id: 'alerts', q: 'Can I receive price-drop notifications?', a: 'Notifications are not available yet. You can bookmark a product’s price-history link and check back for daily updates.' },
+  { id: 'saved', q: 'How do saved products work?', a: 'Choose Save product to keep a watchlist in this browser. Saved compares the latest recorded price with the price when you saved the item. Lists are separate for each country and do not sync to other devices. Clearing site storage removes your lists. Removing a product offers Undo.' },
+  { id: 'alerts', q: 'Can I receive price-drop notifications?', a: 'Notifications are not available yet. Save products to your watchlist, then check the Price drops view in Saved for changes since you saved them.' },
   { id: 'free', q: 'Is it free to use?', a: 'Yes. No account, sign-up or subscription is required.' },
 ]
 
