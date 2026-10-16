@@ -1,7 +1,7 @@
 import { useMarket } from '../context/MarketContext'
 import { useMemo, useState } from 'react'
 import { Area, AreaChart, CartesianGrid, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { HISTORY_RANGES, historySummary, historyWindow, type HistoryRange } from '../lib/history'
+import { HISTORY_RANGES, historySummary, historyWindow, priceAxis, type HistoryRange } from '../lib/history'
 import type { ProductDatapoint } from '../types/types'
 import { chartHistory, DAY, formatRecordingDate, money, recordedHistory } from '../lib/products'
 
@@ -55,7 +55,8 @@ export default function PriceHistory({ datapoints, typicalPrice }: { datapoints:
   const dateLabel = (time: number, year = false) => formatRecordingDate(new Date(time).toISOString(), year)
   const min = Math.min(typicalPrice, ...observations.map(d => d.price))
   const max = Math.max(typicalPrice, ...observations.map(d => d.price))
-  const pad = Math.max(2, (max - min) * .12)
+  const axis = priceAxis(min, max, market.currency === 'JPY' ? 1 : .01)
+  const axisMoney = new Intl.NumberFormat(market.locale, { style: 'currency', currency: market.currency, minimumFractionDigits: 0 })
   const ticks = [...new Set([first.time, Math.floor((first.time + last.time) / 2 / DAY) * DAY, last.time])]
   const hasGaps = series.some(d => d.price === null)
   const priceLevel = (price: number) => {
@@ -83,13 +84,13 @@ export default function PriceHistory({ datapoints, typicalPrice }: { datapoints:
         : <>
           <div className="history-chart" role="img" aria-label={`Daily recorded prices in ${market.currency}. First ${formatMoney(first.price)} on ${dateLabel(first.time, true)}; latest ${formatMoney(last.price)} on ${dateLabel(last.time, true)}. A date and price table follows.`}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={series} margin={{ top: 14, right: 26, left: 0, bottom: 6 }}>
+              <AreaChart data={series} margin={{ top: 26, right: 26, left: 0, bottom: 6 }}>
                 <CartesianGrid vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="time" type="number" scale="time" domain={[first.time, last.time]} ticks={ticks}
                   tickFormatter={time => dateLabel(Number(time))} tick={{ fontSize: 11, fill: 'var(--muted)' }}
                   axisLine={false} tickLine={false} minTickGap={22} />
-                <YAxis domain={[Math.max(0, min - pad), max + pad]} width={65} tickCount={3}
-                  tickFormatter={value => formatMoney(Number(value))} tick={{ fontSize: 11, fill: 'var(--muted)' }}
+                <YAxis domain={axis.domain} ticks={axis.ticks} width={65}
+                  tickFormatter={value => axisMoney.format(Number(value))} tick={{ fontSize: 12, fill: 'var(--muted)' }}
                   axisLine={false} tickLine={false} />
                 <Tooltip labelFormatter={value => dateLabel(Number(value), true)}
                   formatter={value => [formatMoney(Number(value)), 'Recorded price']}
@@ -100,7 +101,8 @@ export default function PriceHistory({ datapoints, typicalPrice }: { datapoints:
                 <Area type="stepAfter" dataKey="price" stroke="var(--ink)" strokeWidth={2}
                   fill="var(--ink)" fillOpacity={0.045} dot={false} activeDot={{ r: 4 }}
                   connectNulls={false} isAnimationActive={false} />
-                <ReferenceDot x={last.time} y={last.price} r={3.5} fill="var(--accent)" stroke="var(--surface)" />
+                <ReferenceDot x={last.time} y={last.price} r={3.5} fill="var(--accent)" stroke="var(--surface)"
+                  label={{ value: formatMoney(last.price), position: 'left', offset: 10, fill: 'var(--ink)', fontSize: 12, dy: -12 }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>

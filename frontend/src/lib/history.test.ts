@@ -1,8 +1,19 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { historySummary, historyWindow } from './history.ts'
+import { historySummary, historyWindow, priceAxis } from './history.ts'
 import { DAY } from './products.ts'
 const point = (datetime: string, price: number) => ({ datetime, price, categories: [] })
+
+test('price scales use readable currency steps without hiding data', () => {
+  assert.deepEqual(priceAxis(12.9, 49.9).ticks, [10, 20, 30, 40, 50])
+  for (const [min, max, unit] of [[0, 0, .01], [49.9, 49.9, .01], [.01, .03, .01], [990, 4990, 1], [1, 1, 1]]) {
+    const { domain, ticks } = priceAxis(min, max, unit)
+    assert.ok(domain[0] >= 0 && domain[0] <= min && domain[1] >= max)
+    assert.ok(domain[1] > domain[0])
+    assert.ok(ticks.length >= 2 && ticks.length <= 7)
+    assert.ok(ticks.every(value => Math.abs(value / unit - Math.round(value / unit)) < 1e-6))
+  }
+})
 
 test('history ranges are inclusive and anchored to the last recording, including archived products', () => {
   const end = Date.parse('2024-01-31T00:00:00Z')
