@@ -71,6 +71,7 @@ type ProductResponse struct {
 	LowestPrice  float64  `json:"lowest_price"`
 	RegularPrice float64  `json:"regular_price"`
 	IsAllTimeLow bool     `json:"is_all_time_low"`
+	IsArchived   bool     `json:"is_archived"`
 }
 
 // ProductDatapoint represents a single price datapoint for a product
@@ -202,10 +203,15 @@ func invalidateProductCaches() {
 // getProducts returns all products from the most recent scrape with their lowest prices
 func getProducts(c *gin.Context) {
 	market := requestMarket(c)
+	includeArchived := c.Query("include_archived") == "1"
+	cacheKey := market
+	if includeArchived {
+		cacheKey += ":history"
+	}
 	// Check cache first
 	productsCache.mu.RLock()
 	generation := productsCache.generation
-	if entry, ok := productsCache.cache[market]; ok && time.Now().Before(entry.expiresAt) {
+	if entry, ok := productsCache.cache[cacheKey]; ok && time.Now().Before(entry.expiresAt) {
 		cachedData := entry.data
 		productsCache.mu.RUnlock()
 		c.JSON(http.StatusOK, cachedData)
@@ -241,6 +247,15 @@ func getProducts(c *gin.Context) {
 		LEFT JOIN stats s ON s.market_code = p.market_code AND s.product_id = p.product_id
 		WHERE p.market_code = $1 AND p.datetime = $2
 	`
+	if includeArchived {
+		// One latest observation per product, never its full daily history.
+		query = strings.Replace(query, "FROM products p", `FROM (
+			SELECT DISTINCT ON (product_id) * FROM products
+			WHERE market_code = $1 AND datetime <= $2
+			ORDER BY product_id, datetime DESC
+		) p`, 1)
+		query = strings.Replace(query, "AND p.datetime = $2", "", 1)
+	}
 
 	rows, err := db.Query(query, market, newestDatetime.Time)
 	if err != nil {
@@ -260,6 +275,7 @@ func getProducts(c *gin.Context) {
 			return
 		}
 		p.Datetime = datetime.Format(time.RFC3339)
+		p.IsArchived = datetime.Before(newestDatetime.Time)
 		if err := json.Unmarshal([]byte(categoryJSON), &p.Categories); err != nil {
 			p.Categories = []string{categoryJSON}
 		}
@@ -286,7 +302,7 @@ func getProducts(c *gin.Context) {
 		if productsCache.cache == nil {
 			productsCache.cache = make(map[string]productCacheEntry)
 		}
-		productsCache.cache[market] = productCacheEntry{data: response, expiresAt: time.Now().Add(cacheDuration)}
+		productsCache.cache[cacheKey] = productCacheEntry{data: response, expiresAt: time.Now().Add(cacheDuration)}
 	}
 	productsCache.mu.Unlock()
 
@@ -417,7 +433,9 @@ func getProduct(c *gin.Context) {
 	}
 
 	// Get product name and URL from the most recent entry
-	err = db.QueryRow("SELECT name, url FROM products WHERE market_code = $1 AND product_id = $2 ORDER BY datetime DESC LIMIT 1", market, productID).Scan(&name, &url)
+	var archived bool
+	err = db.QueryRow(`SELECT name, url, datetime < (SELECT MAX(datetime) FROM products WHERE market_code = $1)
+		FROM products WHERE market_code = $1 AND product_id = $2 ORDER BY datetime DESC LIMIT 1`, market, productID).Scan(&name, &url, &archived)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get product details"})
 		return
@@ -492,6 +510,7 @@ func getProduct(c *gin.Context) {
 		"current_price":   currentPrice,
 		"on_sale":         onSale,
 		"is_all_time_low": isAllTimeLow,
+		"is_archived":     archived,
 	}
 
 	productDetailCache.mu.Lock()

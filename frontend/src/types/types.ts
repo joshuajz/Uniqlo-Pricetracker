@@ -18,6 +18,7 @@ export interface Product {
   lowest_price: number
   regular_price: number
   is_all_time_low: boolean
+  is_archived?: boolean
   attributes?: ProductAttributes
 }
 
@@ -46,5 +47,6 @@ export interface ProductDetail {
   current_price: number
   on_sale: boolean
   is_all_time_low: boolean
+  is_archived?: boolean
   attributes?: ProductAttributes
 }

@@ -39,7 +39,7 @@ function productButtonLabel(product: Product, market: Market) {
   const details = [
     `View price history for ${product.name}`,
     departmentsLabel(product),
-    `Current price ${formatMoney(product.price)} ${market.currency}`,
+    `${product.is_archived ? 'Archived. Last recorded price' : 'Current price'} ${formatMoney(product.price)} ${market.currency}`,
   ]
   if (isOnSale(product)) {
     details.push(`Typical tracked price ${formatMoney(product.regular_price)} ${market.currency}`, `${discountPct(product)}% off`)
@@ -66,7 +66,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
   const firstNewResult = useRef<number | null>(null)
   const filterScroll = useRef<number | null>(null)
   const resultsRef = useRef<HTMLUListElement>(null)
-  const query = useProducts()
+  const query = useProducts(!dealsOnly && filters.includeArchived)
   const queryClient = useQueryClient()
   const location = useLocation()
   const products = query.data?.products ?? []
@@ -207,8 +207,9 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
     const next = { ...filters, limit: preserveLimit ? filters.limit : PAGE_SIZE, ...patch }
     setParams(previous => {
       const search = new URLSearchParams(previous)
-      for (const key of ['open', 'q', 'department', 'category', 'tag', 'lowest', 'sort', 'view', 'limit', ...BUDGET_FIELDS.map(field => field.key)]) search.delete(key)
+      for (const key of ['open', 'q', 'history', 'department', 'category', 'tag', 'lowest', 'sort', 'view', 'limit', ...BUDGET_FIELDS.map(field => field.key)]) search.delete(key)
       if (next.query) search.set('q', next.query)
+      if (next.includeArchived) search.set('history', '1')
       if (next.department !== 'all') search.set('department', next.department)
       next.categories.forEach(category => search.append('category', category))
       next.tags.forEach(tag => search.append('tag', tag))
@@ -262,7 +263,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
           <h1 tabIndex={-1}>{dealsOnly ? 'Deals, within reach.' : 'All tracked products.'}</h1>
           <p className="browse-intro">{dealsOnly
             ? `Independent tracker for Uniqlo ${market.name} price drops`
-            : `Search the current Uniqlo ${market.name} catalogue and price history`}
+            : `Search Uniqlo ${market.name} products and price history`}
             {query.data?.datetime && <> · Updated <time dateTime={query.data.datetime.slice(0, 10)}>{formatRecordingDate(query.data.datetime, false, 'long')}</time></>}</p>
         </div>
         <p className="volume-status"><span aria-hidden="true" />{query.isPending ? 'Loading prices' : query.isError ? 'Update unavailable' : recordingStatus(query.data?.datetime)}</p>
@@ -388,6 +389,11 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
         </div>
       </div>
 
+      {!dealsOnly && <label className="catalogue-scope" inert={filterModalActive}>
+        <input type="checkbox" checked={filters.includeArchived} onChange={event => updateFilters({ includeArchived: event.target.checked })} />
+        <span>Include archived products <small>Older products with recorded history</small></span>
+      </label>}
+
       <section id="product-results" tabIndex={-1} aria-label={dealsOnly ? 'Deals' : 'All products'} inert={filterModalActive}>
         <h2 className="sr-only">{dealsOnly ? 'Deal results' : 'Product results'}</h2>
         <div className="results-toolbar">
@@ -445,11 +451,12 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
                     <span className="product-meta">{departmentsLabel(p)} · {productCategory(p)}</span>
                     {productFacets(p)[0] && <span className="product-tag">{productFacets(p)[0].label}</span>}
                   </span>
-                    {isLowestRecorded(p) ? <span className="low-badge">Lowest recorded</span>
+                    {p.is_archived ? <span className="archived-badge">Archived · {formatRecordingDate(p.datetime)}</span>
+                      : isLowestRecorded(p) ? <span className="low-badge">Lowest recorded</span>
                       : <span className="product-meta">Lowest recorded: {formatMoney(p.lowest_price)}</span>}
                   </span>
                   <span className="product-price"><strong>{formatMoney(p.price)}</strong>
-                    {isOnSale(p) ? <><span className="typical-price"><span>Typical</span>
+                    {p.is_archived ? <span className="product-meta">Last recorded</span> : isOnSale(p) ? <><span className="typical-price"><span>Typical</span>
                       <del aria-label={`Typical tracked price ${formatMoney(p.regular_price)}`}>{formatMoney(p.regular_price)}</del></span>
                       <span className="discount">{discountPct(p)}% off</span></> : <span className="product-meta">{p.price === p.regular_price ? 'Typical price' : 'Above typical'}</span>}
                   </span><ArrowRight className="product-arrow" size={18} aria-hidden="true" />

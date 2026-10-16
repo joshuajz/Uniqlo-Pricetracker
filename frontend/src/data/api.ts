@@ -7,12 +7,12 @@ import { normalizeProduct } from '../lib/products'
 export { ApiError } from '../lib/api-client'
 
 const API_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
-export const useProducts = () => {
+export const useProducts = (includeArchived = false) => {
   const market = useMarket()
   return useQuery({
-    queryKey: ['products', market.code],
+    queryKey: ['products', market.code, includeArchived],
     queryFn: async ({ signal }) => {
-      const catalogue = await requestJSON<ProductsAPI>(`${API_URL}/${market.slug}/products`, signal)
+      const catalogue = await requestJSON<ProductsAPI>(`${API_URL}/${market.slug}/products${includeArchived ? '?include_archived=1' : ''}`, signal)
       return { ...catalogue, products: catalogue.products.map(normalizeProduct) }
     },
     staleTime: 5 * 60 * 1000,

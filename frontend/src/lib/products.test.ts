@@ -297,3 +297,12 @@ test('minimum discount uses actual percentages and savings handle decimal prices
   const yen = product('yen', { price: 1990, regular_price: 2990 })
   assert.deepEqual(filterProducts([yen], { ...defaults, maxPrice: 2000, minSavings: 1000 }, false), [yen])
 })
+
+test('historical products are opt-in and never appear as current deals', () => {
+  const active = product('current')
+  const archived = product('old', { name: 'Archived shirt', is_archived: true })
+  const history = readBrowseFilters(new URLSearchParams('history=1&q=shirt'))
+  assert.deepEqual(filterProducts([active, archived], defaults, false), [active])
+  assert.deepEqual(filterProducts([active, archived], history, false), [archived])
+  assert.deepEqual(filterProducts([active, archived], history, true), [])
+})

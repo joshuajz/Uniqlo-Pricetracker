@@ -7,6 +7,7 @@ export type Department = typeof DEPARTMENTS[number]
 export type ProductSort = 'discount' | 'price' | 'name'
 export interface BrowseFilters {
   query: string
+  includeArchived: boolean
   department: Department
   categories: string[]
   tags: string[]
@@ -155,6 +156,7 @@ export function readBrowseFilters(params: URLSearchParams, defaultSort: ProductS
   if (categories.length === 0 && legacy.length > 1) categories.push(legacy.slice(1).join('/'))
   return {
     query: params.get('q') ?? '',
+    includeArchived: params.get('history') === '1',
     department: DEPARTMENTS.find(option => option === department) ?? 'all',
     categories: [...new Set(categories)],
     tags: [...new Set(params.getAll('tag').filter(value => value && value !== 'all').map(canonicalFacetLabel))],
@@ -181,7 +183,8 @@ export function filterProducts(products: Product[], filters: BrowseFilters, deal
     const facets = facetsFromAttributes(productAttributes(p))
     const searchTerms = [p.name, p.product_id, ...facets.flatMap(facet => [facet.id, facet.label, ...facet.aliases])]
       .map(normalizeProductText)
-    return (!dealsOnly || isOnSale(p))
+    return (!p.is_archived || (!dealsOnly && filters.includeArchived))
+      && (!dealsOnly || isOnSale(p))
       && (!filters.lowestOnly || isLowestRecorded(p))
       && (filters.minPrice === null || p.price >= filters.minPrice)
       && (filters.maxPrice === null || p.price <= filters.maxPrice)
@@ -214,6 +217,7 @@ export function productFromDetail(detail: ProductDetail): Product {
     url: detail.url, categories: latest?.categories ?? [], datetime: latest?.datetime ?? '',
     regular_price: detail.regular_price, lowest_price: detail.lowest_price.lowest_price,
     is_all_time_low: detail.is_all_time_low,
+    is_archived: detail.is_archived,
     attributes: detail.attributes,
   })
 }

@@ -1,6 +1,7 @@
 import { useMarket } from '../context/MarketContext'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Area, AreaChart, CartesianGrid, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { HISTORY_RANGES, historySummary, historyWindow, type HistoryRange } from '../lib/history'
 import type { ProductDatapoint } from '../types/types'
 import { chartHistory, DAY, formatRecordingDate, money, recordedHistory } from '../lib/products'
 
@@ -41,8 +42,12 @@ function priceCalendar(observations: Observation[]): CalendarMonth[] {
 export default function PriceHistory({ datapoints, typicalPrice }: { datapoints: ProductDatapoint[]; typicalPrice: number }) {
   const market = useMarket()
   const formatMoney = (value: number) => money(value, market)
-  const observations = useMemo(() => recordedHistory(datapoints), [datapoints])
-  const series = useMemo(() => chartHistory(datapoints), [datapoints])
+  const [range, setRange] = useState<HistoryRange>('all')
+  const selected = useMemo(() => historyWindow(datapoints, range), [datapoints, range])
+  const observations = useMemo(() => recordedHistory(selected), [selected])
+  const series = useMemo(() => chartHistory(selected), [selected])
+  const summary = useMemo(() => historySummary(selected), [selected])
+  const overall = useMemo(() => historySummary(datapoints), [datapoints])
   const calendarMonths = useMemo(() => priceCalendar(observations), [observations])
   if (!observations.length) return <p className="notice">No price observations are available yet.</p>
   const first = observations[0]
@@ -64,7 +69,17 @@ export default function PriceHistory({ datapoints, typicalPrice }: { datapoints:
       <div className="chart-heading"><h3 id="history-heading">Price history</h3>
         <span>{dateLabel(first.time, true)} – {dateLabel(last.time, true)}</span>
       </div>
-      {observations.length === 1 ? <p className="notice">Tracking started {dateLabel(first.time, true)} at {formatMoney(first.price)} {market.currency}. More daily observations are needed to show a trend.</p>
+      <div className="history-range-controls" role="group" aria-label="Price history range">
+        {HISTORY_RANGES.map(option => <button key={option.value} type="button" aria-pressed={range === option.value}
+          onClick={() => setRange(option.value)}>{option.label}</button>)}
+      </div>
+      <p className="history-range-note">Ranges end at the last recorded price. Typical price uses the full history.</p>
+      {summary && overall && <dl className="history-summary" aria-live="polite">
+        <div><dt>Lowest in this range</dt><dd>{formatMoney(summary.low.price)}<small>Last recorded {dateLabel(summary.low.time, true)}</small></dd></div>
+        <div><dt>Highest in this range</dt><dd>{formatMoney(summary.high.price)}<small>Last recorded {dateLabel(summary.high.time, true)}</small></dd></div>
+        <div><dt>Latest price streak</dt><dd>{overall.streak} {overall.streak === 1 ? 'day' : 'days'}<small>Consecutive recordings through {dateLabel(overall.last.time)}</small></dd></div>
+      </dl>}
+      {observations.length === 1 ? <p className="notice">One price recorded in this range: {dateLabel(first.time, true)} at {formatMoney(first.price)} {market.currency}. More daily observations are needed to show a trend.</p>
         : <>
           <div className="history-chart" role="img" aria-label={`Daily recorded prices in ${market.currency}. First ${formatMoney(first.price)} on ${dateLabel(first.time, true)}; latest ${formatMoney(last.price)} on ${dateLabel(last.time, true)}. A date and price table follows.`}>
             <ResponsiveContainer width="100%" height="100%">
@@ -82,17 +97,17 @@ export default function PriceHistory({ datapoints, typicalPrice }: { datapoints:
                   labelStyle={{ color: 'var(--muted)' }} itemStyle={{ color: 'var(--ink)' }}
                   cursor={{ stroke: 'var(--muted)' }} />
                 <ReferenceLine y={typicalPrice} stroke="var(--muted)" strokeDasharray="3 4" />
-                <Area type="monotone" dataKey="price" stroke="var(--ink)" strokeWidth={2}
+                <Area type="stepAfter" dataKey="price" stroke="var(--ink)" strokeWidth={2}
                   fill="var(--ink)" fillOpacity={0.045} dot={false} activeDot={{ r: 4 }}
                   connectNulls={false} isAnimationActive={false} />
                 <ReferenceDot x={last.time} y={last.price} r={3.5} fill="var(--accent)" stroke="var(--surface)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <p className="chart-caption">Dashed line: typical tracked price ({formatMoney(typicalPrice)}).{hasGaps && ' Gaps indicate days without a recorded price.'}</p>
+          <p className="chart-caption">Steps connect daily observations; changes between checks are unknown. Dashed line: typical tracked price ({formatMoney(typicalPrice)}).{hasGaps && ' Gaps indicate days without a recorded price.'}</p>
         </>}
       <details className="history-calendar">
-        <summary>View all {observations.length} recorded {observations.length === 1 ? 'price' : 'prices'}</summary>
+        <summary>View {observations.length} recorded {observations.length === 1 ? 'price' : 'prices'} in this range</summary>
         <div className="price-calendar-months" aria-hidden="true">
           {calendarMonths.map(month => <section className="price-calendar-month" aria-label={month.label} key={month.key}>
             <h4>{month.label}</h4>

@@ -196,3 +196,19 @@ for Canada. Daily regional workflows now fill missing photos automatically; `inc
 can request an immediate full refresh. Until a regional import runs, the UI
 uses its image-unavailable placeholder. Deal counts may be small with short
 histories; all tracked products are still available in All products.
+
+## Historical search and price ranges
+
+All products offers **Include archived products** (`?history=1`). It requests
+`/api/:market/products?include_archived=1` only when enabled. The API returns one
+latest observation per product, with `is_archived` relative to that market's
+latest catalogue date. Current-only browsing and sitemaps are unchanged. Archived
+items show their recording date and never appear in Deals. Product detail now
+returns `is_archived` so opening a product does not require the whole catalogue.
+Deploy the API before the frontend for these additions.
+
+Price charts offer 30 days, 90 days, one year and all time, ending at the latest
+recorded date (including archived products). Range lows/highs use observations
+inside the selected window. The latest-price streak counts consecutive recorded
+days across the full history and stops at missing days or a different price.
+Step lines connect daily observations, not known intraday price changes.

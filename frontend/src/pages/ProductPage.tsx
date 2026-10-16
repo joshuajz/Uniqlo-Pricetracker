@@ -4,7 +4,7 @@ import { useMarket } from '../context/MarketContext'
 import { lazy, Suspense, useEffect, useMemo, useRef } from 'react'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { ApiError, useProductDetail, useProducts } from '../data/api'
+import { ApiError, useProductDetail } from '../data/api'
 import { track } from '../lib/analytics'
 import { applyMetadata, pageMetadata } from '../lib/metadata'
 import {
@@ -31,11 +31,10 @@ export default function ProductPage() {
   const { productId = '' } = useParams()
   const location = useLocation()
   const state = (location.state ?? {}) as ProductLocationState
-  const productsQuery = useProducts()
   const detailQuery = useProductDetail(productId)
   const tracked = useRef('')
   const product = useMemo(() => {
-    const listed = productsQuery.data?.products.find(item => item.product_id === productId) ?? state.product
+    const listed = state.product?.product_id === productId ? state.product : undefined
     if (!detailQuery.data) return listed
     const detailed = productFromDetail(detailQuery.data)
     return {
@@ -43,10 +42,10 @@ export default function ProductPage() {
       datetime: detailed.datetime || listed?.datetime || '',
       categories: detailed.categories.length ? detailed.categories : listed?.categories ?? [],
     }
-  }, [detailQuery.data, productId, productsQuery.data, state.product])
+  }, [detailQuery.data, productId, state.product])
   const observations = useMemo(() => recordedHistory(detailQuery.data?.datapoints ?? []), [detailQuery.data])
   const firstDate = observations[0] ? new Date(observations[0].time).toISOString() : null
-  const archived = !!productsQuery.data && !productsQuery.data.products.some(item => item.product_id === productId)
+  const archived = product?.is_archived === true
   const notFound = detailQuery.error instanceof ApiError && detailQuery.error.status === 404
   const origin = typeof state.productPageOrigin === 'string' && (state.productPageOrigin === marketPath(market) || state.productPageOrigin.startsWith(marketPath(market) + '/') || state.productPageOrigin.startsWith(marketPath(market) + '?'))
     ? state.productPageOrigin : marketPath(market, '/categories')
