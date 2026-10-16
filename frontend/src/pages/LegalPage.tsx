@@ -59,7 +59,7 @@ function PrivacyPolicy() {
     <section>
       <h2>Your privacy rights</h2>
       <p>Depending on the law that applies to you, you may have rights to ask whether we hold personal information about you and to request access, correction, deletion, or withdrawal of consent. Because the Service has no accounts and analytics are pseudonymous, we may be unable to connect a record to you without additional information from your browser.</p>
-      <p>For now, use the <Link to={marketPath(market, '/faq')}>issue-reporting option on the FAQ page</Link> to request a private contact method. Do not place personal or sensitive information in a public GitHub issue.</p>
+      <p>For site issues, use the <Link to={marketPath(market, '/faq')}>public issue-reporting option on the FAQ page</Link>. A private contact option is not currently available. Do not place personal or sensitive information in a public GitHub issue.</p>
     </section>
 
     <section>
