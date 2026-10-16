@@ -10,6 +10,7 @@ import { departmentsLabel, formatRecordingDate, isLowestRecorded, isOnSale, prod
 import { savedPriceChange } from '../lib/saved-products'
 import ProductImage from '../components/ProductImage'
 import SavedPriceChange from '../components/SavedPriceChange'
+import SortControl from '../components/SortControl'
 
 export default function SavedPage() {
   const market = useMarket()
@@ -45,9 +46,9 @@ export default function SavedPage() {
       <div className="saved-toolbar"><div className="saved-filters" role="group" aria-label="Saved product filter">
         <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>All saved <small>{saved.length}</small></button>
         <button type="button" aria-pressed={filter === 'drops'} onClick={() => setFilter('drops')}>Price drops <small>{drops.length}</small></button>
-      </div><label className="sort-label">Sort by <select aria-label="Sort saved products" value={sort} onChange={event => setSort(event.target.value)}>
+      </div><SortControl label="Sort saved products" value={sort} onChange={setSort}>
         <option value="saved">Recently saved</option><option value="drop">Biggest price drop</option><option value="price">Lowest price</option>
-      </select></label></div>
+      </SortControl></div>
       {visible.length > 0 && <div className="saved-column-head" aria-hidden="true"><span>Product</span><span>Latest recorded price · {market.currency}</span><span>Since you saved</span><span /></div>}
       <ul className="saved-results">{visible.map(({ entry, product, live, missing, refreshing, notFound }) => <li className="saved-row" key={product.product_id}>
         <div className="saved-identity"><Link to={marketPath(market, `/products/${encodeURIComponent(product.product_id)}`)} tabIndex={-1} aria-hidden="true"><ProductImage id={product.product_id} /></Link>

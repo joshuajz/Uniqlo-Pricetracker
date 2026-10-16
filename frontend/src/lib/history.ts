@@ -7,6 +7,20 @@ export const HISTORY_RANGES: { value: HistoryRange; label: string }[] = [
   { value: '365', label: '1 year' }, { value: 'all', label: 'All time' },
 ]
 
+// Round the visible scale to currency-friendly steps, including flat histories.
+export function priceAxis(min: number, max: number, unit = .01) {
+  const padding = min === max ? Math.max(unit * 2, max * .1) : 0
+  const low = Math.max(0, min - padding)
+  const high = max + padding
+  const roughStep = Math.max(unit, (high - low) / 4)
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep))
+  const step = Math.max(unit, [1, 2, 5, 10].find(value => value * magnitude >= roughStep)! * magnitude)
+  const lower = Math.floor(low / step) * step
+  const upper = Math.max(lower + step, Math.ceil(high / step) * step)
+  const ticks = Array.from({ length: Math.round((upper - lower) / step) + 1 }, (_, index) => Number((lower + index * step).toFixed(2)))
+  return { domain: [ticks[0], ticks[ticks.length - 1]], ticks }
+}
+
 // Anchor to the latest observation so archived products retain useful ranges.
 export function historyWindow(datapoints: ProductDatapoint[], range: HistoryRange) {
   const observations = recordedHistory(datapoints)
