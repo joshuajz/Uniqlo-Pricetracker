@@ -386,6 +386,9 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
             </div>
             )}
           </div>
+          <div className="filter-panel-footer"><button type="button" className="primary-button" onClick={() => closeFilters(true)}>
+            Show {filtered.length.toLocaleString('en-CA')} {dealsOnly ? 'deals' : 'products'}
+          </button></div>
         </div>
       </div>
 
