@@ -12,6 +12,9 @@ const FAQS = [
   { id: 'affiliation', q: 'Is this affiliated with Uniqlo?', a: 'No. This is an independent price tracker and is not affiliated with Uniqlo Co., Ltd.' },
   { id: 'affiliate-links', q: 'Are product links affiliate links?', a: 'No. We do not receive a commission when you follow a product link or make a purchase.' },
   { id: 'saved', q: 'How do saved products work?', a: 'Choose Save product to keep a watchlist in this browser. Saved compares the latest recorded price with the price when you saved the item. Lists are separate for each country and do not sync to other devices. Clearing site storage removes your lists. Removing a product offers Undo.' },
+  { id: 'archived', q: 'Can I find products from older catalogues?', a: 'Yes. Open All products and select Include archived products, then search by name or product ID. Archived means an item is absent from the latest recorded catalogue, not necessarily discontinued or sold out. Its last recorded price and history remain available.' },
+  { id: 'history', q: 'How do the price-history controls work?', a: 'Choose 30 days, 90 days, one year or all time. Ranges end at the product’s last recorded date, so they also work for archived items. The lowest and highest prices use your selected range; the typical price uses the full history. A price streak counts consecutive days recorded at the latest price and stops at missing days. Changes between daily checks are unknown.' },
+  { id: 'sharing', q: 'Can I share a product?', a: 'Choose Copy link on a product page. The link opens that product’s history in the same country. It does not share your saved list or browsing filters.' },
   { id: 'alerts', q: 'Can I receive price-drop notifications?', a: 'Notifications are not available yet. Save products to your watchlist, then check the Price drops view in Saved for changes since you saved them.' },
   { id: 'free', q: 'Is it free to use?', a: 'Yes. No account, sign-up or subscription is required.' },
 ]
@@ -24,7 +27,7 @@ export default function FAQPage() {
       onToggle={event => track(event.currentTarget.open ? 'faq_item_expanded' : 'faq_item_collapsed', { question: item.q })}>
       <summary>{item.q}</summary><p>{item.a}</p>
     </details>)}</div>
-    <div className="contact-section"><div><h2>Something to improve?</h2><p>Report an issue or suggest a feature. A GitHub account is required.</p></div>
+    <div className="contact-section"><div><h2>Something to improve?</h2><p>Report incorrect prices, broken links, or suggest a feature on GitHub. Include the product link and country. Reports are public and require a GitHub account; please leave out personal information.</p></div>
       <a className="primary-button" href="https://github.com/joshuajz/Uniqlo-Pricetracker/issues/new?assignees=&labels=triage%2C+needs+triage%2C+bug%2C+feature+request&template=issue_template.md&title=%5BFeature+Request%2FBug%5D+Short+but+descriptive+title"
         target="_blank" rel="noopener noreferrer" onClick={() => track('faq_contact_click')}>Report an issue on GitHub <span aria-hidden="true">↗</span><span className="sr-only"> (opens in a new tab)</span></a>
     </div>

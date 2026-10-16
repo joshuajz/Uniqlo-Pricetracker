@@ -594,3 +594,18 @@ button.facet-option:hover { background:var(--wash); }
   .history-summary>div:last-child { grid-column:1/-1; }
   .history-range-controls button { flex:1; padding:8px; }
 }
+
+.typical-help { position:relative; display:inline-flex; vertical-align:middle; font:12px/1.6 Inter,system-ui,sans-serif; }
+.typical-help>button { display:grid; place-items:center; width:28px; height:28px; padding:0; border:0; background:transparent; }
+.typical-help>button>span { display:grid; place-items:center; width:17px; height:17px; border:1px solid var(--muted); border-radius:50%; color:var(--muted); font:600 11px Inter,system-ui,sans-serif; }
+.typical-help .typical-explanation { position:absolute; z-index:150; bottom:calc(100% + 8px); right:0; width:min(280px,calc(100vw - 40px)); padding:14px; border:1px solid var(--control-border); background:var(--surface); color:var(--ink); box-shadow:0 6px 20px #0002; white-space:normal; text-align:left; font:12px/1.6 Inter,system-ui,sans-serif; }
+.typical-explanation strong { display:block; margin-bottom:5px; font:600 12px Inter,system-ui,sans-serif; }
+.typical-basis { display:inline-flex; align-items:center; }
+.price-basis .typical-explanation { right:auto; left:0; }
+.copy-link-control { position:relative; margin-left:auto; }
+.copy-link { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; padding:6px 8px; border:1px solid var(--border); background:var(--surface); color:var(--muted); font-size:11px; }
+.copy-link-fallback { position:absolute; z-index:10; top:100%; right:0; width:min(280px,80vw); padding:12px; background:var(--surface); border:1px solid var(--border); font-size:12px; }
+.copy-link-fallback input { width:100%; margin-top:6px; padding:8px; border:1px solid var(--border); }
+@media(max-width:650px) {
+  .typical-help>button { width:32px; height:32px; }
+}
