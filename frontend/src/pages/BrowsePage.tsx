@@ -260,7 +260,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
       <header className="browse-heading volume-heading" inert={filterModalActive}>
         <div className="volume-copy">
           <p className="browse-eyebrow">Uniqlo {market.name} price tracker</p>
-          <h1 tabIndex={-1}>{dealsOnly ? 'Deals, within reach.' : 'All tracked products.'}</h1>
+          <h1 tabIndex={-1}><span className="browse-title-desktop">{dealsOnly ? 'Deals, within reach.' : 'All tracked products.'}</span><span className="browse-title-mobile">{dealsOnly ? 'Find your next deal.' : 'Find a product.'}</span></h1>
           <p className="browse-intro">{dealsOnly
             ? `Independent tracker for Uniqlo ${market.name} price drops`
             : `Search Uniqlo ${market.name} products and price history`}
