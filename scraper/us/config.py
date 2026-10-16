@@ -35,7 +35,6 @@ CONFIG = MarketConfig(
         "kids/sweaters",
         "kids/shirts-and-blouses",
         "kids/bottoms",
-        "kids/dresses",
         "kids/innerwear",
         "kids/accessories",
         "kids/girls",
