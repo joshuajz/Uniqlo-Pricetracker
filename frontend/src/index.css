@@ -608,4 +608,6 @@ button.facet-option:hover { background:var(--wash); }
 .copy-link-fallback input { width:100%; margin-top:6px; padding:8px; border:1px solid var(--border); }
 @media(max-width:650px) {
   .typical-help>button { width:32px; height:32px; }
+  .product-page-price { position:relative; }
+  .product-page-price .typical-help { position:static; }
 }
