@@ -451,7 +451,7 @@ export default function BrowsePage({ dealsOnly }: { dealsOnly: boolean }) {
                   <ProductImage id={p.product_id} />
                   <span className="product-info"><span className="product-copy">
                     <span className="product-name">{p.name}</span>
-                    <span className="product-meta">{departmentsLabel(p)} · {productCategory(p)}</span>
+                    <span className="product-meta">{departmentsLabel(p)}<span className="product-card-category"> · {productCategory(p)}</span></span>
                     {productFacets(p)[0] && <span className="product-tag">{productFacets(p)[0].label}</span>}
                   </span>
                     {p.is_archived ? <span className="archived-badge">Archived · {formatRecordingDate(p.datetime)}</span>
