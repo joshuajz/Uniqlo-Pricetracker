@@ -12,6 +12,8 @@ const product = (id: string, archived = false, market = 'ca') => ({
 
 export const test = base.extend({
   page: async ({ page }, use) => {
+    // Keep fixture prices fresh regardless of when CI runs, without pausing timers.
+    await page.clock.setFixedTime(new Date(date))
     await page.addInitScript(() => localStorage.setItem('uniqlo-tracker-analytics-consent-v1', 'declined'))
     await page.route('**/api/**', async route => {
       const url = new URL(route.request().url())

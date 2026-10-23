@@ -71,6 +71,19 @@ test('mobile filters return to results, restore focus, and keep products near th
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
+test('stale catalogue prices show a warning when the browser date advances', async ({page}) => {
+  await page.goto('/ca')
+  const firstProduct = page.getByRole('link',{name:/View price history for Cotton/})
+  const warning = page.getByRole('status').filter({hasText:'Prices were last checked'})
+  await expect(firstProduct).toBeVisible()
+  await expect(warning).not.toBeVisible()
+
+  await page.clock.setFixedTime(new Date('2026-10-23T00:00:00Z'))
+  await page.reload()
+  await expect(warning).toHaveText('Prices were last checked October 15, 2026. Check Uniqlo for current prices.')
+  await expect(firstProduct).toBeVisible()
+})
+
 test('Typical help opens from the price and closes with Escape', async ({page}) => {
   await page.goto(`/ca/products/${currentId}`)
   const help = page.getByRole('button',{name:'What does Typical mean?'}).first()
