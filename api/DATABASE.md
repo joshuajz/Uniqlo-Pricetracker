@@ -155,11 +155,9 @@ only if no other product still references it. The first deployment of this schem
 deliberately drops the legacy product-keyed `images` table; those photos are
 restored by the next image-enabled scrape.
 
-The scheduled scrapers fill missing photos daily and refresh all photos on the
-first day of each month (UTC). The market-scoped `/api/:market/product-images`
-endpoint lists stored image mappings, including historical products, so daily
-runs download only absent images and retry failed downloads. Manual runs also
-fill missing photos and can use `include_images` for a full refresh.
+Scrapers now produce price-only archives and never download images. The API
+retains its legacy image-ingest compatibility, but scheduled workflows no longer
+supply photos.
 Price-only uploads preserve existing photos. Existing database images are not
 recompressed at startup; they are replaced when a subsequent image upload
 includes them. This also means photos for products absent from future scrapes
@@ -194,3 +192,12 @@ DATABASE_URL=postgres://user:password@localhost:5432/uniqlo_tracker?sslmode=disa
 ```
 
 On Railway, `DATABASE_URL` is automatically set when a PostgreSQL add-on is attached.
+
+## Operator cleanup
+
+`scripts/retain-canada-prices.sql` is a one-time transactional cleanup, not a
+startup migration. It removes all images and US/GB/JP market data while verifying
+Canadian row counts and fingerprints. It refuses pending imports and shares the
+ingestion locks. Canada legacy tables and duplicate archives remain untouched.
+Restart the API after running it to clear its in-memory product caches. Existing
+platform backups are not modified by this SQL.

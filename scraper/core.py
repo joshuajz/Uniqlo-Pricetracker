@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import json
-import http.client
 import os
-import shutil
 import time
 import urllib.error
 import urllib.parse
@@ -55,11 +53,7 @@ class ScraperSettings:
     request_max_attempts: int
     retry_base_seconds: float
     category_max_attempts: int
-    image_workers: int
-    image_download_timeout: int
     min_products: int
-    save_photo: bool
-    save_missing_photo: bool = False
 
     @classmethod
     def from_env(cls, default_min_products: int) -> ScraperSettings:
@@ -72,11 +66,7 @@ class ScraperSettings:
             request_max_attempts=_positive_int_env("REQUEST_MAX_ATTEMPTS", 4),
             retry_base_seconds=_non_negative_float_env("RETRY_BASE_SECONDS", 1),
             category_max_attempts=_positive_int_env("CATEGORY_MAX_ATTEMPTS", 2),
-            image_workers=_positive_int_env("IMAGE_WORKERS", 8),
-            image_download_timeout=_positive_int_env("IMAGE_DOWNLOAD_TIMEOUT", 30),
             min_products=_positive_int_env("MIN_PRODUCTS", default_min_products),
-            save_photo=os.getenv("SAVE_PHOTO", "false").lower() == "true",
-            save_missing_photo=os.getenv("SAVE_MISSING_PHOTO", "false").lower() == "true",
         )
 
 
@@ -335,31 +325,9 @@ def current_price(config: MarketConfig, item: dict[str, Any]) -> str:
     )
 
 
-def product_image_url(item: dict[str, Any]) -> str | None:
-    images = item.get("images")
-    main_images = images.get("main") if isinstance(images, dict) else None
-    if not isinstance(main_images, dict) or not main_images:
-        return None
-
-    preferred_codes = [item.get("representativeColorDisplayCode")]
-    representative = item.get("representative")
-    if isinstance(representative, dict):
-        color = representative.get("color")
-        if isinstance(color, dict):
-            preferred_codes.append(color.get("displayCode"))
-    for code in preferred_codes:
-        image = main_images.get(code) if code is not None else None
-        if isinstance(image, dict) and image.get("image"):
-            return image["image"]
-    for image in main_images.values():
-        if isinstance(image, dict) and image.get("image"):
-            return image["image"]
-    return None
-
-
 def parse_product(
     config: MarketConfig, item: dict[str, Any]
-) -> tuple[dict[str, Any], str | None]:
+) -> dict[str, Any]:
     product_id = item.get("productId")
     name = item.get("name")
     if not isinstance(product_id, str) or not product_id:
@@ -377,7 +345,7 @@ def parse_product(
         "url": f"{config.site_base_url}/products/{product_id}/{price_group}",
         "image": None,
     }
-    return product, product_image_url(item)
+    return product
 
 
 def product_selection_key(
@@ -398,25 +366,20 @@ def product_selection_key(
 def canonical_catalogue(
     config: MarketConfig,
     results_by_route: dict[str, CategoryResult],
-    images_by_route: dict[str, dict[str, str]],
-) -> tuple[dict[str, list[dict[str, Any]]], dict[str, str]]:
-    """Give every category occurrence the same selected price group and photo."""
+) -> dict[str, list[dict[str, Any]]]:
+    """Give every category occurrence the same selected price group."""
     selected: dict[str, dict[str, Any]] = {}
-    image_urls: dict[str, str] = {}
     for route in config.category_routes:
         for product in results_by_route[route].products:
             product_id = product["product_id"]
             previous = selected.get(product_id)
             if previous is None or product_selection_key(config, product) < product_selection_key(config, previous):
                 selected[product_id] = product
-                image_urls.pop(product_id, None)
-                if image_url := images_by_route[route].get(product_id):
-                    image_urls[product_id] = image_url
     prices = {
         route: [dict(selected[p["product_id"]]) for p in results_by_route[route].products]
         for route in config.category_routes
     }
-    return prices, image_urls
+    return prices
 
 
 PageFetcher = Callable[[Category, int], tuple[list[dict[str, Any]], int]]
@@ -428,7 +391,7 @@ def scrape_category(
     worker_id: int = 0,
     page_fetcher: PageFetcher | None = None,
     settings: ScraperSettings | None = None,
-) -> tuple[CategoryResult, dict[str, str]]:
+) -> CategoryResult:
     """Fetch and validate every API page for one category."""
     active_settings = settings or ScraperSettings.from_env(
         config.default_min_products
@@ -443,7 +406,6 @@ def scrape_category(
     expected_total: int | None = None
     listing_keys: set[tuple[str, str]] = set()
     products_by_id: dict[str, dict[str, Any]] = {}
-    images_by_id: dict[str, str] = {}
 
     while expected_total is None or offset < expected_total:
         items, page_total = fetch_page(category, offset)
@@ -474,13 +436,10 @@ def scrape_category(
                     "across API pages"
                 )
             listing_keys.add(listing_key)
-            product, image_url = parse_product(config, item)
+            product = parse_product(config, item)
             previous = products_by_id.get(product["product_id"])
             if previous is None or product_selection_key(config, product) < product_selection_key(config, previous):
                 products_by_id[product["product_id"]] = product
-                images_by_id.pop(product["product_id"], None)
-                if image_url:
-                    images_by_id[product["product_id"]] = image_url
         offset += len(items)
 
     if len(listing_keys) != expected_total:
@@ -494,7 +453,7 @@ def scrape_category(
         f"[Worker {worker_id}] Completed: {category.route} "
         f"({len(products)} products; {expected_total} API listings verified)"
     )
-    return CategoryResult(category.route, products, expected_total), images_by_id
+    return CategoryResult(category.route, products, expected_total)
 
 
 def scrape_category_with_retries(
@@ -502,7 +461,7 @@ def scrape_category_with_retries(
     settings: ScraperSettings,
     category: Category,
     worker_id: int,
-) -> tuple[CategoryResult, dict[str, str]]:
+) -> CategoryResult:
     last_error: Exception | None = None
     for attempt in range(1, settings.category_max_attempts + 1):
         try:
@@ -519,105 +478,6 @@ def scrape_category_with_retries(
         f"{category.route} failed after {settings.category_max_attempts} attempts: "
         f"{last_error}"
     ) from last_error
-
-
-def download_product_image(
-    config: MarketConfig,
-    settings: ScraperSettings,
-    output_dir: Path,
-    product_id: str,
-    image_url: str,
-) -> str:
-    relative_path = Path("images") / f"{product_id}.jpg"
-    image_path = output_dir / relative_path
-    image_path.parent.mkdir(parents=True, exist_ok=True)
-    request = urllib.request.Request(
-        image_url,
-        headers={
-            "Accept": "image/jpeg,image/*;q=0.8,*/*;q=0.5",
-            "User-Agent": request_headers(config)["User-Agent"],
-        },
-    )
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    with opener.open(request, timeout=settings.image_download_timeout) as response:
-        image_path.write_bytes(response.read())
-    return relative_path.as_posix()
-
-
-def existing_image_ids(config: MarketConfig, settings: ScraperSettings) -> set[str]:
-    """Read stored images, including products absent from the latest price snapshot."""
-    api_url = os.getenv("API_URL", "https://api.uniqlotracker.com").rstrip("/")
-    url = f"{api_url}/api/{config.market_code.lower()}/product-images"
-    request = urllib.request.Request(url, headers={"Accept": "application/json"})
-    with urllib.request.urlopen(request, timeout=settings.request_timeout_seconds) as response:
-        payload = json.load(response)
-    if not isinstance(payload, dict):
-        raise ValueError("Invalid product image inventory")
-    ids = payload.get("product_ids")
-    if payload.get("market") != config.market_code or not isinstance(ids, list) or any(
-        not isinstance(product_id, str) for product_id in ids
-    ):
-        raise ValueError("Invalid product image inventory")
-    return set(ids)
-
-
-def add_images(
-    config: MarketConfig,
-    settings: ScraperSettings,
-    output_dir: Path,
-    prices: dict[str, list[dict[str, Any]]],
-    images_by_id: dict[str, str],
-) -> int:
-    """Download unique images and attach paths to every category occurrence."""
-    if not settings.save_photo and not settings.save_missing_photo:
-        return 0
-    if settings.save_missing_photo and not settings.save_photo:
-        try:
-            existing = existing_image_ids(config, settings)
-        except (OSError, ValueError, http.client.HTTPException) as exc:
-            # An unavailable inventory must not delay photos or the price import.
-            print(f"WARNING: Image inventory unavailable; downloading all images: {exc}")
-        else:
-            images_by_id = {
-                product_id: url for product_id, url in images_by_id.items()
-                if product_id not in existing
-            }
-            if not images_by_id:
-                print("INFO: No missing product images to download")
-                return 0
-    if not images_by_id:
-        print("WARNING: The API returned no product image URLs")
-        return 0
-    (output_dir / "images").mkdir(parents=True, exist_ok=True)
-    paths: dict[str, str] = {}
-    failures = 0
-    with ThreadPoolExecutor(
-        max_workers=min(settings.image_workers, len(images_by_id))
-    ) as pool:
-        futures = {
-            pool.submit(
-                download_product_image,
-                config,
-                settings,
-                output_dir,
-                product_id,
-                image_url,
-            ): product_id
-            for product_id, image_url in images_by_id.items()
-        }
-        for future in as_completed(futures):
-            product_id = futures[future]
-            try:
-                paths[product_id] = future.result()
-            except Exception as exc:
-                failures += 1
-                print(f"WARNING: Image download failed for {product_id}: {exc}")
-
-    for products in prices.values():
-        for product in products:
-            product["image"] = paths.get(product["product_id"])
-    print(f"INFO: Downloaded {len(paths)}/{len(images_by_id)} unique product images")
-    return failures
 
 
 def create_archive(
@@ -650,11 +510,6 @@ def create_archive(
         json.dump(output, output_file, indent=2, ensure_ascii=False)
     with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.write(prices_path, "prices.json")
-        images_path = output_dir / "images"
-        if images_path.exists():
-            for image_file in images_path.rglob("*"):
-                if image_file.is_file():
-                    archive.write(image_file, image_file.relative_to(output_dir))
     print(
         f"INFO: Created {archive_path} with {total_products} products across "
         f"{len(categories)} categories"
@@ -667,9 +522,6 @@ def run(config: MarketConfig, output_dir: Path) -> None:
     output_dir = output_dir.resolve()
     for old_output in (output_dir / "prices.json", output_dir / "output.zip"):
         old_output.unlink(missing_ok=True)
-    images_path = output_dir / "images"
-    if images_path.exists():
-        shutil.rmtree(images_path)
 
     route_count = len(config.category_routes)
     print(
@@ -681,11 +533,9 @@ def run(config: MarketConfig, output_dir: Path) -> None:
         request_json(config, settings, config.taxonomy_api_url),
     )
     print(f"INFO: Resolved all {len(categories)} category routes")
-    print(f"INFO: Product images: refresh={settings.save_photo}, fill missing={settings.save_missing_photo}")
 
     start_time = time.time()
     results_by_route: dict[str, CategoryResult] = {}
-    images_by_route: dict[str, dict[str, str]] = {}
     failures: dict[str, str] = {}
     worker_count = min(settings.max_workers, len(categories))
     with ThreadPoolExecutor(max_workers=worker_count) as pool:
@@ -702,9 +552,8 @@ def run(config: MarketConfig, output_dir: Path) -> None:
         for future in as_completed(futures):
             category = futures[future]
             try:
-                result, images = future.result()
+                result = future.result()
                 results_by_route[result.route] = result
-                images_by_route[result.route] = images
             except Exception as exc:
                 failures[category.route] = str(exc)
 
@@ -717,7 +566,7 @@ def run(config: MarketConfig, output_dir: Path) -> None:
             print(f"ERROR: {route}: {error}")
         raise SystemExit(1)
 
-    prices, all_images = canonical_catalogue(config, results_by_route, images_by_route)
+    prices = canonical_catalogue(config, results_by_route)
     total_products = sum(len(products) for products in prices.values())
     if total_products < settings.min_products:
         print(
@@ -726,14 +575,11 @@ def run(config: MarketConfig, output_dir: Path) -> None:
         )
         raise SystemExit(1)
 
-    image_failures = add_images(
-        config, settings, output_dir, prices, all_images
-    )
     duration_seconds = round(time.time() - start_time, 2)
     create_archive(
         config,
         output_dir,
         prices,
-        image_failures,
+        0,
         duration_seconds,
     )

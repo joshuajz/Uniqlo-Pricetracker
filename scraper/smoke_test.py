@@ -44,7 +44,7 @@ def main() -> int:
     items, total = fetch_product_page(config, settings, category, 0)
     if not items or total < len(items):
         raise RuntimeError("product API returned an invalid sample")
-    sample, image_url = parse_product(config, items[0])
+    sample = parse_product(config, items[0])
     summary = {
         "market": config.market_code,
         "currency": config.currency_code,
@@ -54,7 +54,6 @@ def main() -> int:
         "sample_product_id": sample["product_id"],
         "sample_name": sample["name"],
         "sample_price": sample["price"],
-        "sample_has_image": bool(image_url),
     }
     print(f"PASS: Uniqlo {config.name} API returned usable data")
     print(json.dumps(summary, indent=2, ensure_ascii=False))
