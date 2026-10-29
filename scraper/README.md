@@ -3,8 +3,7 @@
 The scrapers use the public JSON endpoints that power each Uniqlo storefront.
 They do not launch a browser, visit individual product pages, or require a proxy.
 One taxonomy request resolves the site's current category IDs, then each category
-is downloaded in pages of up to 100 listings. Product images are disabled by
-default to keep network traffic low.
+is downloaded in pages of up to 100 listings. Product images are never downloaded or included in archives.
 
 ## Markets
 
@@ -22,13 +21,13 @@ girls collections to capture products missing from its standard categories.
 
 The shared implementation lives in `core.py`; each market folder contains only
 the routes and storefront settings that differ. This keeps retry, pagination,
-validation, archive, and image behavior consistent across countries.
+validation and archive behavior consistent across countries.
 
 One observation is retained per product ID. When multiple price groups are
 listed, the scraper prefers primary group `00`, then the lowest available group
 code; within a group, the lowest listed price breaks ties. Selection is consistent
 across pages and categories, so listing order cannot create a price change. Every
-category uses the selected group's price, product URL, and photo. Archives retain
+category uses the selected group's price and product URL. Archives retain
 the `price_group` field for inspection; existing historical observations are not
 rewritten.
 
@@ -46,22 +45,12 @@ python us/main.py
 ```
 
 Each command writes `prices.json` and `output.zip` in its own country folder.
-Set `SAVE_PHOTO=true` to refresh one image per unique product, or
-`SAVE_MISSING_PHOTO=true` to download only images absent from the application API
-(using `API_URL`, defaulting to `https://api.uniqlotracker.com`). Full refresh takes
-precedence when both are enabled. Optional settings
-include `MAX_WORKERS`, `API_PAGE_SIZE`, `REQUEST_MAX_ATTEMPTS`, and
-`MIN_PRODUCTS`.
+Archives contain only `prices.json`. Old image environment flags have no effect,
+and leftover local image files are not packaged. Optional settings include
+`MAX_WORKERS`, `API_PAGE_SIZE`, `REQUEST_MAX_ATTEMPTS`, and `MIN_PRODUCTS`.
 
-Every scheduled workflow uploads prices and fills missing photos daily, including
-new arrivals and retries of failed downloads. Stored image IDs are checked once
-per market through `/api/:market/product-images`; products missing from the latest
-price snapshot still retain their images. If the inventory is unavailable or
-invalid, the scraper downloads all images so prices and new photos can still be
-imported. All photos are refreshed on the first day of each month (UTC). Manual
-workflow runs fill missing photos and can request a full refresh with
-`include_images`. The Go API compresses uploaded photos before storage; local
-scraper downloads remain at their original quality.
+Only the Canada workflow is currently enabled in GitHub. Other regional workflows
+and the regional smoke-test workflow are disabled.
 
 Regional workflows run once per UTC day without overlapping:
 
@@ -71,9 +60,6 @@ Regional workflows run once per UTC day without overlapping:
 | United Kingdom | 02:15 |
 | Japan | 04:30 |
 | United States | 06:45 |
-
-Every market refreshes all photos on the first UTC day of the month. Each workflow
-also supports a manual full refresh with the `include_images` option.
 
 For a small live API check that fetches only two products:
 

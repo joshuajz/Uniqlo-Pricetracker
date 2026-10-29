@@ -4,12 +4,7 @@ on:
   schedule:
     - cron: "30 4 * * *"
   workflow_dispatch:
-    inputs:
-      include_images:
-        description: Download and ingest product images
-        required: false
-        type: boolean
-        default: false
+
 
 concurrency:
   group: uniqlo-japan-scraper
@@ -33,19 +28,9 @@ jobs:
           python-version: "3.13"
       - name: Run scraper tests
         run: python -m unittest discover -s tests
-      - name: Configure scrape mode
-        run: |
-          if [[ "${{ github.event_name }}" == "schedule" && "$(date -u +%d)" == "01" ]]; then
-            echo "SAVE_PHOTO=true" >> "$GITHUB_ENV"
-          elif [[ "${{ inputs.include_images }}" == "true" ]]; then
-            echo "SAVE_PHOTO=true" >> "$GITHUB_ENV"
-          else
-            echo "SAVE_PHOTO=false" >> "$GITHUB_ENV"
-          fi
       - name: Run Japan scraper
         env:
           PYTHONUNBUFFERED: 1
-          SAVE_MISSING_PHOTO: "true"
         run: python japan/main.py
       - name: Queue import and wait for completion
         env:
